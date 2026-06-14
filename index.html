@@ -150,6 +150,12 @@
       </div>
       <div class="settings-content">
         <div class="settings-section">
+          <div class="settings-section-label">外觀</div>
+          <div class="settings-card">
+            <div id="theme-picker" class="theme-swatch-row"></div>
+          </div>
+        </div>
+        <div class="settings-section">
           <div class="settings-section-label">資料備份</div>
           <div class="settings-card">
             <button class="settings-row" onclick="exportAppData()">
@@ -843,8 +849,8 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="data.js?v=13"></script>
+<script src="app.js?v=13"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

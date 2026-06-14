@@ -5,6 +5,48 @@
 // ===== CONSTANTS =====
 const PAGE_ORDER = ['recipes', 'fooddb', 'diary', 'quests', 'workout', 'habits', 'habit-detail', 'profile', 'settings', 'achievements', 'inbody'];
 const SUB_PAGE_PARENT = { fooddb: 'recipes', inbody: 'profile', 'habit-detail': 'habits', achievements: 'profile', settings: 'profile' };
+
+// ===== THEMES =====
+const THEMES = [
+  { id:'sage',     name:'鼠尾草綠', sage:'#4D6A55', sageMid:'#6A8B72', sageLight:'#A0BDA8', sagePale:'#EBF2EC', sageFaint:'#F4F8F5', sageMuted:'#C8D8CA' },
+  { id:'ocean',    name:'深海藍',   sage:'#2E6B9E', sageMid:'#4A8BBF', sageLight:'#82B4D8', sagePale:'#E3EFF8', sageFaint:'#F2F7FC', sageMuted:'#B0CCE4' },
+  { id:'rose',     name:'玫瑰粉',   sage:'#9E4E6B', sageMid:'#BF6A87', sageLight:'#D8A0B4', sagePale:'#F8E8EE', sageFaint:'#FCF3F6', sageMuted:'#E4B8C8' },
+  { id:'amber',    name:'琥珀金',   sage:'#8A6520', sageMid:'#AA8038', sageLight:'#C8A565', sagePale:'#F5EDD8', sageFaint:'#FAF6ED', sageMuted:'#E0C88A' },
+  { id:'teal',     name:'湖水青',   sage:'#2A7A7A', sageMid:'#3D9898', sageLight:'#6DBDBD', sagePale:'#D8F0F0', sageFaint:'#ECF8F8', sageMuted:'#8AD8D8' },
+  { id:'lavender', name:'薰衣草紫', sage:'#5D4A8A', sageMid:'#7D64A8', sageLight:'#A898CC', sagePale:'#EDE8F5', sageFaint:'#F5F3FA', sageMuted:'#C8B8E0' },
+];
+
+function applyTheme(id) {
+  const t = THEMES.find(x => x.id === id) || THEMES[0];
+  const s = document.documentElement.style;
+  s.setProperty('--sage',       t.sage);
+  s.setProperty('--sage-mid',   t.sageMid);
+  s.setProperty('--sage-light', t.sageLight);
+  s.setProperty('--sage-pale',  t.sagePale);
+  s.setProperty('--sage-faint', t.sageFaint);
+  s.setProperty('--sage-muted', t.sageMuted);
+  s.setProperty('--gold-dark',  t.sage);
+  s.setProperty('--gold-light', t.sageMid);
+}
+
+function selectTheme(id) {
+  setData('appTheme', id);
+  applyTheme(id);
+  renderThemePicker();
+}
+
+function renderThemePicker() {
+  const el = document.getElementById('theme-picker');
+  if (!el) return;
+  const current = getData('appTheme', 'sage');
+  el.innerHTML = THEMES.map(t => `
+    <button class="theme-swatch ${t.id === current ? 'active' : ''}" onclick="selectTheme('${t.id}')">
+      <div class="theme-swatch-circle" style="background:${t.sage}">
+        ${t.id === current ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+      </div>
+      <div class="theme-swatch-name">${t.name}</div>
+    </button>`).join('');
+}
 const MEALS = ['早餐', '午餐', '晚餐', '點心'];
 const MEAL_ICONS = { '早餐':'sunrise', '午餐':'sun', '晚餐':'moon', '點心':'apple' };
 
@@ -442,6 +484,7 @@ function onPageEnter(pageId) {
   if (pageId === 'profile')       renderProfile();
   if (pageId === 'achievements')  renderAchievements();
   if (pageId === 'inbody')        renderInbody();
+  if (pageId === 'settings')      renderThemePicker();
 }
 
 // ===== MODAL & SHEET =====
@@ -5173,6 +5216,7 @@ function renderAchievements() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initStorage();
+  applyTheme(getData('appTheme', 'sage'));
   state.currentDate = todayStr();
   renderProfile();
   updateNavBar('profile');
