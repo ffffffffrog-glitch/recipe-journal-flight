@@ -2787,7 +2787,7 @@ function _buildWorkoutEntryBubble(e, isToday) {
   const note = e.note ? `<div class="wb-note">${e.note}</div>` : '';
   const bubbleInner = `<div class="wdb-entry-body">${content}${note}</div><div class="wdb-edit-btn">${icon('pen-left', 13)}</div>`;
   if (side === 'right') {
-    return `<div class="workout-bubble-row right"><div class="workout-bubble right" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-left:-2px;flex-shrink:0;display:block"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" fill="#4D6A55"/></svg></div>`;
+    return `<div class="workout-bubble-row right"><div class="workout-bubble right" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-left:-2px;flex-shrink:0;display:block"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" style="fill:var(--sage)"/></svg></div>`;
   } else {
     return `<div class="workout-bubble-row left"><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-right:-2px;flex-shrink:0;display:block;transform:scaleX(-1)"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" fill="white"/></svg><div class="workout-bubble left" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div></div>`;
   }

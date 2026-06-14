@@ -1977,7 +1977,7 @@ img { max-width: 100%; display: block; }
   flex-shrink: 0; color: var(--text-3);
 }
 .ach-icon-wrap.done {
-  background: #eaf1ec; border-color: #c3d9c7; color: var(--sage);
+  background: var(--sage-pale); border-color: var(--sage-muted); color: var(--sage);
 }
 .ach-card-body { flex: 1; min-width: 0; }
 .ach-card-name {
