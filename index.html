@@ -32,7 +32,6 @@
       <div class="recipe-filter-bar">
         <input type="text" id="recipe-search-q" class="search-input" placeholder="搜尋名稱、食材、步驟…" oninput="filterRecipes()">
       </div>
-      <div class="recipe-method-pill-row" id="recipe-method-filter-row"></div>
       <div id="recipe-list" class="recipe-grid pb-80"></div>
       <button class="fab" onclick="openNewRecipeForm()" title="新增食譜">＋</button>
     </section>
@@ -347,16 +346,15 @@
           <div id="recipe-quick-kcal" style="font-size:0.78rem;color:var(--sage);font-weight:600;padding-bottom:10px;width:100%;text-align:center"></div>
         </div>
       </div>
-      <!-- Cooking methods -->
-      <div class="form-section">
-        <label class="form-label">烹調方式（可複選）</label>
-        <div class="method-chips" id="recipe-method-chips"></div>
-      </div>
       <!-- Ingredients -->
       <div class="form-section">
         <div class="section-header">
           <label class="form-label">食材清單</label>
-          <button type="button" class="add-row-btn" onclick="addIngredientRow()">＋ 新增食材</button>
+          <div class="step-controls">
+            <button type="button" class="step-ctrl-btn" onclick="removeIngredientRowLast()">－</button>
+            <button type="button" class="step-ctrl-btn" onclick="addIngredientRow()">＋</button>
+            <button type="button" class="new-food-btn" onclick="openQuickCreateIngredientModal()">新建食材</button>
+          </div>
         </div>
         <div id="ingredient-rows"></div>
       </div>
@@ -786,11 +784,67 @@
   </div>
 </div>
 
+<!-- Quick Create Food Modal -->
+<div id="modal-quick-food" class="modal-center-overlay" style="display:none" onclick="closeQuickCreateIngredientModal()">
+  <div class="quick-food-modal" onclick="event.stopPropagation()">
+    <div class="quick-food-modal-header">
+      <span class="quick-food-modal-title">新建食材</span>
+      <button class="modal-close" onclick="closeQuickCreateIngredientModal()">✕</button>
+    </div>
+    <div class="quick-food-modal-body">
+      <div class="form-section">
+        <label class="form-label">食材名稱</label>
+        <input type="text" id="qcf-modal-name" class="form-input" placeholder="例：雞胸肉" style="width:100%;box-sizing:border-box">
+      </div>
+      <div class="form-section">
+        <label class="form-label">食材分量</label>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="qcf-modal-amount" class="form-input" placeholder="數量" min="0" style="flex:1;min-width:0">
+          <select id="qcf-modal-unit" class="form-input" style="flex:1;min-width:0">
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="份">份</option>
+            <option value="個">個</option>
+            <option value="片">片</option>
+            <option value="條">條</option>
+            <option value="顆">顆</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">營養資訊（每100g）</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label class="form-label" style="font-size:.73rem;margin-bottom:4px">熱量 kcal</label>
+            <input type="number" id="qcf-modal-cal" class="form-input" placeholder="0" min="0" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:.73rem;margin-bottom:4px">蛋白質 g</label>
+            <input type="number" id="qcf-modal-pro" class="form-input" placeholder="0" min="0" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:.73rem;margin-bottom:4px">脂肪 g</label>
+            <input type="number" id="qcf-modal-fat" class="form-input" placeholder="0" min="0" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:.73rem;margin-bottom:4px">碳水 g</label>
+            <input type="number" id="qcf-modal-carb" class="form-input" placeholder="0" min="0" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="quick-food-modal-footer">
+      <button class="btn-ghost" onclick="closeQuickCreateIngredientModal()">取消</button>
+      <button class="btn-primary" onclick="saveQuickCreateIngredientModal()">建立並套用</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="data.js?v=12"></script>
+<script src="app.js?v=12"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

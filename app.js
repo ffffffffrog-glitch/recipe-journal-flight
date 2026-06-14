@@ -4,9 +4,6 @@
 
 // ===== CONSTANTS =====
 const PAGE_ORDER = ['recipes', 'fooddb', 'diary', 'quests', 'workout', 'habits', 'habit-detail', 'profile', 'settings', 'achievements', 'inbody'];
-const COOK_METHODS = ['水煮', '蒸', '炸', '煎', '烤', '炒', '滷', '燉', '生食', '其他'];
-let _selectedCookMethods = new Set();
-let _currentRecipeMethods = new Set();
 const SUB_PAGE_PARENT = { fooddb: 'recipes', inbody: 'profile', 'habit-detail': 'habits', achievements: 'profile', settings: 'profile' };
 const MEALS = ['早餐', '午餐', '晚餐', '點心'];
 const MEAL_ICONS = { '早餐':'sunrise', '午餐':'sun', '晚餐':'moon', '點心':'apple' };
@@ -116,7 +113,6 @@ const ACHIEVEMENTS_DEF = {
   recipe_10:       { name:'食譜收藏家', desc:'累積收藏食譜達 10 道',               icon:'book-open',cat:'recipe' },
   recipe_30:       { name:'私房食譜庫', desc:'累積收藏食譜達 30 道',               icon:'list',     cat:'recipe' },
   recipe_with_img: { name:'用心擺盤',   desc:'建立一道附有照片的食譜',             icon:'camera',   cat:'recipe' },
-  recipe_5methods: { name:'全能料理',   desc:'食譜庫中累計使用 5 種以上不同烹調方式', icon:'flame', cat:'recipe' },
   // quest
   quest_first:     { name:'踏上旅途',   desc:'完成第一個每日任務',             icon:'flag',    cat:'quest' },
   quest_main_done: { name:'主線完成者', desc:'完成一天所有的主線任務',          icon:'target',  cat:'quest' },
@@ -470,21 +466,6 @@ function closeBottomSheet(id) {
 
 // ===== RECIPES =====
 function renderRecipeList() {
-  _renderMethodFilter();
-  filterRecipes();
-}
-
-function _renderMethodFilter() {
-  const row = document.getElementById('recipe-method-filter-row');
-  if (!row) return;
-  row.innerHTML = COOK_METHODS.map(m => `
-    <button class="method-pill ${_selectedCookMethods.has(m) ? 'active' : ''}"
-            onclick="toggleMethodFilter('${m}')">${m}</button>`).join('');
-}
-
-function toggleMethodFilter(m) {
-  _selectedCookMethods.has(m) ? _selectedCookMethods.delete(m) : _selectedCookMethods.add(m);
-  _renderMethodFilter();
   filterRecipes();
 }
 
@@ -499,14 +480,12 @@ function filterRecipes() {
     return;
   }
 
-  const filtered = recipes.filter(r => {
-    if (_selectedCookMethods.size > 0 && !(r.cookMethods || []).some(m => _selectedCookMethods.has(m))) return false;
-    if (!q) return true;
-    return r.name.toLowerCase().includes(q)
-      || (r.notes || '').toLowerCase().includes(q)
-      || (r.ingredients || []).some(i => i.name.toLowerCase().includes(q))
-      || (r.steps || []).some(s => s.toLowerCase().includes(q));
-  });
+  const filtered = q ? recipes.filter(r =>
+    r.name.toLowerCase().includes(q)
+    || (r.notes || '').toLowerCase().includes(q)
+    || (r.ingredients || []).some(i => i.name.toLowerCase().includes(q))
+    || (r.steps || []).some(s => s.toLowerCase().includes(q))
+  ) : recipes;
 
   if (!filtered.length) {
     container.innerHTML = `<div class="recipe-empty"><p style="padding-top:60px">找不到相符的食譜</p></div>`;
@@ -522,23 +501,9 @@ function filterRecipes() {
         <div class="recipe-card-meta">
           <span>${icon('timer', 13)} ${recipe.time || '?'}分</span>
           <span>${icon('flame', 13)} ${recipe.nutrition?.calories || 0}kcal</span>
-          ${(recipe.cookMethods || []).slice(0, 2).map(m => `<span class="recipe-method-tag">${m}</span>`).join('')}
         </div>
       </div>
     </div>`).join('');
-}
-
-function _renderFormMethodChips() {
-  const el = document.getElementById('recipe-method-chips');
-  if (!el) return;
-  el.innerHTML = COOK_METHODS.map(m => `
-    <button type="button" class="method-chip ${_currentRecipeMethods.has(m) ? 'active' : ''}"
-            onclick="toggleFormMethod('${m}')">${m}</button>`).join('');
-}
-
-function toggleFormMethod(m) {
-  _currentRecipeMethods.has(m) ? _currentRecipeMethods.delete(m) : _currentRecipeMethods.add(m);
-  _renderFormMethodChips();
 }
 
 function openRecipeDetail(recipeId) {
@@ -624,9 +589,6 @@ function openNewRecipeForm() {
       <span class="upload-icon">🖼</span>
       <span>點擊上傳食譜圖片</span>
     </div>`;
-  // Init cooking methods
-  _currentRecipeMethods.clear();
-  _renderFormMethodChips();
   // Init ingredient rows (3 default)
   state.ingredientCount = 0;
   document.getElementById('ingredient-rows').innerHTML = '';
@@ -698,9 +660,6 @@ function openEditRecipeForm(recipeId) {
     if (ta) ta.value = s;
   });
 
-  // Load cooking methods
-  _currentRecipeMethods = new Set(recipe.cookMethods || []);
-  _renderFormMethodChips();
   recalcRecipeTotals();
   openModal('modal-recipe');
 }
@@ -866,48 +825,57 @@ function searchIngredient(input) {
       <span class="sug-kcal">${f.per100g.calories}kcal</span>
     </div>`).join('');
 
-  const qEsc = q.replace(/'/g, "\\'");
-  const createHtml = `<div class="sug-create-btn"
-    onmousedown="openQuickCreateFood(${idx},'${qEsc}',event)"
-    ontouchstart="openQuickCreateFood(${idx},'${qEsc}',event)">＋ 建立新食材「${q}」</div>`;
-
-  sugBox.innerHTML = matchesHtml + createHtml;
+  sugBox.innerHTML = matchesHtml || `<div class="sug-empty">無符合食材</div>`;
   sugBox.style.display = 'block';
 }
 
-function openQuickCreateFood(idx, name, event) {
-  if (event) { event.preventDefault(); event.stopPropagation(); }
-  const sugBox = document.getElementById(`ing-sug-${idx}`);
-  sugBox.innerHTML = `
-    <div class="quick-create-form">
-      <div class="qcf-title">建立新食材</div>
-      <input id="qcf-name-${idx}" class="form-input" placeholder="食材名稱" value="${name}" style="width:100%;box-sizing:border-box">
-      <div style="display:flex;gap:6px">
-        <input id="qcf-cal-${idx}"  type="number" class="form-input" placeholder="熱量/100g" min="0" style="flex:1">
-        <input id="qcf-pro-${idx}"  type="number" class="form-input" placeholder="蛋白質g" min="0" style="flex:1">
-      </div>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <input id="qcf-fat-${idx}"  type="number" class="form-input" placeholder="脂肪g" min="0" style="flex:1">
-        <input id="qcf-carb-${idx}" type="number" class="form-input" placeholder="碳水g" min="0" style="flex:1">
-      </div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        <button class="btn-ghost" style="flex:1;font-size:.8rem"
-                onmousedown="hideIngredientSuggestions(${idx})">取消</button>
-        <button class="btn-primary" style="flex:1;font-size:.8rem"
-                onmousedown="saveQuickFood(${idx})">建立並套用</button>
-      </div>
-    </div>`;
-  sugBox.style.display = 'block';
-  setTimeout(() => document.getElementById(`qcf-name-${idx}`)?.focus(), 50);
+function removeIngredientRowLast() {
+  const rows = document.querySelectorAll('.ingredient-row');
+  if (rows.length <= 1) { showToast('至少需要一個食材欄位'); return; }
+  rows[rows.length - 1].remove();
+  recalcRecipeTotals();
 }
 
-function saveQuickFood(idx) {
-  const name = document.getElementById(`qcf-name-${idx}`)?.value.trim();
+let _quickFoodTargetRow = null;
+
+function openQuickCreateIngredientModal() {
+  // Find the last empty ingredient row to apply to
+  const rows = [...document.querySelectorAll('.ingredient-row')];
+  const emptyRows = rows.filter(r => !r.querySelector('.ing-name')?.value?.trim());
+  const emptyRow = emptyRows[emptyRows.length - 1] || null;
+  _quickFoodTargetRow = emptyRow ? emptyRow.id?.replace('ing-row-', '') : null;
+  if (!_quickFoodTargetRow) {
+    // Add a new row and target it
+    addIngredientRow();
+    _quickFoodTargetRow = String(state.ingredientCount - 1);
+  }
+
+  document.getElementById('qcf-modal-name').value = '';
+  document.getElementById('qcf-modal-amount').value = '';
+  document.getElementById('qcf-modal-unit').value = 'g';
+  document.getElementById('qcf-modal-cal').value = '';
+  document.getElementById('qcf-modal-pro').value = '';
+  document.getElementById('qcf-modal-fat').value = '';
+  document.getElementById('qcf-modal-carb').value = '';
+  document.getElementById('modal-quick-food').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('qcf-modal-name')?.focus(), 80);
+}
+
+function closeQuickCreateIngredientModal() {
+  document.getElementById('modal-quick-food').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function saveQuickCreateIngredientModal() {
+  const name = document.getElementById('qcf-modal-name').value.trim();
   if (!name) { showToast('請填寫食材名稱'); return; }
-  const cal  = parseFloat(document.getElementById(`qcf-cal-${idx}`)?.value)  || 0;
-  const pro  = parseFloat(document.getElementById(`qcf-pro-${idx}`)?.value)  || 0;
-  const fat  = parseFloat(document.getElementById(`qcf-fat-${idx}`)?.value)  || 0;
-  const carb = parseFloat(document.getElementById(`qcf-carb-${idx}`)?.value) || 0;
+  const cal  = parseFloat(document.getElementById('qcf-modal-cal').value)  || 0;
+  const pro  = parseFloat(document.getElementById('qcf-modal-pro').value)  || 0;
+  const fat  = parseFloat(document.getElementById('qcf-modal-fat').value)  || 0;
+  const carb = parseFloat(document.getElementById('qcf-modal-carb').value) || 0;
+  const amount = parseFloat(document.getElementById('qcf-modal-amount').value) || 0;
+  const unit = document.getElementById('qcf-modal-unit').value;
 
   const food = {
     id: generateId('f'), name, state: '一般',
@@ -918,8 +886,22 @@ function saveQuickFood(idx) {
   foods.push(food);
   setData('foodDB', foods);
 
-  selectIngredient(idx, food.id, food.name, null);
-  hideIngredientSuggestions(idx);
+  // Apply to target row
+  const rowIdx = _quickFoodTargetRow;
+  if (rowIdx !== null) {
+    const nameInput = document.querySelector(`#ing-row-${rowIdx} .ing-name`);
+    if (nameInput) {
+      nameInput.value = name;
+      nameInput.dataset.foodId = food.id;
+    }
+    const gramsInput = document.querySelector(`#ing-row-${rowIdx} .ing-grams`);
+    if (gramsInput && amount) gramsInput.value = amount;
+    const unitSel = document.querySelector(`#ing-row-${rowIdx} .unit-select`);
+    if (unitSel) unitSel.value = unit;
+    if (gramsInput) updateIngredientNutrition(gramsInput);
+  }
+
+  closeQuickCreateIngredientModal();
   showToast(`「${name}」已建立並套用`);
 }
 
@@ -1087,8 +1069,7 @@ function saveRecipeForm() {
   }, { calories:0, protein:0, fat:0, carbs:0, fiber:0 });
   Object.keys(nutrition).forEach(k => nutrition[k] = r(nutrition[k]));
 
-  const cookMethods = [..._currentRecipeMethods];
-  const recipe = { id, name, time, notes, image: imageData, ingredients, steps, nutrition, cookMethods };
+  const recipe = { id, name, time, notes, image: imageData, ingredients, steps, nutrition };
   const recipes = getData('recipes', []);
   const idx = recipes.findIndex(r => r.id === id);
   if (idx >= 0) recipes[idx] = recipe; else recipes.push(recipe);
@@ -4750,8 +4731,6 @@ function _runAchievementChecks(gd) {
   if (recipes.length >= 10) tryU('recipe_10');
   if (recipes.length >= 30) tryU('recipe_30');
   if (recipes.some(r => r.image)) tryU('recipe_with_img');
-  const allRecipeMethods = new Set(recipes.flatMap(r => r.cookMethods || []));
-  if (allRecipeMethods.size >= 5) tryU('recipe_5methods');
 
   // FOOD
   const allEntries = Object.values(diary).flat();
@@ -5083,7 +5062,7 @@ function showAchievementToast(id) {
     </div>`;
   el.classList.add('show');
   clearTimeout(_achToastTimer);
-  _achToastTimer = setTimeout(() => el.classList.remove('show'), 3400);
+  _achToastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
 let _lvlToastTimer;
