@@ -1,10 +1,11 @@
-const CACHE = 'recipe-app-v4';
+const CACHE = 'recipe-app-v5';
 
 const SHELL = [
   './',
   './index.html',
   './app.js',
   './style.css',
+  './data.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-180.png',

@@ -1398,6 +1398,47 @@ img { max-width: 100%; display: block; }
 .notif-tip svg { flex-shrink: 0; margin-top: 1px; }
 .notif-empty { text-align: center; padding: 40px 0; color: var(--text-3); }
 .notif-empty p { margin-top: 10px; font-size: .85rem; }
+.notif-center-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px 12px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+.notif-center-title { font-size: 1rem; font-weight: 700; color: var(--text); margin: 0; }
+.notif-action-btns { display: flex; gap: 8px; }
+.notif-action-btn {
+  font-size: .72rem; font-weight: 700; padding: 5px 12px;
+  border-radius: 6px; border: 1.5px solid var(--sage-muted);
+  background: none; color: var(--text-2); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s, transform .1s;
+}
+.notif-action-btn:active { transform: scale(.93); }
+.notif-action-btn:not(.danger):active { background: var(--sage-pale); color: var(--sage); }
+.notif-action-btn.danger { border-color: #e0a0a0; color: #c0392b; }
+.notif-action-btn.danger:active { background: #fde8e8; }
+.notif-section-tag {
+  font-size: .6rem; font-weight: 800; letter-spacing: .05em;
+  padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
+}
+.notif-section-tag.tag-ok     { background: #dcf0dc; color: #2a6e2a; }
+.notif-section-tag.tag-warn   { background: #fff0d8; color: #9a4e00; }
+.notif-section-tag.tag-danger { background: #fde8e8; color: #a82020; }
+.notif-section-tag.tag-info   { background: #deeeff; color: #1a5ea0; }
+.notif-card.info { background: #f0f5ff; border-color: #4a7fc0; }
+.notif-topic { font-size: .68rem; color: var(--text-3); font-weight: 600; }
+.export-timestamp {
+  font-size: .72rem; color: var(--text-3);
+  padding: 4px 16px 10px 56px;
+}
+#storage-full-banner {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+  background: #c0392b; color: #fff;
+  padding: 10px 16px; font-size: .82rem; font-weight: 600;
+  text-align: center; line-height: 1.5;
+  align-items: center; justify-content: center; gap: 6px;
+}
+body.storage-error #storage-full-banner { display: flex; }
+body.storage-error .page { padding-top: 44px; }
 
 .wizard-exercise-rec {
   background: var(--sage-faint); border: 1px solid var(--sage-pale);

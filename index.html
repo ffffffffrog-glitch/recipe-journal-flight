@@ -14,9 +14,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
+<div id="storage-full-banner">
+  ⚠ 儲存空間已滿，新資料無法儲存。請立即至設定頁面匯出備份，並刪除部分食譜照片以釋放空間。
+</div>
 <div id="app">
   <main class="page-container">
 
@@ -86,7 +89,7 @@
         <div class="page-header-side"></div>
         <h1 class="page-title">個人主頁</h1>
         <div class="page-header-side" style="display:flex;align-items:center;gap:2px">
-          <button class="page-header-action-btn" id="profile-notif-btn" onclick="openNotifCenter()" title="週況通知">
+          <button class="page-header-action-btn" id="profile-notif-btn" onclick="openNotifCenter()" title="通知中心">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
             <span class="notif-dot" id="profile-notif-dot" style="display:none"></span>
           </button>
@@ -168,6 +171,7 @@
               </div>
               <svg class="settings-row-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
+            <div id="export-timestamp" class="export-timestamp"></div>
             <div class="settings-row-divider"></div>
             <button class="settings-row" onclick="document.getElementById('settings-import-file').click()">
               <div class="settings-row-icon">
@@ -670,11 +674,17 @@
   </div>
 </div>
 
-<!-- ========== SHEET: 週況通知 ========== -->
+<!-- ========== SHEET: 通知中心 ========== -->
 <div id="sheet-notif-center" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-notif-center')">
   <div class="bottom-sheet large" onclick="event.stopPropagation()" style="max-height:82vh;overflow-y:auto">
     <div class="sheet-handle"></div>
-    <h3 class="sheet-title" id="sheet-notif-title">週況通知</h3>
+    <div class="notif-center-header">
+      <h3 class="notif-center-title">通知中心</h3>
+      <div class="notif-action-btns">
+        <button class="notif-action-btn" onclick="markNotifRead()">已讀</button>
+        <button class="notif-action-btn danger" onclick="clearNotifCenter()">刪除</button>
+      </div>
+    </div>
     <div id="notif-center-body" style="padding:0 16px 24px"></div>
   </div>
 </div>
@@ -849,8 +859,8 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=13"></script>
-<script src="app.js?v=13"></script>
+<script src="data.js?v=17"></script>
+<script src="app.js?v=17"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

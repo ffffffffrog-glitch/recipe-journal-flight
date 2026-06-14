@@ -35,6 +35,13 @@ function selectTheme(id) {
   renderThemePicker();
 }
 
+function renderSettings() {
+  const el = document.getElementById('export-timestamp');
+  if (!el) return;
+  const last = getData('lastExportDate', null);
+  el.textContent = last ? `上次匯出：${last}` : '尚無匯出記錄';
+}
+
 function renderThemePicker() {
   const el = document.getElementById('theme-picker');
   if (!el) return;
@@ -328,12 +335,17 @@ const state = {
 };
 
 // ===== STORAGE =====
+let _storageFullError = false;
+
 function getData(key, def) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }
   catch { return def; }
 }
 function setData(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.error(e); }
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {
+    console.error(e);
+    if (!_storageFullError) { _storageFullError = true; _showStorageFullBanner(); }
+  }
 }
 
 function initStorage() {
@@ -484,7 +496,7 @@ function onPageEnter(pageId) {
   if (pageId === 'profile')       renderProfile();
   if (pageId === 'achievements')  renderAchievements();
   if (pageId === 'inbody')        renderInbody();
-  if (pageId === 'settings')      renderThemePicker();
+  if (pageId === 'settings')      { renderThemePicker(); renderSettings(); }
 }
 
 // ===== MODAL & SHEET =====
@@ -1674,10 +1686,12 @@ function renderProfile() {
   ].filter(Boolean);
 
   // --- Notifications badge ---
-  const notifs = computeNotifications();
-  const hasBadge = notifs.some(n => n.type !== 'ok');
   const notifDot = document.getElementById('profile-notif-dot');
-  if (notifDot) notifDot.style.display = hasBadge ? '' : 'none';
+  if (notifDot) {
+    const _badge = _hasBadge();
+    notifDot.style.display = _badge ? '' : 'none';
+    if (_badge) _recordNotifShown();
+  }
 
   // --- Profile header card (view vs edit mode) ---
   const headerCard = _profileEditMode ? `
@@ -2382,37 +2396,155 @@ function computeNotifications() {
       body:`本週 ${strength.length} 次重訓，平均蛋白質 ${Math.round(avgProtein)} g（${(avgProtein/weight).toFixed(1)} g/kg），增肌條件到位` });
   }
 
+  return notifs.map(n => ({ ...n, section: '週況' }));
+}
+
+function _daysSince(dateStr) {
+  return Math.floor((new Date() - new Date(dateStr)) / 86400000);
+}
+
+function _showStorageFullBanner() {
+  document.body.classList.add('storage-error');
+  if (state.currentPage === 'profile') renderProfile();
+}
+
+function _getSystemNotifications() {
+  const notifs = [];
+  if (_storageFullError) {
+    notifs.push({ id: 'storageFull', section: '錯誤', type: 'danger',
+      title: '儲存空間已滿',
+      body: 'localStorage 已達上限，新增的資料無法儲存。請立即至設定頁面匯出備份，並刪除部分食譜照片以釋放空間。'
+    });
+  }
+  const cached = getData('cachedTasks', null);
+  const today = todayStr();
+  const hasRealTasks = cached && cached.date === today &&
+                       ((cached.main || []).length > 0 || (cached.side || []).length > 0);
+  if (!hasRealTasks && getData('earthArchive', []).some(t => t.type === 'main')) {
+    notifs.push({ id: 'archiveFallback', section: '通知', type: 'info',
+      title: '今日任務來自任務庫',
+      body: '目前無法取得最新地球Online每日任務，已從任務庫隨機抽取任務替代。任務獎勵正常計算。'
+    });
+  }
+  const lastExport = getData('lastExportDate', null);
+  const lastBackupReminder = getData('lastBackupReminderAt', null);
+  if ((!lastExport || _daysSince(lastExport) >= 14) && (!lastBackupReminder || _daysSince(lastBackupReminder) >= 14)) {
+    notifs.push({ id: 'backupReminder', section: '通知', type: 'info',
+      title: '建議進行資料備份',
+      body: lastExport
+        ? `上次備份是 ${lastExport}（${_daysSince(lastExport)} 天前），建議定期匯出備份以防資料遺失。`
+        : '尚無備份記錄，建議至設定頁面匯出 JSON 備份以防資料遺失。',
+      tip: '設定頁面 → 資料備份 → 匯出資料'
+    });
+  }
   return notifs;
 }
 
+function _notifSectionClass(section) {
+  if (section === '通知') return 'info';
+  if (section === '警告') return 'warn';
+  if (section === '錯誤') return 'danger';
+  return 'ok';
+}
+
+function _notifIconName(type) {
+  if (type === 'danger') return 'alert-circle';
+  if (type === 'warn')   return 'alert-triangle';
+  if (type === 'info')   return 'info';
+  return 'check-circle';
+}
+
+function _currentWeekStr() {
+  const d = new Date();
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function _ackCurrentNotifications() {
+  const acked = getData('notifAcked', {});
+  const sys = _getSystemNotifications();
+  if (sys.some(n => n.id === 'backupReminder'))  setData('lastBackupReminderAt', todayStr());
+  if (sys.some(n => n.id === 'archiveFallback')) acked.archiveFallback = true;
+  if (computeNotifications().some(n => n.type !== 'ok')) acked.weeklyHealthWeek = _currentWeekStr();
+  setData('notifAcked', acked);
+}
+
+function _hasBadge() {
+  if (_storageFullError) return true;
+  const acked = getData('notifAcked', {});
+  const sys = _getSystemNotifications();
+  const backupInSys    = sys.some(n => n.id === 'backupReminder');
+  const archiveUnacked = sys.some(n => n.id === 'archiveFallback') && !acked.archiveFallback;
+  const healthUnacked  = computeNotifications().some(n => n.type !== 'ok') && acked.weeklyHealthWeek !== _currentWeekStr();
+  return backupInSys || archiveUnacked || healthUnacked;
+}
+
+function _recordNotifShown() {
+  if (_getSystemNotifications().some(n => n.id === 'backupReminder')) {
+    setData('lastBackupReminderAt', todayStr());
+  }
+}
+
+function markNotifRead() {
+  _ackCurrentNotifications();
+  closeBottomSheet('sheet-notif-center');
+  const dot = document.getElementById('profile-notif-dot');
+  if (dot) dot.style.display = _hasBadge() ? '' : 'none';
+}
+
+function clearNotifCenter() {
+  _ackCurrentNotifications();
+  const acked = getData('notifAcked', {});
+  acked.contentCleared = true;
+  setData('notifAcked', acked);
+  closeBottomSheet('sheet-notif-center');
+  const dot = document.getElementById('profile-notif-dot');
+  if (dot) dot.style.display = _hasBadge() ? '' : 'none';
+}
+
 function openNotifCenter() {
-  const notifs = computeNotifications();
+  const acked = getData('notifAcked', {});
+  const sysNotifs = _getSystemNotifications();
+  const weeklyNotifs = computeNotifications();
+  const storageFullNotifs = sysNotifs.filter(n => n.id === 'storageFull');
+  let displayNotifs;
+  if (acked.contentCleared) {
+    const hasNewContent = _hasBadge() && !_storageFullError;
+    if (hasNewContent) {
+      delete acked.contentCleared;
+      setData('notifAcked', acked);
+      displayNotifs = [...sysNotifs, ...weeklyNotifs];
+    } else {
+      displayNotifs = [...storageFullNotifs];
+    }
+  } else {
+    displayNotifs = [...sysNotifs, ...weeklyNotifs];
+  }
+  const allNotifs = displayNotifs;
+  if (allNotifs.some(n => n.id === 'backupReminder')) setData('lastBackupReminderAt', todayStr());
   const el = document.getElementById('notif-center-body');
   if (!el) return;
-
-  const past7Label = (() => {
-    const d = new Date(); d.setDate(d.getDate() - 6);
-    return `${d.getMonth()+1}/${d.getDate()} – 今日`;
-  })();
-
-  if (!notifs.length) {
+  if (!allNotifs.length) {
     el.innerHTML = `
       <div class="notif-empty">
         ${icon('check-circle', 32)}
-        <p>本週狀況良好，沒有特別提醒</p>
+        <p>目前沒有任何通知</p>
       </div>`;
   } else {
-    el.innerHTML = `<div class="notif-period">${past7Label} · ${notifs.length} 則通知</div>` +
-      notifs.map(n => `
-        <div class="notif-card ${n.type}">
-          <div class="notif-card-header">
-            <span class="notif-cat">${n.cat}</span>
-            ${icon(n.type === 'danger' ? 'alert-circle' : n.type === 'warn' ? 'alert-triangle' : 'check-circle', 14)}
+    el.innerHTML = allNotifs.map(n => `
+      <div class="notif-card ${n.type}">
+        <div class="notif-card-header">
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="notif-section-tag tag-${_notifSectionClass(n.section)}">${n.section}</span>
+            ${n.cat ? `<span class="notif-cat">${n.cat}</span>` : ''}
           </div>
-          <div class="notif-title">${n.title}</div>
-          <div class="notif-body">${n.body}</div>
-          ${n.tip ? `<div class="notif-tip">${icon('lightbulb', 11)} ${n.tip}</div>` : ''}
-        </div>`).join('');
+          ${icon(_notifIconName(n.type), 14)}
+        </div>
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-body">${n.body}</div>
+        ${n.tip ? `<div class="notif-tip">${icon('lightbulb', 11)} ${n.tip}</div>` : ''}
+      </div>`).join('');
   }
   openBottomSheet('sheet-notif-center');
 }
@@ -4302,6 +4434,9 @@ async function fetchDailyTasks() {
     const data = await res.json();
     setData('cachedTasks', data);
     updateEarthArchive(data);
+    if ((data.main || []).length > 0 || (data.side || []).length > 0) {
+      const _fa = getData('notifAcked', {}); delete _fa.archiveFallback; setData('notifAcked', _fa);
+    }
     return data;
   } catch {
     if (cached) updateEarthArchive(cached);
@@ -4451,11 +4586,28 @@ async function renderQuests() {
   if (!el) return;
   el.innerHTML = `<div class="quest-loading">${icon('flag', 28)}<p>載入任務中…</p></div>`;
 
-  const tasks   = await fetchDailyTasks();
+  let tasks     = await fetchDailyTasks();
   const today   = todayStr();
   const ctasks  = getCustomTasks();
   const done    = getData('dailyQuestsDone', {});
   const customDone = (done[today] || {}).customDone || {};
+
+  // ── Archive fallback when no real tasks available ──
+  let usingArchiveFallback = false;
+  if (!tasks || (!tasks.main?.length && !tasks.side?.length)) {
+    const archive = getData('earthArchive', []);
+    const mainPool = archive.filter(t => t.type === 'main');
+    const sidePool = archive.filter(t => t.type === 'side');
+    if (mainPool.length > 0) {
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+      tasks = {
+        main: shuffle(mainPool).slice(0, 3).map(t => t.task),
+        side: shuffle(sidePool).slice(0, 1).map(t => t.task),
+        date: today,
+      };
+      usingArchiveFallback = true;
+    }
+  }
 
   // ── Daily tasks section ──
   let dailyHtml = '';
@@ -4464,7 +4616,7 @@ async function renderQuests() {
       <div class="quest-loading" style="padding:30px 0 10px">
         ${icon('flag', 28)}
         <p>今日任務尚未更新</p>
-        <p style="font-size:.8rem;color:var(--text-3);margin-top:4px">每天早上 9 點後更新</p>
+        <p style="font-size:.8rem;color:var(--text-3);margin-top:4px">每天早上 9 點後更新，且任務庫尚無資料</p>
       </div>`;
   } else {
     const isStale = tasks.date !== today;
@@ -4493,7 +4645,8 @@ async function renderQuests() {
     const allDone = allMainDone && (tasks.side.length === 0 || sideDone === tasks.side.length);
 
     dailyHtml = `
-      ${isStale ? `<div class="quest-stale-banner">${icon('info', 13)} 顯示 ${tasks.date} 的任務，今日任務更新中</div>` : ''}
+      ${isStale && !usingArchiveFallback ? `<div class="quest-stale-banner">${icon('info', 13)} 顯示 ${tasks.date} 的任務，今日任務更新中</div>` : ''}
+      ${usingArchiveFallback ? `<div class="quest-stale-banner" style="background:#e8f2ff;border-left-color:#4a7fc0;color:#1a5ea0">${icon('info', 13)} 無法取得最新任務，以下為任務庫隨機任務</div>` : ''}
       <div class="quest-header-card ${allDone ? 'all-done' : ''}">
         <div class="qhc-title">地球Online · 每日任務</div>
         <div class="qhc-date">${tasks.date}</div>
@@ -5249,6 +5402,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const date = new Date().toISOString().slice(0, 10);
     a.href = url; a.download = `食譜日誌備份_${date}.json`;
     a.click(); URL.revokeObjectURL(url);
+    setData('lastExportDate', todayStr());
+    renderSettings();
     showToast('資料已匯出');
   };
 
