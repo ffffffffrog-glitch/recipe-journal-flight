@@ -577,9 +577,9 @@ img { max-width: 100%; display: block; }
 }
 
 .ingredient-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; position: relative; }
-.ingredient-name-wrap { flex: 2; position: relative; }
-.ingredient-amount-wrap { flex: 1; display: flex; align-items: stretch; }
-.ingredient-amount-wrap .form-input { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.ingredient-name-wrap { flex: 1; min-width: 0; position: relative; }
+.ingredient-amount-wrap { flex-shrink: 0; display: flex; align-items: stretch; }
+.ingredient-amount-wrap .form-input { width: 3.2em; min-width: 0; border-radius: var(--r-sm) 0 0 var(--r-sm); }
 .ingredient-amount-wrap .unit {
   padding: 10px 7px; background: var(--bg); border: 1px solid var(--border); border-left: none;
   border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: .75rem; color: var(--text-2);
@@ -775,7 +775,7 @@ img { max-width: 100%; display: block; }
 .toast {
   position: fixed; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 72px);
   left: 50%; transform: translateX(-50%) translateY(10px);
-  background: var(--text); color: var(--white); border-radius: 20px;
+  background: var(--sage); color: var(--white); border-radius: 20px;
   padding: 8px 20px; font-size: .82rem; font-weight: 500; z-index: 9999; opacity: 0;
   transition: opacity .22s, transform .22s; pointer-events: none; white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
@@ -1734,7 +1734,7 @@ img { max-width: 100%; display: block; }
 
 /* Bubble */
 .workout-bubble {
-  max-width: 82%; padding: 14px 20px; border-radius: 14px;
+  max-width: 82%; min-width: calc(5em + 48px); padding: 14px 20px; border-radius: 14px;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: opacity .1s;
 }
@@ -2301,4 +2301,53 @@ img { max-width: 100%; display: block; }
 .settings-row-desc  { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
 .settings-row-arrow { color: var(--text-3); flex-shrink: 0; }
 .settings-row-divider { height: 1px; background: var(--border); margin: 0 16px; }
+
+/* ===== RECIPE FILTER BAR ===== */
+.recipe-filter-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px 0; flex-shrink: 0;
+}
+.recipe-filter-bar .search-input { flex: 1; }
+.recipe-method-pill-row {
+  display: flex; gap: 6px; overflow-x: auto; padding: 6px 16px 2px;
+  flex-shrink: 0; scrollbar-width: none;
+}
+.recipe-method-pill-row::-webkit-scrollbar { display: none; }
+.method-pill {
+  flex-shrink: 0; padding: 4px 12px; border-radius: 20px; font-size: .75rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--white); color: var(--text-2);
+  cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.method-pill.active { border-color: var(--sage); background: var(--sage); color: #fff; }
+
+/* ===== COOKING METHOD CHIPS (recipe form + cards) ===== */
+.method-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.method-chip {
+  padding: 5px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--white); color: var(--text-2);
+  cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.method-chip.active { border-color: var(--sage); background: var(--sage-pale); color: var(--sage); }
+.recipe-method-tag {
+  font-size: .68rem; padding: 1px 6px; border-radius: 10px;
+  background: var(--sage-faint); color: var(--sage); font-weight: 600;
+}
+
+/* ===== ACHIEVEMENT SEARCH ===== */
+.ach-search-bar { padding: 8px 16px 0; }
+.ach-search-bar .search-input { width: 100%; }
+
+/* ===== QUICK CREATE FOOD ===== */
+.quick-create-form { padding: 12px; }
+.quick-create-form .qcf-title {
+  font-size: .78rem; font-weight: 700; color: var(--sage);
+  margin-bottom: 8px; letter-spacing: .03em;
+}
+.quick-create-form .form-input { margin-bottom: 6px; font-size: .85rem; padding: 8px 10px; }
+.sug-create-btn {
+  padding: 10px 14px; font-size: .82rem; font-weight: 600; color: var(--sage);
+  cursor: pointer; border-top: 1px solid var(--border); text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.sug-create-btn:active { background: var(--sage-faint); }
 
