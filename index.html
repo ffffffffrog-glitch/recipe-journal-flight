@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>食譜日誌</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4D6A55">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="食譜日誌">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=11">
+</head>
+<body>
+<div id="app">
+  <main class="page-container">
+
+    <!-- ========== PAGE: 食譜 ========== -->
+    <section id="page-recipes" class="page active">
+      <div class="page-header three-col">
+        <div class="page-header-side"></div>
+        <h1 class="page-title">食譜</h1>
+        <div class="page-header-side">
+          <button class="header-icon-btn" onclick="navigateTo('fooddb')" title="食材庫"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></button>
+        </div>
+      </div>
+      <div id="recipe-list" class="recipe-grid pb-80"></div>
+      <button class="fab" onclick="openNewRecipeForm()" title="新增食譜">＋</button>
+    </section>
+
+    <!-- ========== PAGE: 食材庫 (sub-page of 食譜) ========== -->
+    <section id="page-fooddb" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side">
+          <button class="header-back-btn" onclick="navigateTo('recipes')">‹</button>
+        </div>
+        <h1 class="page-title">食材庫</h1>
+        <div class="page-header-side"></div>
+      </div>
+      <div class="search-bar-container">
+        <input type="text" id="food-search" class="search-input" placeholder="搜尋食材名稱…" oninput="searchFoodDB(this.value)">
+      </div>
+      <div class="category-filter" id="category-filter">
+        <button class="cat-btn active" onclick="filterFoodByCategory('全部',this)">全部</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('肉類',this)">肉類</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('魚海鮮',this)">魚海鮮</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('蛋豆類',this)">蛋豆類</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('蔬菜',this)">蔬菜</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('穀物',this)">穀物</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('乳製品',this)">乳製品</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('油脂',this)">油脂</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('水果',this)">水果</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('其他',this)">其他</button>
+      </div>
+      <div id="food-list" class="food-list"></div>
+      <button class="fab" onclick="openAddFoodForm()" title="新增食材">＋</button>
+    </section>
+
+    <!-- ========== PAGE: 飲食日誌 ========== -->
+    <section id="page-diary" class="page">
+      <div class="page-header">
+        <h1 class="page-title">飲食日誌</h1>
+      </div>
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="changeDiaryDate(-1)">‹</button>
+        <div class="date-display" id="diary-date-display" onclick="openDatePicker()">載入中…</div>
+        <button class="date-nav-btn" onclick="changeDiaryDate(1)">›</button>
+      </div>
+      <input type="date" id="diary-date-input" style="visibility:hidden;height:0;padding:0;border:0" onchange="setDiaryDate(this.value)">
+      <div id="daily-summary" class="daily-summary"></div>
+      <div id="diary-entries" class="diary-entries"></div>
+      <button class="fab" onclick="openAddDiaryEntrySheet()" title="新增飲食記錄">＋</button>
+    </section>
+
+    <!-- ========== PAGE: 個人主頁 ========== -->
+    <section id="page-profile" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side"></div>
+        <h1 class="page-title">個人主頁</h1>
+        <div class="page-header-side" style="display:flex;align-items:center;gap:2px">
+          <button class="page-header-action-btn" id="profile-notif-btn" onclick="openNotifCenter()" title="週況通知">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="notif-dot" id="profile-notif-dot" style="display:none"></span>
+          </button>
+          <button class="page-header-action-btn" onclick="navigateTo('settings')" title="設定">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="profile-content" class="profile-content"></div>
+    </section>
+
+    <!-- ========== PAGE: 每日任務 ========== -->
+    <section id="page-quests" class="page">
+      <div class="page-header">
+        <h1 class="page-title">每日任務</h1>
+      </div>
+      <div id="quest-content" class="quest-page"></div>
+      <div id="quest-history-footer" class="quest-history-footer"></div>
+    </section>
+
+    <!-- ========== PAGE: 運動日記 ========== -->
+    <section id="page-workout" class="page">
+      <div class="page-header">
+        <h1 class="page-title">運動日記</h1>
+      </div>
+      <div id="workout-chat" class="workout-chat"></div>
+      <button class="fab" onclick="openNewWorkoutForm()" title="新增運動">＋</button>
+    </section>
+
+    <!-- ========== PAGE: 習慣追蹤 ========== -->
+    <section id="page-habits" class="page">
+      <div class="page-header">
+        <h1 class="page-title">習慣追蹤</h1>
+      </div>
+      <div id="habits-content" class="habits-content"></div>
+      <button class="fab" onclick="openAddHabitSheet()" title="新增習慣">＋</button>
+    </section>
+
+    <!-- ========== PAGE: 習慣詳情 (sub-page of 習慣追蹤) ========== -->
+    <section id="page-habit-detail" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side">
+          <button class="header-back-btn" onclick="navigateTo('habits')">‹</button>
+        </div>
+        <h1 class="page-title" id="habit-detail-title">習慣詳情</h1>
+        <div class="page-header-side" style="display:flex;justify-content:flex-end">
+          <button class="header-back-btn" onclick="openEditCurrentHabit()"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path fill="currentColor" stroke="none" d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg></button>
+        </div>
+      </div>
+      <div id="habit-detail-content" class="habit-detail-page"></div>
+    </section>
+
+    <!-- ========== PAGE: 設定 (sub-page of 個人) ========== -->
+    <section id="page-settings" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side">
+          <button class="header-back-btn" onclick="navigateTo('profile')">‹</button>
+        </div>
+        <h1 class="page-title">設定</h1>
+        <div class="page-header-side"></div>
+      </div>
+      <div class="settings-content">
+        <div class="settings-section">
+          <div class="settings-section-label">資料備份</div>
+          <div class="settings-card">
+            <button class="settings-row" onclick="exportAppData()">
+              <div class="settings-row-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </div>
+              <div class="settings-row-body">
+                <div class="settings-row-label">匯出資料</div>
+                <div class="settings-row-desc">將所有本地資料儲存為 JSON 備份檔</div>
+              </div>
+              <svg class="settings-row-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div class="settings-row-divider"></div>
+            <button class="settings-row" onclick="document.getElementById('settings-import-file').click()">
+              <div class="settings-row-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="settings-row-body">
+                <div class="settings-row-label">匯入資料</div>
+                <div class="settings-row-desc">從備份 JSON 檔還原所有資料</div>
+              </div>
+              <svg class="settings-row-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+          <input type="file" id="settings-import-file" accept=".json" style="display:none" onchange="importAppData(this)">
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== PAGE: 體組成記錄 (sub-page of 個人) ========== -->
+    <section id="page-inbody" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side">
+          <button class="header-back-btn" onclick="navigateTo('profile')">‹</button>
+        </div>
+        <h1 class="page-title">體組成記錄</h1>
+        <div class="page-header-side"></div>
+      </div>
+      <div id="inbody-content" class="inbody-page"></div>
+    </section>
+
+    <!-- ========== PAGE: 成就館 (sub-page of 個人) ========== -->
+    <section id="page-achievements" class="page">
+      <div class="page-header three-col">
+        <div class="page-header-side">
+          <button class="header-back-btn" onclick="navigateTo('profile')">‹</button>
+        </div>
+        <h1 class="page-title">成就館</h1>
+        <div class="page-header-side"></div>
+      </div>
+      <div id="achievements-content" class="achievements-page"></div>
+    </section>
+
+  </main>
+
+  <!-- ===== MODAL: 自訂任務 ===== -->
+  <div id="modal-custom-task" class="bottom-sheet-overlay" style="display:none" onclick="if(event.target===this)closeCustomTaskModal()">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="ct-modal-title">新增任務</div>
+      <input type="hidden" id="ct-editing-id">
+      <div class="ct-form">
+        <label class="ct-label">任務名稱</label>
+        <input id="ct-name" class="ct-input" type="text" placeholder="輸入任務內容…" maxlength="60">
+        <div class="ct-row">
+          <div class="ct-field">
+            <label class="ct-label">經驗值（XP）</label>
+            <input id="ct-xp" class="ct-input" type="number" min="0" max="999" value="20">
+          </div>
+          <div class="ct-field">
+            <label class="ct-label">金幣（G）</label>
+            <input id="ct-gold" class="ct-input" type="number" min="0" max="999" value="10">
+          </div>
+        </div>
+      </div>
+      <button class="ct-save-btn" onclick="saveCustomTaskModal()">儲存任務</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: 過往任務紀錄 ===== -->
+  <div id="modal-quest-history" class="modal-overlay" style="display:none">
+    <div class="modal-full">
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-quest-history')">✕</button>
+        <h2 class="modal-title">過往任務紀錄</h2>
+        <div></div>
+      </div>
+      <div class="modal-body" id="quest-history-body"></div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: 地球Online 任務庫 ===== -->
+  <div id="modal-earth-archive" class="modal-overlay" style="display:none">
+    <div class="modal-full">
+      <div class="modal-header">
+        <button class="modal-close" onclick="closeModal('modal-earth-archive')">✕</button>
+        <h2 class="modal-title">地球Online 任務庫</h2>
+        <div></div>
+      </div>
+      <div class="modal-body" id="earth-archive-body"></div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: 編輯每日任務 ===== -->
+  <div id="modal-edit-daily-task" class="bottom-sheet-overlay" style="display:none" onclick="if(event.target===this)closeEditDailyTaskModal()">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">編輯任務文字</div>
+      <input type="hidden" id="edit-dt-type">
+      <input type="hidden" id="edit-dt-index">
+      <div class="ct-form">
+        <label class="ct-label">任務內容</label>
+        <input id="edit-dt-text" class="ct-input" type="text" maxlength="80">
+        <div class="ct-row" style="margin-top:10px">
+          <div class="ct-field">
+            <label class="ct-label">經驗值（XP）</label>
+            <input id="edit-dt-xp" class="ct-input" type="number" min="0" max="999">
+          </div>
+          <div class="ct-field">
+            <label class="ct-label">金幣（G）</label>
+            <input id="edit-dt-gold" class="ct-input" type="number" min="0" max="999">
+          </div>
+        </div>
+      </div>
+      <button class="ct-save-btn" onclick="saveEditDailyTask()">儲存</button>
+    </div>
+  </div>
+
+  <!-- ===== ACHIEVEMENT TOAST ===== -->
+  <div id="achievement-toast" class="achievement-toast"></div>
+
+  <!-- ===== LEVEL UP TOAST ===== -->
+  <div id="levelup-toast" class="levelup-toast"></div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="recipes" onclick="navigateTo('recipes')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span class="nav-label">食譜</span>
+    </button>
+    <button class="nav-btn" data-page="diary" onclick="navigateTo('diary')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></span><span class="nav-label">日誌</span>
+    </button>
+    <button class="nav-btn" data-page="quests" onclick="navigateTo('quests')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></span><span class="nav-label">任務</span>
+    </button>
+    <button class="nav-btn" data-page="workout" onclick="navigateTo('workout')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="nav-label">運動</span>
+    </button>
+    <button class="nav-btn" data-page="habits" onclick="navigateTo('habits')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><span class="nav-label">習慣</span>
+    </button>
+    <button class="nav-btn" data-page="profile" onclick="navigateTo('profile')">
+      <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">個人</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ========== MODAL: 食譜表單 ========== -->
+<div id="modal-recipe" class="modal-overlay" style="display:none">
+  <div class="modal-full">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModal('modal-recipe')">✕</button>
+      <h2 class="modal-title" id="recipe-form-title">新增食譜</h2>
+      <button class="modal-save-btn" onclick="saveRecipeForm()">儲存</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="recipe-id">
+      <div class="form-section">
+        <div class="image-upload-area" id="recipe-image-area" onclick="document.getElementById('recipe-image-input').click()">
+          <div class="upload-placeholder">
+            <span class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
+            <span>點擊上傳食譜圖片</span>
+          </div>
+        </div>
+        <input type="file" id="recipe-image-input" accept="image/*" style="display:none" onchange="handleRecipeImageUpload(event)">
+        <input type="hidden" id="recipe-image-data">
+      </div>
+      <div class="form-section">
+        <label class="form-label">食譜名稱</label>
+        <input type="text" id="recipe-name" class="form-input" placeholder="例：番茄炒蛋">
+      </div>
+      <div class="form-row">
+        <div class="form-section">
+          <label class="form-label">烹飪時間</label>
+          <div class="input-with-unit">
+            <input type="number" id="recipe-time" class="form-input" placeholder="30" min="0">
+            <span class="unit">分鐘</span>
+          </div>
+        </div>
+        <div class="form-section" style="display:flex;align-items:flex-end">
+          <div id="recipe-quick-kcal" style="font-size:0.78rem;color:var(--sage);font-weight:600;padding-bottom:10px;width:100%;text-align:center"></div>
+        </div>
+      </div>
+      <!-- Ingredients -->
+      <div class="form-section">
+        <div class="section-header">
+          <label class="form-label">食材清單</label>
+          <button type="button" class="add-row-btn" onclick="addIngredientRow()">＋ 新增食材</button>
+        </div>
+        <div id="ingredient-rows"></div>
+      </div>
+      <!-- Nutrition auto summary -->
+      <div class="nutrition-auto-card" id="nutrition-auto-card">
+        <h4>合計營養素（自動計算）</h4>
+        <div class="nutrition-grid">
+          <div class="nut-item"><span class="nut-label">熱量</span><span class="nut-value" id="tot-kcal">0</span><span class="nut-unit">kcal</span></div>
+          <div class="nut-item"><span class="nut-label">蛋白質</span><span class="nut-value" id="tot-protein">0</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">脂肪</span><span class="nut-value" id="tot-fat">0</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">碳水</span><span class="nut-value" id="tot-carbs">0</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">纖維</span><span class="nut-value" id="tot-fiber">0</span><span class="nut-unit">g</span></div>
+        </div>
+      </div>
+      <!-- Steps -->
+      <div class="form-section">
+        <div class="section-header">
+          <label class="form-label">料理步驟</label>
+          <div class="step-controls">
+            <button type="button" class="step-ctrl-btn" onclick="removeStepRow()">－</button>
+            <button type="button" class="step-ctrl-btn" onclick="addStepRow()">＋</button>
+          </div>
+        </div>
+        <div id="step-rows"></div>
+      </div>
+      <!-- Notes -->
+      <div class="form-section">
+        <label class="form-label">備註</label>
+        <textarea id="recipe-notes" class="form-textarea" rows="3" placeholder="料理技巧、替換食材建議…"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL: 食譜詳情 ========== -->
+<div id="modal-recipe-detail" class="modal-overlay" style="display:none">
+  <div class="modal-full">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModal('modal-recipe-detail')">✕</button>
+      <h2 class="modal-title" id="detail-title">食譜詳情</h2>
+      <button class="modal-save-btn" id="detail-edit-btn" onclick="editCurrentRecipe()"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path style="fill:currentColor;stroke:none" d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg></button>
+    </div>
+    <div class="modal-body" id="recipe-detail-body"></div>
+  </div>
+</div>
+
+<!-- ========== SHEET: 食材表單 ========== -->
+<div id="sheet-food" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-food')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="food-form-title">新增食材</h3>
+    <input type="hidden" id="food-id">
+    <div class="form-row">
+      <div class="form-section" style="flex:2">
+        <label class="form-label">食材名稱</label>
+        <input type="text" id="food-name" class="form-input" placeholder="例：雞胸肉">
+      </div>
+      <div class="form-section" style="flex:1">
+        <label class="form-label">狀態</label>
+        <select id="food-state" class="form-select">
+          <option value="生食">生食</option>
+          <option value="熟食">熟食</option>
+          <option value="加工品">加工品</option>
+          <option value="飲品">飲品</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-section">
+      <label class="form-label">分類</label>
+      <select id="food-category" class="form-select">
+        <option value="肉類">肉類</option>
+        <option value="魚海鮮">魚海鮮</option>
+        <option value="蛋豆類">蛋豆類</option>
+        <option value="蔬菜">蔬菜</option>
+        <option value="水果">水果</option>
+        <option value="穀物">穀物</option>
+        <option value="乳製品">乳製品</option>
+        <option value="油脂">油脂</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <p class="form-hint">以下數值均以每 100g（或 100ml）計算</p>
+    <div class="nutrition-form-grid">
+      <div class="form-section"><label class="form-label">熱量 (kcal)</label><input type="number" id="food-calories" class="form-input" step="0.1" min="0"></div>
+      <div class="form-section"><label class="form-label">蛋白質 (g)</label><input type="number" id="food-protein" class="form-input" step="0.1" min="0"></div>
+      <div class="form-section"><label class="form-label">脂肪 (g)</label><input type="number" id="food-fat" class="form-input" step="0.1" min="0"></div>
+      <div class="form-section"><label class="form-label">碳水 (g)</label><input type="number" id="food-carbs" class="form-input" step="0.1" min="0"></div>
+      <div class="form-section"><label class="form-label">膳食纖維 (g)</label><input type="number" id="food-fiber" class="form-input" step="0.1" min="0"></div>
+    </div>
+    <div class="food-serving-card">
+      <div class="food-serving-header">
+        <span class="form-label" style="margin-bottom:0">自訂份量單位</span>
+        <span style="font-size:.75rem;color:var(--text-3)">選填，例如：半盒、片、顆</span>
+      </div>
+      <input type="text" id="food-serving-unit" class="form-input" placeholder="份量名稱（如：半盒）" style="margin-bottom:10px">
+      <div class="nutrition-form-grid">
+        <div class="form-section"><label class="form-label">熱量 (kcal)</label><input type="number" id="food-sv-calories" class="form-input" step="0.1" min="0"></div>
+        <div class="form-section"><label class="form-label">蛋白質 (g)</label><input type="number" id="food-sv-protein" class="form-input" step="0.1" min="0"></div>
+        <div class="form-section"><label class="form-label">脂肪 (g)</label><input type="number" id="food-sv-fat" class="form-input" step="0.1" min="0"></div>
+        <div class="form-section"><label class="form-label">碳水 (g)</label><input type="number" id="food-sv-carbs" class="form-input" step="0.1" min="0"></div>
+        <div class="form-section"><label class="form-label">膳食纖維 (g)</label><input type="number" id="food-sv-fiber" class="form-input" step="0.1" min="0"></div>
+      </div>
+    </div>
+    <button type="button" class="btn-primary full-width" onclick="saveFoodForm()">儲存食材</button>
+  </div>
+</div>
+
+<!-- ========== SHEET: 新增飲食記錄（三合一 Tab） ========== -->
+<div id="sheet-diary-add" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-diary-add')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title">新增飲食記錄</h3>
+
+    <!-- 餐次選擇 -->
+    <div class="meal-pill-row" id="add-meal-row">
+      <button class="meal-pill active" data-meal="早餐" onclick="setAddMeal('早餐')">早餐</button>
+      <button class="meal-pill" data-meal="午餐" onclick="setAddMeal('午餐')">午餐</button>
+      <button class="meal-pill" data-meal="晚餐" onclick="setAddMeal('晚餐')">晚餐</button>
+      <button class="meal-pill" data-meal="點心" onclick="setAddMeal('點心')">點心</button>
+    </div>
+    <input type="hidden" id="add-meal-value" value="早餐">
+
+    <!-- 常用食物捷徑 -->
+    <div id="frequent-foods-row" class="frequent-foods-row"></div>
+
+    <!-- 來源切換 Tabs -->
+    <div class="add-tabs">
+      <button class="add-tab active" data-tab="manual" onclick="switchDiaryTab('manual')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> 自訂手動</button>
+      <button class="add-tab" data-tab="fooddb" onclick="switchDiaryTab('fooddb')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> 資料庫搜尋</button>
+      <button class="add-tab" data-tab="recipe" onclick="switchDiaryTab('recipe')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg> 常用食譜</button>
+    </div>
+
+    <!-- Panel 1: 手動輸入 -->
+    <div id="add-panel-manual" class="add-panel active">
+      <div class="form-section">
+        <label class="form-label">食物名稱</label>
+        <input type="text" id="dm-name" class="form-input" placeholder="例：7-11 招牌便當">
+      </div>
+      <div class="form-section">
+        <label class="form-label">份量描述</label>
+        <input type="text" id="dm-amount" class="form-input" placeholder="例：1盒、200g、2份">
+      </div>
+      <p class="form-hint">填寫您知道的營養資訊（可部分填寫）</p>
+      <div class="nutrition-form-grid">
+        <div class="form-section"><label class="form-label">熱量 (kcal)</label><input type="number" id="dm-calories" class="form-input" min="0"></div>
+        <div class="form-section"><label class="form-label">蛋白質 (g)</label><input type="number" id="dm-protein" class="form-input" min="0" step="0.1"></div>
+        <div class="form-section"><label class="form-label">脂肪 (g)</label><input type="number" id="dm-fat" class="form-input" min="0" step="0.1"></div>
+        <div class="form-section"><label class="form-label">碳水 (g)</label><input type="number" id="dm-carbs" class="form-input" min="0" step="0.1"></div>
+        <div class="form-section"><label class="form-label">纖維 (g)</label><input type="number" id="dm-fiber" class="form-input" min="0" step="0.1"></div>
+      </div>
+      <button type="button" class="btn-primary full-width" onclick="saveManualDiaryEntry()">新增記錄</button>
+    </div>
+
+    <!-- Panel 2: 資料庫搜尋 -->
+    <div id="add-panel-fooddb" class="add-panel">
+      <input type="text" id="dfdb-search" class="search-input" placeholder="搜尋食材…" oninput="filterDiaryFoodDB(this.value)" style="margin-bottom:10px">
+      <div id="dfdb-list" class="select-list"></div>
+      <div id="dfdb-amount-section" style="display:none">
+        <div class="selected-food-info" id="dfdb-selected-info"></div>
+        <div class="form-section">
+          <label class="form-label">份量 (g / ml)</label>
+          <input type="number" id="dfdb-amount" class="form-input" placeholder="100" min="0" oninput="updateFoodDBPreview()">
+        </div>
+        <div class="nutrition-preview" id="dfdb-preview">
+          <div class="nut-item"><span class="nut-label">熱量</span><span class="nut-value" id="prev-kcal">—</span><span class="nut-unit">kcal</span></div>
+          <div class="nut-item"><span class="nut-label">蛋白</span><span class="nut-value" id="prev-protein">—</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">脂肪</span><span class="nut-value" id="prev-fat">—</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">碳水</span><span class="nut-value" id="prev-carbs">—</span><span class="nut-unit">g</span></div>
+        </div>
+        <button type="button" class="btn-primary full-width" onclick="saveFoodDBDiaryEntry()">新增記錄</button>
+      </div>
+    </div>
+
+    <!-- Panel 3: 常用食譜 -->
+    <div id="add-panel-recipe" class="add-panel">
+      <div id="dr-list" class="select-list"></div>
+      <div id="dr-serving-section" style="display:none">
+        <div class="selected-food-info" id="dr-selected-info"></div>
+        <div class="form-section">
+          <label class="form-label">份數</label>
+          <input type="number" id="dr-serving" class="form-input" value="1" min="0.1" step="0.1" oninput="updateRecipeServingPreview()">
+        </div>
+        <div class="nutrition-preview" id="dr-preview">
+          <div class="nut-item"><span class="nut-label">熱量</span><span class="nut-value" id="rp-kcal">—</span><span class="nut-unit">kcal</span></div>
+          <div class="nut-item"><span class="nut-label">蛋白</span><span class="nut-value" id="rp-protein">—</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">脂肪</span><span class="nut-value" id="rp-fat">—</span><span class="nut-unit">g</span></div>
+          <div class="nut-item"><span class="nut-label">碳水</span><span class="nut-value" id="rp-carbs">—</span><span class="nut-unit">g</span></div>
+        </div>
+        <button type="button" class="btn-primary full-width" onclick="saveRecipeDiaryEntry()">新增記錄</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== SHEET: InBody 新增記錄 ========== -->
+<div id="sheet-inbody-form" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-inbody-form')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="inbody-form-title">新增體組成記錄</h3>
+    <input type="hidden" id="inbody-record-id">
+
+    <div class="form-section">
+      <label class="form-label">記錄日期</label>
+      <input type="date" id="inbody-date" class="form-input">
+    </div>
+
+    <div class="inbody-form-grid">
+      <div class="form-section">
+        <label class="form-label">體重 (kg)</label>
+        <input type="number" id="inbody-weight" class="form-input" step="0.1" min="0" placeholder="例：65.0">
+      </div>
+      <div class="form-section">
+        <label class="form-label">體脂率 (%)</label>
+        <input type="number" id="inbody-fat-pct" class="form-input" step="0.1" min="0" max="70" placeholder="例：20.5">
+      </div>
+      <div class="form-section">
+        <label class="form-label">肌肉量 (kg)</label>
+        <input type="number" id="inbody-muscle" class="form-input" step="0.1" min="0" placeholder="例：48.0">
+      </div>
+      <div class="form-section">
+        <label class="form-label">BMI</label>
+        <input type="number" id="inbody-bmi" class="form-input" step="0.1" min="0" placeholder="例：22.5">
+      </div>
+      <div class="form-section">
+        <label class="form-label">內臟脂肪等級</label>
+        <input type="number" id="inbody-visceral" class="form-input" step="1" min="1" max="30" placeholder="例：5">
+      </div>
+      <div class="form-section">
+        <label class="form-label">基礎代謝 (kcal)</label>
+        <input type="number" id="inbody-bmr" class="form-input" step="1" min="0" placeholder="例：1520">
+      </div>
+    </div>
+
+    <div class="form-section" style="margin-top:4px">
+      <div class="segment-section-title">部位肌肉分析 <span style="font-weight:400;color:var(--text-3)">（選填，從 InBody 報告抄寫）</span></div>
+      <div class="segment-form-grid">
+        <div class="segment-row"><span class="segment-label">左手臂</span><input type="number" id="seg-left-arm-kg" class="seg-input" step="0.1" min="0" placeholder="kg"><input type="number" id="seg-left-arm-score" class="seg-input score" step="1" min="-4" max="4" placeholder="評分"></div>
+        <div class="segment-row"><span class="segment-label">右手臂</span><input type="number" id="seg-right-arm-kg" class="seg-input" step="0.1" min="0" placeholder="kg"><input type="number" id="seg-right-arm-score" class="seg-input score" step="1" min="-4" max="4" placeholder="評分"></div>
+        <div class="segment-row"><span class="segment-label">軀幹</span><input type="number" id="seg-trunk-kg" class="seg-input" step="0.1" min="0" placeholder="kg"><input type="number" id="seg-trunk-score" class="seg-input score" step="1" min="-4" max="4" placeholder="評分"></div>
+        <div class="segment-row"><span class="segment-label">左腿</span><input type="number" id="seg-left-leg-kg" class="seg-input" step="0.1" min="0" placeholder="kg"><input type="number" id="seg-left-leg-score" class="seg-input score" step="1" min="-4" max="4" placeholder="評分"></div>
+        <div class="segment-row"><span class="segment-label">右腿</span><input type="number" id="seg-right-leg-kg" class="seg-input" step="0.1" min="0" placeholder="kg"><input type="number" id="seg-right-leg-score" class="seg-input score" step="1" min="-4" max="4" placeholder="評分"></div>
+      </div>
+      <div class="segment-hint">評分 -4~+4，從 InBody 報告「偏差值」欄抄寫</div>
+    </div>
+
+    <button class="btn-primary full-width" onclick="saveInbodyRecord()">儲存記錄</button>
+    <div id="inbody-delete-row" style="margin-top:10px;display:none">
+      <button class="btn-danger full-width" onclick="deleteInbodyRecord(document.getElementById('inbody-record-id').value)">刪除此記錄</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SHEET: 習慣表單 ========== -->
+<div id="sheet-habit-form" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-habit-form')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="habit-form-title">新增習慣</h3>
+    <input type="hidden" id="habit-id">
+
+    <div class="form-section">
+      <label class="form-label">習慣名稱</label>
+      <input type="text" id="habit-name-input" class="form-input" placeholder="例：早起、喝水 2000ml、讀書30分">
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">顏色</label>
+      <div class="color-picker-grid" id="habit-color-picker"></div>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">頻率</label>
+      <div class="freq-tabs">
+        <button class="freq-tab active" data-freq="daily"        onclick="setHabitFreq('daily')">每天</button>
+        <button class="freq-tab"        data-freq="every_x_days" onclick="setHabitFreq('every_x_days')">每X天</button>
+        <button class="freq-tab"        data-freq="per_week"     onclick="setHabitFreq('per_week')">每週X次</button>
+        <button class="freq-tab"        data-freq="per_month"    onclick="setHabitFreq('per_month')">每月X次</button>
+      </div>
+      <div class="habit-freq-x-row" id="habit-freq-x-row" style="display:none">
+        <span class="freq-x-label">目標</span>
+        <input type="number" id="habit-freq-x" class="freq-x-input" value="1" min="1" max="99">
+        <span class="freq-x-unit" id="habit-freq-x-unit">天一次</span>
+      </div>
+    </div>
+
+    <button class="btn-primary full-width" onclick="saveHabitForm()">儲存習慣</button>
+    <div id="habit-delete-row" style="margin-top:10px;display:none">
+      <button class="btn-secondary full-width" id="habit-archive-btn" onclick="archiveHabitConfirm(document.getElementById('habit-id').value)">封存此習慣</button>
+      <button class="btn-danger full-width" style="margin-top:8px" onclick="deleteHabitConfirm(document.getElementById('habit-id').value)">永久刪除此習慣</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SHEET: 飲食目標 Wizard ========== -->
+<div id="sheet-goals-wizard" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-goals-wizard')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="11" y2="11"/><line x1="12" x2="12" y1="11" y2="11"/><line x1="8" x2="8" y1="11" y2="11"/><line x1="16" x2="16" y1="15" y2="15"/><line x1="12" x2="12" y1="15" y2="15"/><line x1="8" x2="8" y1="15" y2="15"/><line x1="16" x2="16" y1="19" y2="19"/><line x1="12" x2="12" y1="19" y2="19"/><line x1="8" x2="8" y1="19" y2="19"/></svg> 自動目標計算</h3>
+    <div class="wizard-steps-row">
+      <div class="wizard-step-dot active" id="wz-dot-1">1</div>
+      <div class="wizard-step-line"></div>
+      <div class="wizard-step-dot" id="wz-dot-2">2</div>
+      <div class="wizard-step-line"></div>
+      <div class="wizard-step-dot" id="wz-dot-3">3</div>
+    </div>
+    <div id="wizard-content"></div>
+  </div>
+</div>
+
+<!-- ========== SHEET: 週況通知 ========== -->
+<div id="sheet-notif-center" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-notif-center')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()" style="max-height:82vh;overflow-y:auto">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="sheet-notif-title">週況通知</h3>
+    <div id="notif-center-body" style="padding:0 16px 24px"></div>
+  </div>
+</div>
+
+<!-- Q&A Knowledge Sheet -->
+<div id="sheet-qa-knowledge" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-qa-knowledge')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> 科學飲食知識庫</h3>
+    <div id="qa-sheet-content"></div>
+  </div>
+</div>
+
+<!-- ========== SHEET: 運動記錄表單 ========== -->
+<div id="sheet-workout-form" class="bottom-sheet-overlay" style="display:none" onclick="closeBottomSheet('sheet-workout-form')">
+  <div class="bottom-sheet large" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto">
+    <div class="sheet-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 class="sheet-title" id="workout-form-title" style="margin:0">新增運動記錄</h3>
+      <button id="workout-delete-btn" class="icon-btn delete" style="display:none" onclick="deleteCurrentWorkout()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">日期</label>
+      <input type="date" id="wf-date" class="form-input">
+    </div>
+
+    <div class="form-section">
+      <div class="workout-type-toggle">
+        <button class="wt-btn active" data-type="cardio" onclick="setWorkoutType('cardio')">有氧</button>
+        <button class="wt-btn" data-type="strength" onclick="setWorkoutType('strength')">無氧</button>
+      </div>
+    </div>
+
+    <!-- 有氧 panel -->
+    <div id="wf-cardio-panel">
+      <div class="form-section">
+        <label class="form-label">運動項目</label>
+        <div class="exercise-presets" id="wf-exercise-presets">
+          <button class="preset-btn active" data-ex="慢跑"    onclick="selectExercise('慢跑',this)">慢跑</button>
+          <button class="preset-btn"        data-ex="爬坡"    onclick="selectExercise('爬坡',this)">爬坡</button>
+          <button class="preset-btn"        data-ex="游泳"    onclick="selectExercise('游泳',this)">游泳</button>
+          <button class="preset-btn"        data-ex="跳舞"    onclick="selectExercise('跳舞',this)">跳舞</button>
+          <button class="preset-btn"        data-ex="腳踏車"  onclick="selectExercise('腳踏車',this)">腳踏車</button>
+          <button class="preset-btn"        data-ex="other"   onclick="selectExercise('other',this)">其他</button>
+        </div>
+        <input type="text" id="wf-exercise-custom" class="form-input" placeholder="輸入運動項目" style="display:none;margin-top:8px">
+      </div>
+      <div class="form-row-2">
+        <div class="form-section">
+          <label class="form-label">時間（分鐘）</label>
+          <input type="number" id="wf-duration" class="form-input" placeholder="30" min="1">
+        </div>
+        <div class="form-section">
+          <label class="form-label">距離（km，選填）</label>
+          <input type="number" id="wf-distance" class="form-input" placeholder="5.0" min="0" step="0.1">
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">強度描述（選填）</label>
+        <input type="text" id="wf-intensity" class="form-input" placeholder="配速5:30、心率145、感覺輕鬆…">
+      </div>
+    </div>
+
+    <!-- 無氧 panel -->
+    <div id="wf-strength-panel" style="display:none">
+      <div id="wf-blocks-container"></div>
+      <button class="btn-ghost" style="width:100%;margin-top:4px" onclick="addStrengthBlock()">＋ 新增訓練項目</button>
+    </div>
+
+    <div class="form-section" style="margin-top:4px">
+      <label class="form-label">備註（選填）</label>
+      <textarea id="wf-note" class="form-input" rows="2" placeholder="今天的感受、特別記錄…" style="resize:none;line-height:1.5"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn-ghost" style="flex:1" onclick="closeBottomSheet('sheet-workout-form')">取消</button>
+      <button class="btn-primary" style="flex:2" onclick="saveWorkoutEntry()">✓ 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recipe Image Crop Modal -->
+<div id="recipe-crop-modal" class="avatar-crop-overlay" style="display:none">
+  <div class="avatar-crop-box" style="width:min(340px,94vw)">
+    <div class="avatar-crop-title">調整食譜圖片</div>
+    <div class="recipe-crop-stage" id="recipe-crop-stage">
+      <canvas id="recipe-crop-canvas"></canvas>
+    </div>
+    <div class="avatar-crop-hint">拖曳移動 · 雙指或滾輪縮放</div>
+    <div class="avatar-crop-actions">
+      <button onclick="cancelRecipeCrop()">取消</button>
+      <button onclick="confirmRecipeCrop()">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- Avatar file input (hidden) -->
+<input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+
+<!-- Avatar Crop Modal -->
+<div id="avatar-crop-modal" class="avatar-crop-overlay" style="display:none">
+  <div class="avatar-crop-box">
+    <div class="avatar-crop-title">調整大頭貼</div>
+    <div class="avatar-crop-stage" id="crop-stage">
+      <canvas id="crop-canvas"></canvas>
+    </div>
+    <div class="avatar-crop-hint">拖曳移動 · 雙指或滾輪縮放</div>
+    <div class="avatar-crop-actions">
+      <button onclick="cancelAvatarCrop()">取消</button>
+      <button onclick="confirmAvatarCrop()">確認儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="data.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

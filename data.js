@@ -1,0 +1,68 @@
+// 預設食材資料庫 — 每筆均標注生食/熟食/加工品/飲品
+const DEFAULT_FOOD_DB = [
+  // === 肉類 ===
+  { id:'f001', name:'雞胸肉', state:'生食', category:'肉類', per100g:{ calories:120, protein:22.5, fat:2.6, carbs:0, fiber:0 } },
+  { id:'f002', name:'雞胸肉', state:'熟食', category:'肉類', per100g:{ calories:165, protein:31.0, fat:3.6, carbs:0, fiber:0 } },
+  { id:'f003', name:'雞腿肉（去骨）', state:'生食', category:'肉類', per100g:{ calories:130, protein:17.9, fat:6.3, carbs:0, fiber:0 } },
+  { id:'f004', name:'雞腿肉（去骨）', state:'熟食', category:'肉類', per100g:{ calories:177, protein:24.0, fat:8.5, carbs:0, fiber:0 } },
+  { id:'f005', name:'豬里肌', state:'生食', category:'肉類', per100g:{ calories:143, protein:21.4, fat:6.0, carbs:0, fiber:0 } },
+  { id:'f006', name:'豬五花', state:'生食', category:'肉類', per100g:{ calories:393, protein:14.1, fat:36.9, carbs:0, fiber:0 } },
+  { id:'f007', name:'牛絞肉（85%瘦）', state:'生食', category:'肉類', per100g:{ calories:215, protein:19.4, fat:14.9, carbs:0, fiber:0 } },
+  { id:'f008', name:'牛肋條', state:'生食', category:'肉類', per100g:{ calories:180, protein:18.6, fat:11.0, carbs:0, fiber:0 } },
+  { id:'f009', name:'牛腱', state:'生食', category:'肉類', per100g:{ calories:116, protein:21.0, fat:3.1, carbs:0, fiber:0 } },
+  // === 魚海鮮 ===
+  { id:'f010', name:'鮭魚', state:'生食', category:'魚海鮮', per100g:{ calories:208, protein:20.4, fat:13.4, carbs:0, fiber:0 } },
+  { id:'f011', name:'鯖魚', state:'生食', category:'魚海鮮', per100g:{ calories:205, protein:18.6, fat:13.9, carbs:0, fiber:0 } },
+  { id:'f012', name:'鱸魚', state:'生食', category:'魚海鮮', per100g:{ calories:97, protein:20.2, fat:1.5, carbs:0, fiber:0 } },
+  { id:'f013', name:'蝦子', state:'生食', category:'魚海鮮', per100g:{ calories:85, protein:20.1, fat:0.5, carbs:0, fiber:0 } },
+  { id:'f014', name:'花枝／魷魚', state:'生食', category:'魚海鮮', per100g:{ calories:92, protein:15.6, fat:1.4, carbs:3.1, fiber:0 } },
+  // === 蛋豆類 ===
+  { id:'f015', name:'雞蛋（全蛋）', state:'生食', category:'蛋豆類', per100g:{ calories:155, protein:12.6, fat:10.6, carbs:1.1, fiber:0 } },
+  { id:'f016', name:'板豆腐', state:'生食', category:'蛋豆類', per100g:{ calories:76, protein:8.1, fat:4.2, carbs:1.9, fiber:0.3 } },
+  { id:'f017', name:'嫩豆腐', state:'生食', category:'蛋豆類', per100g:{ calories:55, protein:5.3, fat:3.5, carbs:1.2, fiber:0.1 } },
+  { id:'f018', name:'毛豆', state:'熟食', category:'蛋豆類', per100g:{ calories:122, protein:11.9, fat:5.2, carbs:8.9, fiber:5.2 } },
+  // === 蔬菜 ===
+  { id:'f019', name:'番茄', state:'生食', category:'蔬菜', per100g:{ calories:18, protein:0.9, fat:0.2, carbs:3.9, fiber:1.2 } },
+  { id:'f020', name:'洋蔥', state:'生食', category:'蔬菜', per100g:{ calories:40, protein:1.1, fat:0.1, carbs:9.3, fiber:1.7 } },
+  { id:'f021', name:'大蒜', state:'生食', category:'蔬菜', per100g:{ calories:149, protein:6.4, fat:0.5, carbs:33.1, fiber:2.1 } },
+  { id:'f022', name:'胡蘿蔔', state:'生食', category:'蔬菜', per100g:{ calories:41, protein:0.9, fat:0.2, carbs:9.6, fiber:2.8 } },
+  { id:'f023', name:'馬鈴薯', state:'生食', category:'蔬菜', per100g:{ calories:77, protein:2.0, fat:0.1, carbs:17.5, fiber:2.2 } },
+  { id:'f024', name:'地瓜', state:'生食', category:'蔬菜', per100g:{ calories:86, protein:1.6, fat:0.1, carbs:20.1, fiber:3.0 } },
+  { id:'f025', name:'花椰菜', state:'生食', category:'蔬菜', per100g:{ calories:25, protein:1.9, fat:0.3, carbs:5.0, fiber:2.5 } },
+  { id:'f026', name:'高麗菜', state:'生食', category:'蔬菜', per100g:{ calories:25, protein:1.3, fat:0.1, carbs:5.8, fiber:2.5 } },
+  { id:'f027', name:'菠菜', state:'生食', category:'蔬菜', per100g:{ calories:23, protein:2.9, fat:0.4, carbs:3.6, fiber:2.2 } },
+  { id:'f028', name:'青椒', state:'生食', category:'蔬菜', per100g:{ calories:20, protein:0.9, fat:0.2, carbs:4.6, fiber:1.7 } },
+  { id:'f029', name:'蘑菇', state:'生食', category:'蔬菜', per100g:{ calories:22, protein:3.1, fat:0.3, carbs:3.3, fiber:1.0 } },
+  { id:'f030', name:'玉米', state:'生食', category:'蔬菜', per100g:{ calories:86, protein:3.3, fat:1.4, carbs:19.0, fiber:2.7 } },
+  { id:'f031', name:'豆芽菜', state:'生食', category:'蔬菜', per100g:{ calories:30, protein:3.0, fat:0.2, carbs:5.9, fiber:1.8 } },
+  { id:'f032', name:'青蔥', state:'生食', category:'蔬菜', per100g:{ calories:32, protein:1.8, fat:0.2, carbs:7.3, fiber:2.6 } },
+  { id:'f033', name:'薑', state:'生食', category:'蔬菜', per100g:{ calories:80, protein:1.8, fat:0.8, carbs:17.8, fiber:2.0 } },
+  // === 穀物 ===
+  { id:'f034', name:'白米（生）', state:'生食', category:'穀物', per100g:{ calories:365, protein:7.1, fat:0.7, carbs:79.0, fiber:1.3 } },
+  { id:'f035', name:'白米飯（熟）', state:'熟食', category:'穀物', per100g:{ calories:130, protein:2.7, fat:0.3, carbs:28.2, fiber:0.3 } },
+  { id:'f036', name:'糙米飯（熟）', state:'熟食', category:'穀物', per100g:{ calories:123, protein:2.6, fat:0.9, carbs:25.6, fiber:1.8 } },
+  { id:'f037', name:'麵條（熟）', state:'熟食', category:'穀物', per100g:{ calories:138, protein:4.5, fat:0.9, carbs:27.0, fiber:1.8 } },
+  { id:'f038', name:'義大利麵（熟）', state:'熟食', category:'穀物', per100g:{ calories:158, protein:5.8, fat:0.9, carbs:30.9, fiber:1.8 } },
+  { id:'f039', name:'中筋麵粉（生）', state:'生食', category:'穀物', per100g:{ calories:364, protein:10.3, fat:1.0, carbs:76.3, fiber:2.7 } },
+  { id:'f040', name:'全麥吐司', state:'加工品', category:'穀物', per100g:{ calories:247, protein:9.0, fat:3.4, carbs:46.0, fiber:7.0 } },
+  { id:'f041', name:'白吐司', state:'加工品', category:'穀物', per100g:{ calories:265, protein:8.9, fat:3.2, carbs:50.6, fiber:2.4 } },
+  { id:'f042', name:'燕麥（生）', state:'生食', category:'穀物', per100g:{ calories:389, protein:16.9, fat:6.9, carbs:66.3, fiber:10.6 } },
+  // === 乳製品 ===
+  { id:'f043', name:'牛奶（全脂）', state:'飲品', category:'乳製品', per100g:{ calories:61, protein:3.2, fat:3.3, carbs:4.8, fiber:0 } },
+  { id:'f044', name:'希臘優格（無糖）', state:'加工品', category:'乳製品', per100g:{ calories:59, protein:10.2, fat:0.4, carbs:3.6, fiber:0 } },
+  { id:'f045', name:'切達起司', state:'加工品', category:'乳製品', per100g:{ calories:402, protein:24.9, fat:33.1, carbs:1.3, fiber:0 } },
+  { id:'f046', name:'奶油（無鹽）', state:'加工品', category:'乳製品', per100g:{ calories:717, protein:0.9, fat:81.1, carbs:0.1, fiber:0 } },
+  // === 油脂調味 ===
+  { id:'f047', name:'橄欖油', state:'加工品', category:'油脂', per100g:{ calories:884, protein:0, fat:100, carbs:0, fiber:0 } },
+  { id:'f048', name:'芝麻油', state:'加工品', category:'油脂', per100g:{ calories:884, protein:0, fat:100, carbs:0, fiber:0 } },
+  { id:'f049', name:'醬油', state:'加工品', category:'油脂', per100g:{ calories:53, protein:8.1, fat:0.1, carbs:4.9, fiber:0.8 } },
+  // === 水果 ===
+  { id:'f050', name:'香蕉', state:'生食', category:'水果', per100g:{ calories:89, protein:1.1, fat:0.3, carbs:22.8, fiber:2.6 } },
+  { id:'f051', name:'蘋果', state:'生食', category:'水果', per100g:{ calories:52, protein:0.3, fat:0.2, carbs:13.8, fiber:2.4 } },
+  { id:'f052', name:'橘子', state:'生食', category:'水果', per100g:{ calories:47, protein:0.9, fat:0.1, carbs:11.8, fiber:2.4 } },
+  { id:'f053', name:'藍莓', state:'生食', category:'水果', per100g:{ calories:57, protein:0.7, fat:0.3, carbs:14.5, fiber:2.4 } },
+  // === 其他 ===
+  { id:'f054', name:'豆漿（無糖）', state:'飲品', category:'其他', per100g:{ calories:33, protein:3.0, fat:1.8, carbs:1.8, fiber:0.3 } },
+  { id:'f055', name:'味噌', state:'加工品', category:'其他', per100g:{ calories:199, protein:11.7, fat:6.0, carbs:26.5, fiber:5.4 } },
+  { id:'f056', name:'蜂蜜', state:'加工品', category:'其他', per100g:{ calories:304, protein:0.3, fat:0, carbs:82.4, fiber:0.2 } },
+];
