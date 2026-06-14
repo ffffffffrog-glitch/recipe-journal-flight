@@ -1,4 +1,4 @@
-const CACHE = 'recipe-app-v1';
+const CACHE = 'recipe-app-v3';
 
 const SHELL = [
   './',
@@ -10,7 +10,6 @@ const SHELL = [
   './icons/icon-180.png',
 ];
 
-// Install: cache app shell
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(SHELL))
@@ -18,7 +17,6 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate: remove old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -28,11 +26,9 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch strategy
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // GitHub API: network first, fall back to cache
   if (url.includes('api.github.com')) {
     e.respondWith(
       fetch(e.request)
@@ -46,7 +42,6 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Google Fonts: network first (they have their own CDN)
   if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
@@ -54,7 +49,6 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // App shell & local assets: cache first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
