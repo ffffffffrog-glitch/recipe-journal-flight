@@ -373,6 +373,11 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function formatDisplayDate(ds) {
   if (!ds) return '';
@@ -2496,7 +2501,7 @@ function _getSystemNotifications() {
   }
   const cached = getData('cachedTasks', null);
   const today = todayStr();
-  const hasRealTasks = cached && cached.date === today &&
+  const hasRealTasks = cached && (cached.date === today || cached.date === yesterdayStr()) &&
                        ((cached.main || []).length > 0 || (cached.side || []).length > 0);
   if (!hasRealTasks && getData('earthArchive', []).some(t => t.type === 'main')) {
     notifs.push({ id: 'archiveFallback', section: '通知', type: 'info',
@@ -4503,7 +4508,7 @@ const TASKS_API_URL = 'https://api.github.com/repos/ffffffffrog-glitch/fetching_
 async function fetchDailyTasks() {
   const cached  = getData('cachedTasks', null);
   const STALE_MS = 30 * 60 * 1000; // re-fetch if same-day cache is >30 min old
-  const isFresh = cached && cached.date === todayStr() && cached.fetchedAt && (Date.now() - cached.fetchedAt < STALE_MS);
+  const isFresh = cached && (cached.date === todayStr() || cached.date === yesterdayStr()) && cached.fetchedAt && (Date.now() - cached.fetchedAt < STALE_MS);
   if (isFresh) { updateEarthArchive(cached); return cached; }
   try {
     const res = await fetch(TASKS_API_URL, {
@@ -4700,8 +4705,7 @@ async function renderQuests() {
         <p style="font-size:.8rem;color:var(--text-3);margin-top:4px">每天早上 9 點後更新，且任務庫尚無資料</p>
       </div>`;
   } else {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const isStale = tasks.date !== today && tasks.date !== yesterday;
+    const isStale = tasks.date !== today && tasks.date !== yesterdayStr();
     if (!done[today]) {
       done[today] = {
         main: tasks.main.map(() => false), side: tasks.side.map(() => false),
