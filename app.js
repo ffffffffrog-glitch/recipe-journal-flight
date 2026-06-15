@@ -604,7 +604,7 @@ function openRecipeDetail(recipeId) {
           ${recipe.ingredients.map(ing => `
             <li>
               <span>${ing.name}${ing.grams ? ` &nbsp;${ing.grams}g` : ''}</span>
-              ${ing.nutrition?.calories ? `<span class="ingredient-kcal-badge">${ing.nutrition.calories} kcal</span>` : ''}
+              ${ing.nutrition?.calories ? `<span class="ingredient-kcal-badge">${ing.nutrition.calories} kcal · ${ing.nutrition.protein||0}g 蛋白質</span>` : ''}
             </li>`).join('')}
         </ul>` : ''}
 
@@ -1322,11 +1322,12 @@ function renderDiary() {
   MEALS.forEach(meal => {
     const items = grouped[meal];
     if (!items.length) return;
-    const mealTot = r(items.reduce((s, e) => s + (e.nutrition?.calories || 0), 0));
+    const mealTot  = r(items.reduce((s, e) => s + (e.nutrition?.calories || 0), 0));
+    const mealProt = r(items.reduce((s, e) => s + (e.nutrition?.protein  || 0), 0));
     html += `<div class="meal-group">
       <div class="meal-group-title">
         ${icon(MEAL_ICONS[meal], 14)} ${meal}
-        <span style="margin-left:auto;font-size:0.68rem;font-weight:400;opacity:0.8">${mealTot} kcal</span>
+        <span style="margin-left:auto;font-size:0.68rem;font-weight:400;opacity:0.8">${mealTot} kcal · ${mealProt}g 蛋白質</span>
       </div>
       ${items.map(entry => `
         <div class="diary-entry">
@@ -1334,7 +1335,11 @@ function renderDiary() {
             <div class="diary-entry-name">${entry.name}</div>
             ${entry.amount ? `<div class="diary-entry-amount">${entry.amount}</div>` : ''}
           </div>
-          <div class="diary-entry-kcal">${r(entry.nutrition?.calories || 0)} kcal</div>
+          <div class="diary-entry-kcal">
+            <div>${r(entry.nutrition?.calories || 0)} kcal</div>
+            <div class="diary-entry-prot">${r(entry.nutrition?.protein || 0)}g 蛋白質</div>
+          </div>
+          <button class="diary-entry-edit" onclick="editDiaryEntry('${ds}','${entry.id}')">✎</button>
           <button class="diary-entry-delete" onclick="deleteDiaryEntry('${ds}','${entry.id}')">✕</button>
         </div>`).join('')}
     </div>`;
@@ -1428,6 +1433,11 @@ function quickAddFood(name) {
 }
 
 function openAddDiaryEntrySheet() {
+  state.editingDiaryEntry = null;
+  const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
+  if (titleEl) titleEl.textContent = '新增飲食記錄';
+  const saveBtn = document.querySelector('#sheet-diary-add button.btn-primary');
+  if (saveBtn) saveBtn.textContent = '新增記錄';
   // Auto-detect meal from current time
   const h = new Date().getHours();
   const meal = h < 10 ? '早餐' : h < 14 ? '午餐' : h < 19 ? '晚餐' : '點心';
@@ -1492,25 +1502,63 @@ function openManualDiaryEntry() {
 function saveManualDiaryEntry() {
   const name = document.getElementById('dm-name').value.trim();
   if (!name) { showToast('請填寫食物名稱'); return; }
+  const nutrition = {
+    calories: parseFloat(document.getElementById('dm-calories').value) || 0,
+    protein:  parseFloat(document.getElementById('dm-protein').value)  || 0,
+    fat:      parseFloat(document.getElementById('dm-fat').value)      || 0,
+    carbs:    parseFloat(document.getElementById('dm-carbs').value)    || 0,
+    fiber:    parseFloat(document.getElementById('dm-fiber').value)    || 0,
+  };
+  if (state.editingDiaryEntry) {
+    const { date, id } = state.editingDiaryEntry;
+    const diary = getData('diary', {});
+    const entries = diary[date] || [];
+    const idx = entries.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      entries[idx] = { ...entries[idx], name, amount: document.getElementById('dm-amount').value.trim(), nutrition };
+      diary[date] = entries;
+      setData('diary', diary);
+    }
+    state.editingDiaryEntry = null;
+    closeBottomSheet('sheet-diary-add');
+    renderDiary();
+    showToast('已更新飲食記錄');
+    return;
+  }
   const entry = {
     id: generateId('d'),
     meal: getAddMeal(),
     name,
     amount: document.getElementById('dm-amount').value.trim(),
     source: 'manual',
-    nutrition: {
-      calories: parseFloat(document.getElementById('dm-calories').value) || 0,
-      protein:  parseFloat(document.getElementById('dm-protein').value)  || 0,
-      fat:      parseFloat(document.getElementById('dm-fat').value)      || 0,
-      carbs:    parseFloat(document.getElementById('dm-carbs').value)    || 0,
-      fiber:    parseFloat(document.getElementById('dm-fiber').value)    || 0,
-    }
+    nutrition,
   };
   addDiaryEntry(entry);
   closeBottomSheet('sheet-diary-add');
   renderDiary();
   showToast('已新增飲食記錄');
   onDiaryAdded();
+}
+
+function editDiaryEntry(ds, entryId) {
+  const diary = getData('diary', {});
+  const entry = (diary[ds] || []).find(e => e.id === entryId);
+  if (!entry) return;
+  state.editingDiaryEntry = { date: ds, id: entryId };
+  switchDiaryTab('manual');
+  setAddMeal(entry.meal || '午餐');
+  document.getElementById('dm-name').value     = entry.name || '';
+  document.getElementById('dm-amount').value   = entry.amount || '';
+  document.getElementById('dm-calories').value = entry.nutrition?.calories ?? '';
+  document.getElementById('dm-protein').value  = entry.nutrition?.protein  ?? '';
+  document.getElementById('dm-fat').value      = entry.nutrition?.fat      ?? '';
+  document.getElementById('dm-carbs').value    = entry.nutrition?.carbs    ?? '';
+  document.getElementById('dm-fiber').value    = entry.nutrition?.fiber    ?? '';
+  const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
+  if (titleEl) titleEl.textContent = '編輯飲食記錄';
+  const saveBtn = document.querySelector('#sheet-diary-add button.btn-primary');
+  if (saveBtn) saveBtn.textContent = '更新記錄';
+  openBottomSheet('sheet-diary-add');
 }
 
 function openFromFoodDB() {
@@ -1537,7 +1585,19 @@ function selectFoodForDiary(foodId) {
   if (!state.selectedFoodForDiary) return;
   const f = state.selectedFoodForDiary;
   document.getElementById('dfdb-selected-info').textContent = `${f.name}（${f.state}）— 每100g ${f.per100g.calories}kcal`;
-  document.getElementById('dfdb-amount').value = '100';
+  const unitSel = document.getElementById('dfdb-unit-select');
+  if (unitSel) {
+    if (f.serving?.unit) {
+      unitSel.innerHTML = `<option value="g">公克 (g)</option><option value="${f.serving.unit}" selected>${f.serving.unit}（${f.serving.calories}kcal）</option>`;
+      unitSel.value = f.serving.unit;
+      unitSel.style.display = '';
+    } else {
+      unitSel.style.display = 'none';
+    }
+  }
+  const lbl = document.getElementById('dfdb-amount-label');
+  if (lbl) lbl.textContent = f.serving?.unit || 'g / ml';
+  document.getElementById('dfdb-amount').value = f.serving?.unit ? '1' : '100';
   document.getElementById('dfdb-amount-section').style.display = 'block';
   updateFoodDBPreview();
 }
@@ -1545,8 +1605,11 @@ function selectFoodForDiary(foodId) {
 function updateFoodDBPreview() {
   const f = state.selectedFoodForDiary;
   if (!f) return;
-  const g = parseFloat(document.getElementById('dfdb-amount').value) || 0;
-  const n = calcNutrition(f, g);
+  const unit = document.getElementById('dfdb-unit-select')?.value || 'g';
+  const amt  = parseFloat(document.getElementById('dfdb-amount').value) || 0;
+  const n = (unit !== 'g' && f.serving)
+    ? { calories: r(f.serving.calories * amt), protein: r(f.serving.protein * amt), fat: r(f.serving.fat * amt), carbs: r(f.serving.carbs * amt) }
+    : calcNutrition(f, amt);
   document.getElementById('prev-kcal').textContent    = n.calories;
   document.getElementById('prev-protein').textContent = n.protein;
   document.getElementById('prev-fat').textContent     = n.fat;
@@ -1556,21 +1619,36 @@ function updateFoodDBPreview() {
 function saveFoodDBDiaryEntry() {
   const f = state.selectedFoodForDiary;
   if (!f) { showToast('請先選擇食材'); return; }
-  const g = parseFloat(document.getElementById('dfdb-amount').value);
-  if (!g || g <= 0) { showToast('請輸入有效的份量'); return; }
+  const unit = document.getElementById('dfdb-unit-select')?.value || 'g';
+  const amt  = parseFloat(document.getElementById('dfdb-amount').value);
+  if (!amt || amt <= 0) { showToast('請輸入有效的份量'); return; }
+  const useServing = unit !== 'g' && !!f.serving;
+  const nutrition  = useServing
+    ? { calories: r(f.serving.calories * amt), protein: r(f.serving.protein * amt), fat: r(f.serving.fat * amt), carbs: r(f.serving.carbs * amt), fiber: r((f.serving.fiber||0) * amt) }
+    : calcNutrition(f, amt);
   const entry = {
     id: generateId('d'),
     meal: getAddMeal(),
     name: f.name,
-    amount: `${g}g`,
+    amount: useServing ? `${amt} ${unit}` : `${amt}g`,
     source: 'fooddb',
-    nutrition: calcNutrition(f, g)
+    nutrition,
   };
   addDiaryEntry(entry);
   closeBottomSheet('sheet-diary-add');
   renderDiary();
   showToast('已新增飲食記錄');
   onDiaryAdded();
+}
+
+function onDiaryUnitChange() {
+  const f = state.selectedFoodForDiary;
+  if (!f) return;
+  const unit = document.getElementById('dfdb-unit-select')?.value || 'g';
+  document.getElementById('dfdb-amount').value = unit === 'g' ? '100' : '1';
+  const lbl = document.getElementById('dfdb-amount-label');
+  if (lbl) lbl.textContent = unit === 'g' ? 'g / ml' : unit;
+  updateFoodDBPreview();
 }
 
 function openFromRecipes() {
@@ -3212,7 +3290,7 @@ function toggleHabitDay(habitId, ds) {
   if (next === '') delete log[ds][habitId];
   else log[ds][habitId] = next;
   setData('habitLog', log);
-  if (next === 'done' && cur === '') onHabitLogged();
+  if (next === 'done') { if (cur === '') onHabitLogged(); navigator.vibrate?.(15); }
   renderHabits();
 }
 
@@ -4423,8 +4501,10 @@ function deleteInbodyRecord(recordId) {
 const TASKS_API_URL = 'https://api.github.com/repos/ffffffffrog-glitch/fetching_daily_task/contents/tasks.json';
 
 async function fetchDailyTasks() {
-  const cached = getData('cachedTasks', null);
-  if (cached && cached.date === todayStr()) { updateEarthArchive(cached); return cached; }
+  const cached  = getData('cachedTasks', null);
+  const STALE_MS = 30 * 60 * 1000; // re-fetch if same-day cache is >30 min old
+  const isFresh = cached && cached.date === todayStr() && cached.fetchedAt && (Date.now() - cached.fetchedAt < STALE_MS);
+  if (isFresh) { updateEarthArchive(cached); return cached; }
   try {
     const res = await fetch(TASKS_API_URL, {
       cache: 'no-store',
@@ -4432,6 +4512,7 @@ async function fetchDailyTasks() {
     });
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
+    data.fetchedAt = Date.now();
     setData('cachedTasks', data);
     updateEarthArchive(data);
     if ((data.main || []).length > 0 || (data.side || []).length > 0) {
@@ -5426,7 +5507,7 @@ document.addEventListener('DOMContentLoaded', () => {
               });
               setData('earthArchive', merged);
             } else {
-              localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+              localStorage.setItem(k, JSON.stringify(v));
             }
           });
           showToast('資料已匯入，重新載入中…');

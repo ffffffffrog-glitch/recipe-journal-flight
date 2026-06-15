@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -524,8 +524,9 @@
       <div id="dfdb-list" class="select-list"></div>
       <div id="dfdb-amount-section" style="display:none">
         <div class="selected-food-info" id="dfdb-selected-info"></div>
+        <select id="dfdb-unit-select" class="form-input" style="display:none;margin-bottom:10px" onchange="onDiaryUnitChange()"></select>
         <div class="form-section">
-          <label class="form-label">份量 (g / ml)</label>
+          <label class="form-label">份量 (<span id="dfdb-amount-label">g / ml</span>)</label>
           <input type="number" id="dfdb-amount" class="form-input" placeholder="100" min="0" oninput="updateFoodDBPreview()">
         </div>
         <div class="nutrition-preview" id="dfdb-preview">
@@ -859,8 +860,8 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="data.js?v=18"></script>
+<script src="app.js?v=18"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
