@@ -296,6 +296,7 @@ img { max-width: 100%; display: block; }
 .badge-cooked    { background: #FFF0E0; color: #9A4E00; border: 1px solid #F5D0A0; }
 .badge-processed { background: #EFE8F8; color: #5A3880; border: 1px solid #CCBBEE; }
 .badge-drink     { background: #E0EEFA; color: #1A508A; border: 1px solid #A8C8EE; }
+.badge-ultra     { background: #FDE8E8; color: #A82020; border: 1px solid #F0B0B0; }
 
 .food-item-main { flex: 1; min-width: 0; }
 .food-item-name { font-size: .9rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

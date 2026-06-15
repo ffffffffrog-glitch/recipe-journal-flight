@@ -386,7 +386,7 @@ function formatDisplayDate(ds) {
 }
 
 function stateBadgeClass(state) {
-  const map = { '生食':'badge-raw', '熟食':'badge-cooked', '加工品':'badge-processed', '飲品':'badge-drink' };
+  const map = { '生食':'badge-raw', '熟食':'badge-cooked', '加工品':'badge-processed', '飲品':'badge-drink', '超加工食品':'badge-ultra' };
   return map[state] || 'badge-processed';
 }
 
@@ -1339,7 +1339,7 @@ function renderDiary() {
             <div>${r(entry.nutrition?.calories || 0)} kcal</div>
             <div class="diary-entry-prot">${r(entry.nutrition?.protein || 0)}g 蛋白質</div>
           </div>
-          <button class="diary-entry-edit" onclick="editDiaryEntry('${ds}','${entry.id}')">✎</button>
+          <button class="diary-entry-edit" onclick="editDiaryEntry('${ds}','${entry.id}')">${icon('pen-left', 12)}</button>
           <button class="diary-entry-delete" onclick="deleteDiaryEntry('${ds}','${entry.id}')">✕</button>
         </div>`).join('')}
     </div>`;
@@ -4700,7 +4700,8 @@ async function renderQuests() {
         <p style="font-size:.8rem;color:var(--text-3);margin-top:4px">每天早上 9 點後更新，且任務庫尚無資料</p>
       </div>`;
   } else {
-    const isStale = tasks.date !== today;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const isStale = tasks.date !== today && tasks.date !== yesterday;
     if (!done[today]) {
       done[today] = {
         main: tasks.main.map(() => false), side: tasks.side.map(() => false),
