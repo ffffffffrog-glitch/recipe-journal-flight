@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20">
+  <link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -25,12 +25,10 @@
 
     <!-- ========== PAGE: 食譜 ========== -->
     <section id="page-recipes" class="page">
-      <div class="page-header three-col">
-        <div class="page-header-side"></div>
+      <div class="page-header recipe-desktop-header">
         <h1 class="page-title">食譜</h1>
-        <div class="page-header-side">
-          <button class="header-icon-btn" onclick="navigateTo('fooddb')" title="食材庫"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></button>
-        </div>
+        <input type="text" id="recipe-search-desktop" class="recipe-search-desktop search-input" placeholder="搜尋名稱、食材、步驟…" oninput="filterRecipes()">
+        <button class="header-icon-btn" onclick="navigateTo('fooddb')" title="食物庫"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></button>
       </div>
       <div class="recipe-filter-bar">
         <input type="text" id="recipe-search-q" class="search-input" placeholder="搜尋名稱、食材、步驟…" oninput="filterRecipes()">
@@ -39,13 +37,13 @@
       <button class="fab" onclick="openNewRecipeForm()" title="新增食譜">＋</button>
     </section>
 
-    <!-- ========== PAGE: 食材庫 (sub-page of 食譜) ========== -->
+    <!-- ========== PAGE: 食物庫 (sub-page of 食譜) ========== -->
     <section id="page-fooddb" class="page">
       <div class="page-header three-col">
         <div class="page-header-side">
           <button class="header-back-btn" onclick="navigateTo('recipes')">‹</button>
         </div>
-        <h1 class="page-title">食材庫</h1>
+        <h1 class="page-title">食物庫</h1>
         <div class="page-header-side"></div>
       </div>
       <div class="search-bar-container">
@@ -61,6 +59,8 @@
         <button class="cat-btn" onclick="filterFoodByCategory('乳製品',this)">乳製品</button>
         <button class="cat-btn" onclick="filterFoodByCategory('油脂',this)">油脂</button>
         <button class="cat-btn" onclick="filterFoodByCategory('水果',this)">水果</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('調味料',this)">調味料</button>
+        <button class="cat-btn" onclick="filterFoodByCategory('垃圾食物',this)">垃圾食物</button>
         <button class="cat-btn" onclick="filterFoodByCategory('其他',this)">其他</button>
       </div>
       <div id="food-list" class="food-list"></div>
@@ -76,6 +76,7 @@
         <button class="date-nav-btn" onclick="changeDiaryDate(-1)">‹</button>
         <div class="date-display" id="diary-date-display" onclick="openDatePicker()">載入中…</div>
         <button class="date-nav-btn" onclick="changeDiaryDate(1)">›</button>
+        <button class="diary-add-btn" onclick="openAddDiaryEntrySheet()">＋ 新增飲食</button>
       </div>
       <input type="date" id="diary-date-input" style="visibility:hidden;height:0;padding:0;border:0" onchange="setDiaryDate(this.value)">
       <div id="daily-summary" class="daily-summary"></div>
@@ -118,6 +119,7 @@
     <section id="page-workout" class="page">
       <div class="page-header">
         <h1 class="page-title">運動日記</h1>
+        <button class="desktop-add-btn" onclick="openNewWorkoutForm()">＋ 新增運動</button>
       </div>
       <div id="workout-chat" class="workout-chat"></div>
       <button class="fab" onclick="openNewWorkoutForm()" title="新增運動">＋</button>
@@ -127,6 +129,7 @@
     <section id="page-habits" class="page">
       <div class="page-header">
         <h1 class="page-title">習慣追蹤</h1>
+        <button class="desktop-add-btn" onclick="openAddHabitSheet()">＋ 新增習慣</button>
       </div>
       <div id="habits-content" class="habits-content"></div>
       <button class="fab" onclick="openAddHabitSheet()" title="新增習慣">＋</button>
@@ -303,6 +306,10 @@
 
   <!-- ===== BOTTOM NAV ===== -->
   <nav class="bottom-nav">
+    <div class="desktop-nav-header">
+      <div class="dnh-title">冒險者食譜典籍</div>
+      <div class="dnh-sub">飲食日誌系統</div>
+    </div>
     <button class="nav-btn" data-page="recipes" onclick="navigateTo('recipes')">
       <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span class="nav-label">食譜</span>
     </button>
@@ -322,6 +329,7 @@
       <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">個人</span>
     </button>
   </nav>
+  <div id="desktop-rp" class="desktop-rp"></div>
 </div>
 
 <!-- ========== MODAL: 食譜表單 ========== -->
@@ -448,6 +456,8 @@
         <option value="穀物">穀物</option>
         <option value="乳製品">乳製品</option>
         <option value="油脂">油脂</option>
+        <option value="調味料">調味料</option>
+        <option value="垃圾食物">垃圾食物</option>
         <option value="其他">其他</option>
       </select>
     </div>
@@ -865,8 +875,8 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=20"></script>
-<script src="app.js?v=20"></script>
+<script src="data.js?v=22"></script>
+<script src="app.js?v=22"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

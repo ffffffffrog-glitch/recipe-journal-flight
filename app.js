@@ -482,6 +482,112 @@ function navigateTo(pageId) {
   }, 300);
 }
 
+function updateDesktopRightPanel(pageId) {
+  const rp = document.getElementById('desktop-rp');
+  if (!rp || window.innerWidth < 1024) return;
+
+  const stat = (l, v) => `<div class="rp-stat"><span class="rp-stat-l">${l}</span><span class="rp-stat-v">${v}</span></div>`;
+  const bar  = (cur, goal, label, unit) => {
+    const p = Math.min(100, Math.round(cur / goal * 100));
+    const over = cur > goal;
+    return `<div class="rp-macro-row"><span class="rp-macro-name">${label}</span><span class="rp-macro-val">${Math.round(cur)} / ${goal}${unit}</span></div><div class="rp-bar"><div class="rp-bar-fill${over ? ' over' : ''}" style="width:${p}%"></div></div>`;
+  };
+
+  if (pageId === 'diary') {
+    const tot   = getDailyTotals(todayStr());
+    const goals = (getData('profile', {}).goals) || defaultGoals();
+    const remCal = Math.max(0, goals.calories - Math.round(tot.calories));
+    rp.className = 'desktop-rp rp-on';
+    rp.innerHTML = `
+      <div class="rp-title">今日攝取</div>
+      <div>
+        <div class="rp-big">${Math.round(tot.calories)} <span class="rp-big-unit">kcal</span></div>
+        <div class="rp-sub">目標 ${goals.calories} kcal</div>
+        <div class="rp-sub-good">還差 ${remCal} kcal</div>
+      </div>
+      <div class="rp-divider"></div>
+      <div>
+        ${bar(tot.protein, goals.protein, '蛋白質', 'g')}
+        ${bar(tot.fat,     goals.fat,     '脂肪',   'g')}
+        ${bar(tot.carbs,   goals.carbs,   '碳水',   'g')}
+      </div>`;
+
+  } else if (pageId === 'workout') {
+    const all  = getData('workout', []);
+    const now  = new Date();
+    const wsD  = new Date(now); wsD.setDate(now.getDate() - now.getDay());
+    const wsStr = `${wsD.getFullYear()}-${String(wsD.getMonth()+1).padStart(2,'0')}-${String(wsD.getDate()).padStart(2,'0')}`;
+    const week  = all.filter(w => w.date >= wsStr);
+    const cardio   = week.filter(w => w.type === 'cardio');
+    const strength = week.filter(w => w.type === 'strength');
+    const totalMin = cardio.reduce((s, w) => s + (w.duration || 0), 0);
+    const msStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const monthCount = all.filter(w => w.date >= msStr).length;
+    rp.className = 'desktop-rp rp-on';
+    rp.innerHTML = `
+      <div class="rp-title">本週統計</div>
+      <div>
+        <div class="rp-big">${week.length} <span class="rp-big-unit">次</span></div>
+        <div class="rp-sub">本週運動次數</div>
+      </div>
+      <div class="rp-divider"></div>
+      <div>
+        ${stat('有氧場次', cardio.length)}
+        ${stat('重訓場次', strength.length)}
+        ${stat('有氧總時長', totalMin ? totalMin + ' 分' : '—')}
+        ${stat('本月累計', monthCount + ' 次')}
+      </div>`;
+
+  } else if (pageId === 'inbody') {
+    const records = getData('inbody', []);
+    rp.className = 'desktop-rp rp-on';
+    if (!records.length) {
+      rp.innerHTML = '<div class="rp-title">最新體組成</div><div class="rp-sub" style="margin-top:8px">尚無紀錄</div>';
+      return;
+    }
+    const rec = records.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+    rp.innerHTML = `
+      <div class="rp-title">最新體組成</div>
+      <div style="font-size:10px;color:var(--text-3);margin-top:-6px">${rec.date}</div>
+      <div>
+        <div class="rp-big">${rec.weight} <span class="rp-big-unit">kg</span></div>
+        <div class="rp-sub">體重</div>
+      </div>
+      <div class="rp-divider"></div>
+      <div>
+        ${stat('肌肉量', rec.muscle + ' kg')}
+        ${stat('體脂率', rec.fatPct + '%')}
+        ${stat('BMI', rec.bmi ?? '—')}
+        ${stat('內臟脂肪', rec.visceral ?? '—')}
+        ${stat('基礎代謝', rec.bmr ? rec.bmr + ' kcal' : '—')}
+      </div>`;
+
+  } else if (pageId === 'profile') {
+    const records = getData('inbody', []);
+    if (!records.length) { rp.className = 'desktop-rp'; return; }
+    const rec = records.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+    rp.className = 'desktop-rp rp-on';
+    rp.innerHTML = `
+      <div class="rp-title">最新體組成</div>
+      <div style="font-size:10px;color:var(--text-3);margin-top:-6px">${rec.date}</div>
+      <div>
+        <div class="rp-big">${rec.weight ?? '—'} <span class="rp-big-unit">kg</span></div>
+        <div class="rp-sub">體重</div>
+      </div>
+      <div class="rp-divider"></div>
+      <div>
+        ${stat('肌肉量', rec.muscle != null ? rec.muscle + ' kg' : '—')}
+        ${stat('體脂率', rec.fatPct != null ? rec.fatPct + '%' : '—')}
+        ${stat('BMI', rec.bmi ?? '—')}
+        ${stat('內臟脂肪', rec.visceral ?? '—')}
+        ${stat('基礎代謝', rec.bmr ? rec.bmr + ' kcal' : '—')}
+      </div>`;
+
+  } else {
+    rp.className = 'desktop-rp'; // hide
+  }
+}
+
 function updateNavBar(pageId) {
   // For sub-pages, highlight the parent tab instead
   const navPage = SUB_PAGE_PARENT[pageId] || pageId;
@@ -502,6 +608,7 @@ function onPageEnter(pageId) {
   if (pageId === 'achievements')  renderAchievements();
   if (pageId === 'inbody')        renderInbody();
   if (pageId === 'settings')      { renderThemePicker(); renderSettings(); }
+  updateDesktopRightPanel(pageId);
 }
 
 // ===== MODAL & SHEET =====
@@ -561,13 +668,15 @@ function renderRecipeList() {
 }
 
 function filterRecipes() {
-  const q = (document.getElementById('recipe-search-q')?.value || '').trim().toLowerCase();
+  const isDesktop = window.innerWidth >= 1024;
+  const q = (document.getElementById(isDesktop ? 'recipe-search-desktop' : 'recipe-search-q')?.value || '').trim().toLowerCase();
   const recipes = getData('recipes', []);
   const container = document.getElementById('recipe-list');
   if (!container) return;
 
   if (!recipes.length) {
-    container.innerHTML = `<div class="recipe-empty"><div class="empty-icon">${icon('book-open', 48)}</div><p>尚無食譜<br>點擊右下角「＋」新增第一道料理！</p></div>`;
+    const addCard = isDesktop ? `<div class="recipe-add-card" onclick="openNewRecipeForm()"><div class="recipe-add-icon">＋</div><div class="recipe-add-label">新增食譜</div></div>` : '';
+    container.innerHTML = addCard + `<div class="recipe-empty"><div class="empty-icon">${icon('book-open', 48)}</div><p>尚無食譜<br>${isDesktop ? '點擊左上方「＋」' : '點擊右下角「＋」'}新增第一道料理！</p></div>`;
     return;
   }
 
@@ -582,7 +691,9 @@ function filterRecipes() {
     container.innerHTML = `<div class="recipe-empty"><p style="padding-top:60px">找不到相符的食譜</p></div>`;
     return;
   }
-  container.innerHTML = filtered.map(recipe => `
+
+  const addCard = isDesktop ? `<div class="recipe-add-card" onclick="openNewRecipeForm()"><div class="recipe-add-icon">＋</div><div class="recipe-add-label">新增食譜</div></div>` : '';
+  container.innerHTML = addCard + filtered.map(recipe => `
     <div class="recipe-card" onclick="openRecipeDetail('${recipe.id}')">
       ${recipe.image
         ? `<img class="recipe-card-img" src="${recipe.image}" alt="${recipe.name}" loading="lazy">`
@@ -592,6 +703,7 @@ function filterRecipes() {
         <div class="recipe-card-meta">
           <span>${icon('timer', 13)} ${recipe.time || '?'}分</span>
           <span>${icon('flame', 13)} ${recipe.nutrition?.calories || 0}kcal</span>
+          ${isDesktop && (recipe.nutrition?.protein || 0) > 0 ? `<span>${icon('activity', 13)} ${recipe.nutrition.protein}g 蛋白質</span>` : ''}
         </div>
       </div>
     </div>`).join('');
@@ -1202,24 +1314,29 @@ function renderFoodDB() {
     container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-light);opacity:0.6;font-style:italic">找不到符合條件的食材</div>`;
     return;
   }
-  container.innerHTML = foods.map(f => `
+  container.innerHTML = foods.map(f => {
+    const hasSrv = f.serving && f.serving.unit;
+    const dispData = hasSrv ? f.serving : f.per100g;
+    const dispLabel = hasSrv ? `每${f.serving.unit}` : '每100g';
+    return `
     <div class="food-item">
       <span class="food-state-badge ${stateBadgeClass(f.state)}">${f.state}</span>
       <div class="food-item-main">
         <div class="food-item-name">${f.name}</div>
-        <div class="food-item-cat">${f.category} · 每100g</div>
+        <div class="food-item-cat">${f.category} · ${dispLabel}</div>
         <div class="food-item-macros">
-          <span class="macro-chip kcal">${icon('flame', 12)} ${f.per100g.calories}kcal</span>
-          <span class="macro-chip">蛋白 ${f.per100g.protein}g</span>
-          <span class="macro-chip">脂 ${f.per100g.fat}g</span>
-          <span class="macro-chip">碳 ${f.per100g.carbs}g</span>
+          <span class="macro-chip kcal">${icon('flame', 12)} ${dispData.calories}kcal</span>
+          <span class="macro-chip">蛋白 ${dispData.protein}g</span>
+          <span class="macro-chip">脂 ${dispData.fat}g</span>
+          <span class="macro-chip">碳 ${dispData.carbs}g</span>
         </div>
       </div>
       <div class="food-item-actions">
         <button class="icon-btn edit" onclick="openEditFoodForm('${f.id}')" title="編輯">${icon('pen-left', 15)}</button>
         <button class="icon-btn delete" onclick="deleteFoodConfirm('${f.id}')" title="刪除">${icon('trash-2', 15)}</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function searchFoodDB(q) {
@@ -1394,6 +1511,12 @@ function changeDiaryDate(delta) {
   if (newDate > todayStr()) return;
   state.currentDate = newDate;
   renderDiary();
+  const el = document.getElementById('diary-entries');
+  if (el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = delta < 0 ? 'diarySlideLeft .22s cubic-bezier(.2,.8,.4,1)' : 'diarySlideRight .22s cubic-bezier(.2,.8,.4,1)';
+  }
 }
 
 function setDiaryDate(ds) {
@@ -1817,7 +1940,273 @@ function deleteDiaryEntry(ds, entryId) {
 }
 
 // ===== PROFILE =====
+
+let _profileDesktopTab = 'basic';
+let _pdtAchSearch = '';
+let _pdtAchCat = '';
+
+function openProfileEdit() {
+  _profileEditMode = true;
+  renderProfileDesktop('settings');
+}
+
+function _filterPdtAch(s, c) {
+  if (s !== null) _pdtAchSearch = s;
+  if (c !== null) _pdtAchCat = c;
+  const el = document.querySelector('#profile-content .profile-dtab-content');
+  if (el) el.innerHTML = _buildPdtAchievements();
+}
+
+function renderProfileDesktop(tab) {
+  if (tab) _profileDesktopTab = tab;
+  const container = document.getElementById('profile-content');
+  if (!container) return;
+
+  const tabs = [
+    { id: 'basic', label: '基本' },
+    { id: 'inbody', label: '體組成' },
+    { id: 'achievements', label: '成就館' },
+    { id: 'settings', label: '設定' },
+  ];
+
+  const tabsHtml = `<div class="profile-dtabs">${
+    tabs.map(t => `<button class="pdtab${_profileDesktopTab === t.id ? ' active' : ''}" onclick="renderProfileDesktop('${t.id}')">${t.label}</button>`).join('')
+  }</div>`;
+
+  let content = '';
+  if (_profileDesktopTab === 'basic') content = _buildPdtBasic();
+  else if (_profileDesktopTab === 'inbody') content = _buildPdtInbody();
+  else if (_profileDesktopTab === 'achievements') content = _buildPdtAchievements();
+  else content = _buildPdtSettings();
+
+  container.innerHTML = tabsHtml + `<div class="profile-dtab-content">${content}</div>`;
+}
+
+function _buildPdtBasic() {
+  const profile = getData('profile', {});
+  const body = profile.body || {};
+  const gd = getGameData();
+  const curLvEntry = LEVEL_TABLE.find(e => e.level === gd.level) || LEVEL_TABLE[0];
+  const nextLvEntry = LEVEL_TABLE.find(e => e.level === gd.level + 1);
+  const xpInLevel = gd.xp - curLvEntry.xp;
+  const xpNeeded = nextLvEntry ? nextLvEntry.xp - curLvEntry.xp : 1;
+  const xpPct = nextLvEntry ? Math.min(100, Math.round(xpInLevel / xpNeeded * 100)) : 100;
+
+  const avatarData = getData('avatarData', null);
+  const avatarHtml = avatarData
+    ? `<img src="${avatarData}" alt="頭貼" style="width:100%;height:100%;object-fit:cover">`
+    : icon('user', 36);
+
+  const wLog = getData('weightLog', {});
+  const inbodyRecs = getData('inbody', []);
+  const inbodyByDate = {};
+  inbodyRecs.forEach(rec => { inbodyByDate[rec.date] = rec.weight; });
+  const w7 = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = dateStr(d);
+    if (wLog[ds] != null) w7.push(wLog[ds]);
+    else if (inbodyByDate[ds] != null) w7.push(inbodyByDate[ds]);
+  }
+  const avg7 = w7.length ? r(w7.reduce((s, v) => s + v, 0) / w7.length, 1) : null;
+  const lastInbody = inbodyRecs.length ? inbodyRecs[inbodyRecs.length - 1] : null;
+
+  return `
+    <div class="pdt-basic">
+      <div class="pdt-hero">
+        <label for="avatar-file-input" class="pdt-hero-avatar" style="cursor:pointer" title="點擊更換頭貼">${avatarHtml}</label>
+        <div class="pdt-hero-info">
+          <div class="pdt-hero-name">${profile.name || '使用者'}</div>
+          ${profile.bio ? `<div class="pdt-hero-bio">${profile.bio}</div>` : ''}
+          <div class="pdt-hero-stats">
+            <div class="pdt-hero-stat"><strong>Lv.${gd.level}</strong>等級</div>
+            <div class="pdt-hero-stat"><strong>${gd.gold || 0}</strong>金幣</div>
+            ${avg7 != null ? `<div class="pdt-hero-stat"><strong>${avg7} kg</strong>7日均重</div>` : ''}
+            ${lastInbody ? `<div class="pdt-hero-stat"><strong>${lastInbody.fatPct ?? '—'}%</strong>體脂率</div>` : ''}
+          </div>
+        </div>
+        <button class="phc-edit-btn" onclick="openProfileEdit()" style="align-self:flex-start" title="編輯基本資料">${icon('pen-left', 16)}</button>
+      </div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">${curLvEntry.name} · 冒險進度</div>
+        <div class="xp-bar"><div class="xp-bar-fill" style="width:${xpPct}%"></div></div>
+        <div class="xp-bar-labels">
+          <span>${gd.xp} XP</span>
+          <span>${nextLvEntry ? nextLvEntry.xp + ' XP' : 'MAX'}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _buildPdtInbody() {
+  const records = getData('inbody', []).slice().sort((a, b) => b.date.localeCompare(a.date));
+  if (!records.length) {
+    return `<div style="text-align:center;padding:40px;color:var(--text-3)">
+      <div style="font-size:32px;margin-bottom:12px">📊</div>
+      <div style="margin-bottom:16px">尚無體組成記錄</div>
+      <button class="btn-primary" onclick="navigateTo('inbody')">新增測量</button>
+    </div>`;
+  }
+  return `
+    <div class="pdt-inbody-list">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn-primary" onclick="navigateTo('inbody')">＋ 新增測量</button>
+      </div>
+      ${records.map(rec => `
+        <div class="pdt-inbody-row" onclick="navigateTo('inbody')">
+          <div>
+            <div class="pdt-inbody-date">${rec.date}</div>
+            <div class="pdt-inbody-main">${rec.weight ?? '—'} kg</div>
+            <div class="pdt-inbody-subs">體脂 ${rec.fatPct ?? '—'}% · 肌肉 ${rec.muscle ?? '—'} kg</div>
+          </div>
+          <div class="pdt-inbody-metrics">
+            <div class="pdt-inbody-metric"><strong>${rec.bmi ?? '—'}</strong><span>BMI</span></div>
+            <div class="pdt-inbody-metric"><strong>${rec.visceral ?? '—'}</strong><span>內臟脂肪</span></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function _buildPdtAchievements() {
+  const gd = getGameData();
+  const unlocked = new Set(gd.achievements || []);
+  const achDates = gd.achievementDates || {};
+  const allEntries = Object.entries(ACHIEVEMENTS_DEF);
+
+  const CATS = [
+    { key:'', label:'全部' },
+    { key:'recipe', label:'食譜' },
+    { key:'food', label:'飲食' },
+    { key:'workout', label:'運動' },
+    { key:'habit', label:'習慣' },
+    { key:'streak', label:'連續' },
+    { key:'progress', label:'等級' },
+    { key:'hidden', label:'隱藏' },
+  ];
+
+  const filtered = allEntries.filter(([id, def]) => {
+    if (_pdtAchCat && def.cat !== _pdtAchCat) return false;
+    if (_pdtAchSearch) {
+      const q = _pdtAchSearch.toLowerCase();
+      if (!(def.name || '').toLowerCase().includes(q) && !(def.desc || '').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const catHtml = CATS.map(c =>
+    `<button class="pdt-ach-cat-chip${_pdtAchCat === c.key ? ' active' : ''}" onclick="_filterPdtAch(null,'${c.key}')">${c.label}</button>`
+  ).join('');
+
+  const tiles = filtered.map(([id, def]) => {
+    const isUnlocked = unlocked.has(id);
+    const uDate = achDates[id];
+    return `
+      <div class="pdt-ach-tile ${isUnlocked ? 'unlocked' : 'locked'}">
+        <div class="pdt-ach-icon">${icon(def.icon || 'trophy', 22)}</div>
+        <div class="pdt-ach-name">${def.name}</div>
+        <div class="pdt-ach-desc">${def.desc || ''}</div>
+        ${isUnlocked && uDate ? `<div class="pdt-ach-date">${uDate}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div>
+      <div class="pdt-ach-search">
+        <input type="text" class="search-input" style="flex:1" placeholder="搜尋成就名稱、條件…"
+               value="${_pdtAchSearch.replace(/"/g, '&quot;')}"
+               oninput="_filterPdtAch(this.value,null)">
+      </div>
+      <div class="pdt-ach-cats">${catHtml}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">${unlocked.size} / ${allEntries.length} 已解鎖 · 顯示 ${filtered.length}</div>
+      <div class="pdt-ach-grid">${tiles}</div>
+    </div>`;
+}
+
+function _buildPdtSettings() {
+  const profile = getData('profile', {});
+  const goals = profile.goals || defaultGoals();
+  const body = profile.body || {};
+
+  if (_profileEditMode) {
+    const lastInbody = getData('inbody', []).slice(-1)[0];
+    return `
+      <div class="pdt-settings">
+        <div class="profile-setup-grid">
+          <div class="profile-setup-item" style="grid-column:1/-1">
+            <label>暱稱</label>
+            <input type="text" id="body-name" value="${profile.name || ''}" placeholder="使用者">
+          </div>
+          <div class="profile-setup-item" style="grid-column:1/-1">
+            <label>個人簡介</label>
+            <input type="text" id="body-bio" value="${profile.bio || ''}" placeholder="減脂計畫第 1 個月…">
+          </div>
+          <div class="profile-setup-item">
+            <label>年齡</label>
+            <input type="number" id="body-age" value="${body.age || ''}" placeholder="25" min="10" max="99">
+          </div>
+          <div class="profile-setup-item">
+            <label>身高 (cm)</label>
+            <input type="number" id="body-height" value="${body.height || ''}" placeholder="170">
+          </div>
+          <div class="profile-setup-item">
+            <label>體重 (kg)</label>
+            <input type="number" id="body-weight" value="${body.weight || lastInbody?.weight || ''}" placeholder="65" step="0.1">
+          </div>
+          <div class="profile-setup-item">
+            <label>性別</label>
+            <select id="body-gender">
+              <option value="male"   ${body.gender === 'male'   ? 'selected' : ''}>男</option>
+              <option value="female" ${body.gender === 'female' ? 'selected' : ''}>女</option>
+            </select>
+          </div>
+          <div class="profile-setup-item" style="grid-column:1/-1">
+            <label>活動量</label>
+            <select id="body-activity">
+              <option value="1.2"   ${body.activity === '1.2'   ? 'selected' : ''}>久坐（幾乎不運動）</option>
+              <option value="1.375" ${body.activity === '1.375' ? 'selected' : ''}>輕度（週1-3天）</option>
+              <option value="1.55"  ${body.activity === '1.55'  ? 'selected' : ''}>中度（週3-5天）</option>
+              <option value="1.725" ${body.activity === '1.725' ? 'selected' : ''}>高度（週6-7天）</option>
+              <option value="1.9"   ${body.activity === '1.9'   ? 'selected' : ''}>極高（每天高強度）</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button class="btn-ghost" style="flex:1" onclick="cancelProfileEdit()">取消</button>
+          <button class="btn-primary" style="flex:2" onclick="saveProfileSetup()">儲存</button>
+        </div>
+      </div>`;
+  }
+
+  const genderLabel = body.gender === 'male' ? '男' : body.gender === 'female' ? '女' : '—';
+  const activityLabel = { '1.2': '久坐', '1.375': '輕度活動', '1.55': '中度活動', '1.725': '高度活動', '1.9': '極高強度' }[body.activity] || '—';
+
+  return `
+    <div class="pdt-settings">
+      <div class="section-heading-row">
+        <div class="section-heading">個人資訊</div>
+        <button class="edit-link-btn" onclick="openProfileEdit()">編輯</button>
+      </div>
+      <div class="pdt-info-card">
+        <div class="pdt-info-row"><span class="pdt-info-label">姓名</span><span class="pdt-info-val">${profile.name || '—'}</span></div>
+        <div class="pdt-info-row"><span class="pdt-info-label">性別／年齡</span><span class="pdt-info-val">${genderLabel}${body.age ? '・' + body.age + '歲' : ''}</span></div>
+        <div class="pdt-info-row"><span class="pdt-info-label">身高</span><span class="pdt-info-val">${body.height ? body.height + ' cm' : '—'}</span></div>
+        <div class="pdt-info-row"><span class="pdt-info-label">活動量</span><span class="pdt-info-val">${activityLabel}</span></div>
+      </div>
+      <div class="section-heading-row" style="margin-top:4px">
+        <div class="section-heading">每日飲食目標</div>
+        <button class="edit-link-btn" onclick="openGoalsWizard()">${icon('calculator', 13)} 計算</button>
+      </div>
+      <div class="pdt-goals-grid">
+        <div class="pdt-goal-chip"><div class="pdt-goal-chip-val">${goals.calories || 0}</div><div class="pdt-goal-chip-lbl">熱量 kcal</div></div>
+        <div class="pdt-goal-chip"><div class="pdt-goal-chip-val">${goals.protein || 0}</div><div class="pdt-goal-chip-lbl">蛋白質 g</div></div>
+        <div class="pdt-goal-chip"><div class="pdt-goal-chip-val">${goals.fat || 0}</div><div class="pdt-goal-chip-lbl">脂肪 g</div></div>
+        <div class="pdt-goal-chip"><div class="pdt-goal-chip-val">${goals.carbs || 0}</div><div class="pdt-goal-chip-lbl">碳水 g</div></div>
+      </div>
+    </div>`;
+}
+
 function renderProfile() {
+  if (window.innerWidth >= 1024) { renderProfileDesktop(); return; }
   const profile = getData('profile', {});
   const goals   = profile.goals || defaultGoals();
   const body    = profile.body  || {};
@@ -3100,7 +3489,7 @@ function _buildWorkoutEntryBubble(e, isToday) {
   if (side === 'right') {
     return `<div class="workout-bubble-row right"><div class="workout-bubble right" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-left:-2px;flex-shrink:0;display:block"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" style="fill:var(--sage)"/></svg></div>`;
   } else {
-    return `<div class="workout-bubble-row left"><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-right:-2px;flex-shrink:0;display:block;transform:scaleX(-1)"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" fill="white"/></svg><div class="workout-bubble left" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div></div>`;
+    return `<div class="workout-bubble-row left"><svg class="wb-tail" viewBox="0 0 11 16" width="11" height="16" style="margin-right:-2px;flex-shrink:0;display:block;transform:scaleX(-1)"><path d="M0 0 H11 C9 4, 3 10, 0 13 Z" style="fill:white;stroke:var(--border);stroke-width:1"/></svg><div class="workout-bubble left" onclick="openEditWorkout('${e.id}')">${bubbleInner}</div></div>`;
   }
 }
 
@@ -3282,7 +3671,102 @@ function toggleHabitArchive() {
   if (chevron) chevron.style.transform = _habitArchiveOpen ? 'rotate(90deg)' : '';
 }
 
+function renderHabitsDesktop() {
+  const habits = getData('habits', []);
+  const active = habits.filter(h => !h.archived);
+  const container = document.getElementById('habits-content');
+  if (!container) return;
+
+  if (!active.length) {
+    container.innerHTML = `
+      <div class="placeholder-view">
+        <div class="placeholder-icon">🎯</div>
+        <div class="placeholder-text">還沒有習慣</div>
+        <div class="placeholder-sub">點擊右上角 ＋ 新增第一個習慣</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div style="padding:12px 16px">${active.map(h => _buildHabitDesktopCard(h)).join('')}</div>`;
+
+  setTimeout(() => {
+    active.forEach(h => {
+      const canvas = document.getElementById('hcvs-' + h.id);
+      if (canvas) _drawHabitGrid(canvas, h.id, h.color);
+    });
+  }, 0);
+}
+
+function _buildHabitDesktopCard(habit) {
+  const log = getData('habitLog', {});
+  const todayDs = todayStr();
+  const st = (log[todayDs] || {})[habit.id] || '';
+
+  let cbCls = 'habit-desktop-cb';
+  let cbTxt = '';
+  if (st === 'done') { cbCls += ' state-done'; cbTxt = '✓'; }
+  else if (st === 'skip') { cbCls += ' state-skip'; cbTxt = '—'; }
+
+  return `
+    <div class="habit-desktop-card">
+      <div class="habit-desktop-top" onclick="toggleHabitDay('${habit.id}','${todayDs}');renderHabits()">
+        <div class="${cbCls}">${cbTxt}</div>
+        <span class="habit-desktop-name" style="color:${habit.color}">${habit.name}</span>
+      </div>
+      <canvas id="hcvs-${habit.id}" class="habit-grid-canvas"></canvas>
+    </div>`;
+}
+
+function _drawHabitGrid(canvas, habitId, color) {
+  const log = getData('habitLog', {});
+  const W = 26, H = 7;
+  const dpr = window.devicePixelRatio || 1;
+  // Cap cell size at 10px so the grid stays compact (user request: 40-50% of old size)
+  const gap = 2;
+  const cellSize = 10;
+  const gridW = W * (cellSize + gap) - gap;
+  const gridH = H * (cellSize + gap) - gap;
+  canvas.style.width  = gridW + 'px';
+  canvas.style.height = gridH + 'px';
+  canvas.width  = Math.round(gridW * dpr);
+  canvas.height = Math.round(gridH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const today = new Date();
+  const todayDow = (today.getDay() + 6) % 7; // Mon=0 … Sun=6
+
+  for (let col = 0; col < W; col++) {
+    for (let row = 0; row < H; row++) {
+      const daysFromToday = -(W - 1 - col) * 7 + (row - todayDow);
+      const d = new Date(today);
+      d.setDate(today.getDate() + daysFromToday);
+      if (d > today) continue;
+
+      const ds = dateStr(d);
+      const st = (log[ds] || {})[habitId] || '';
+
+      let fill;
+      if (st === 'done') fill = color || '#4D6A55';
+      else if (st === 'skip') fill = '#C4C2BD';
+      else fill = '#E8E6E0';
+
+      const x = col * (cellSize + gap);
+      const y = row * (cellSize + gap);
+      ctx.fillStyle = fill;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, cellSize, cellSize, 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, y, cellSize, cellSize);
+      }
+    }
+  }
+}
+
 function renderHabits() {
+  if (window.innerWidth >= 1024) { renderHabitsDesktop(); return; }
   const habits  = getData('habits', []);
   const active   = habits.filter(h => !h.archived);
   const archived = habits.filter(h => h.archived);
