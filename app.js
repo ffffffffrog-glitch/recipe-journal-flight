@@ -132,7 +132,7 @@ const ACHIEVEMENTS_DEF = {
   diary_100:    { name:'百日廚師',   desc:'累計有飲食記錄的日子達 100 天',      icon:'list',     cat:'food' },
   diary_365:    { name:'歲月廚神',   desc:'累計有飲食記錄的日子達 365 天',      icon:'trophy',   cat:'food' },
   triple_crown: { name:'三餐勇士',   desc:'同一天記錄早、午、晚三餐',           icon:'sun',      cat:'food' },
-  goal_hit:     { name:'精準打擊',   desc:'當日熱量達成目標（±10% 以內）',     icon:'target',   cat:'food' },
+  goal_hit:     { name:'精準打擊',   desc:'當日熱量控制在目標以內',            icon:'target',   cat:'food' },
   goal_week:    { name:'均衡使者',   desc:'連續 7 天達成熱量目標',              icon:'flame',    cat:'food' },
   goal_month:   { name:'月度達標',   desc:'連續 30 天達成熱量目標',             icon:'star',     cat:'food' },
   variety_5:    { name:'食材探險家', desc:'在日誌中記錄超過 5 種不同食物',      icon:'leaf',     cat:'food' },
@@ -515,12 +515,43 @@ function closeModal(id) {
   document.body.style.overflow = '';
 }
 function openBottomSheet(id) {
-  const el = document.getElementById(id);
-  el.style.display = 'flex';
+  const overlay = document.getElementById(id);
+  overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  const sheet  = overlay.querySelector('.bottom-sheet');
+  const handle = overlay.querySelector('.sheet-handle');
+  if (!sheet || !handle) return;
+  sheet.style.transform = '';
+  let _sy = 0, _dragging = false;
+  const onStart = e => { _sy = e.touches[0].clientY; _dragging = true; sheet.style.transition = 'none'; };
+  const onMove  = e => {
+    if (!_dragging) return;
+    const dy = e.touches[0].clientY - _sy;
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+  };
+  const onEnd   = e => {
+    if (!_dragging) return;
+    _dragging = false;
+    const dy = (e.changedTouches?.[0]?.clientY ?? _sy) - _sy;
+    sheet.style.transition = 'transform .28s cubic-bezier(.2,.8,.4,1)';
+    if (dy > 80) { sheet.style.transform = 'translateY(100%)'; setTimeout(() => closeBottomSheet(id), 260); }
+    else { sheet.style.transform = ''; setTimeout(() => { sheet.style.transition = ''; }, 300); }
+  };
+  if (handle._sheetOnStart) {
+    handle.removeEventListener('touchstart', handle._sheetOnStart);
+    handle.removeEventListener('touchmove',  handle._sheetOnMove);
+    handle.removeEventListener('touchend',   handle._sheetOnEnd);
+  }
+  handle._sheetOnStart = onStart; handle._sheetOnMove = onMove; handle._sheetOnEnd = onEnd;
+  handle.addEventListener('touchstart', onStart, { passive: true });
+  handle.addEventListener('touchmove',  onMove,  { passive: true });
+  handle.addEventListener('touchend',   onEnd);
 }
 function closeBottomSheet(id) {
-  document.getElementById(id).style.display = 'none';
+  const overlay = document.getElementById(id);
+  const sheet = overlay.querySelector('.bottom-sheet');
+  if (sheet) { sheet.style.transform = ''; sheet.style.transition = ''; }
+  overlay.style.display = 'none';
   document.body.style.overflow = '';
 }
 
@@ -1441,8 +1472,8 @@ function openAddDiaryEntrySheet() {
   state.editingDiaryEntry = null;
   const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
   if (titleEl) titleEl.textContent = '新增飲食記錄';
-  const saveBtn = document.querySelector('#sheet-diary-add button.btn-primary');
-  if (saveBtn) saveBtn.textContent = '新增記錄';
+  ['#add-panel-manual button.btn-primary','#add-panel-fooddb button.btn-primary','#add-panel-recipe button.btn-primary']
+    .forEach(sel => { const b = document.querySelector(sel); if (b) b.textContent = '新增記錄'; });
   // Auto-detect meal from current time
   const h = new Date().getHours();
   const meal = h < 10 ? '早餐' : h < 14 ? '午餐' : h < 19 ? '晚餐' : '點心';
@@ -1520,7 +1551,7 @@ function saveManualDiaryEntry() {
     const entries = diary[date] || [];
     const idx = entries.findIndex(e => e.id === id);
     if (idx !== -1) {
-      entries[idx] = { ...entries[idx], name, amount: document.getElementById('dm-amount').value.trim(), nutrition };
+      entries[idx] = { ...entries[idx], name, meal: getAddMeal(), amount: document.getElementById('dm-amount').value.trim(), nutrition };
       diary[date] = entries;
       setData('diary', diary);
     }
@@ -1550,8 +1581,39 @@ function editDiaryEntry(ds, entryId) {
   const entry = (diary[ds] || []).find(e => e.id === entryId);
   if (!entry) return;
   state.editingDiaryEntry = { date: ds, id: entryId };
-  switchDiaryTab('manual');
   setAddMeal(entry.meal || '午餐');
+  const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
+  if (titleEl) titleEl.textContent = '編輯飲食記錄';
+
+  if (entry.source === 'fooddb') {
+    const food = getData('foodDB', []).find(f => f.name === entry.name);
+    if (food) {
+      switchDiaryTab('fooddb');
+      selectFoodForDiary(food.id);
+      const amtMatch = (entry.amount || '').match(/^([\d.]+)/);
+      if (amtMatch) document.getElementById('dfdb-amount').value = amtMatch[1];
+      updateFoodDBPreview();
+      const btn = document.querySelector('#add-panel-fooddb button.btn-primary');
+      if (btn) btn.textContent = '更新記錄';
+      openBottomSheet('sheet-diary-add');
+      return;
+    }
+  } else if (entry.source === 'recipe') {
+    const recipe = getData('recipes', []).find(r => r.name === entry.name);
+    if (recipe) {
+      switchDiaryTab('recipe');
+      selectRecipeForDiary(recipe.id);
+      const srvMatch = (entry.amount || '').match(/^([\d.]+)/);
+      if (srvMatch) document.getElementById('dr-serving').value = srvMatch[1];
+      updateRecipeServingPreview();
+      const btn = document.querySelector('#add-panel-recipe button.btn-primary');
+      if (btn) btn.textContent = '更新記錄';
+      openBottomSheet('sheet-diary-add');
+      return;
+    }
+  }
+
+  switchDiaryTab('manual');
   document.getElementById('dm-name').value     = entry.name || '';
   document.getElementById('dm-amount').value   = entry.amount || '';
   document.getElementById('dm-calories').value = entry.nutrition?.calories ?? '';
@@ -1559,10 +1621,8 @@ function editDiaryEntry(ds, entryId) {
   document.getElementById('dm-fat').value      = entry.nutrition?.fat      ?? '';
   document.getElementById('dm-carbs').value    = entry.nutrition?.carbs    ?? '';
   document.getElementById('dm-fiber').value    = entry.nutrition?.fiber    ?? '';
-  const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
-  if (titleEl) titleEl.textContent = '編輯飲食記錄';
-  const saveBtn = document.querySelector('#sheet-diary-add button.btn-primary');
-  if (saveBtn) saveBtn.textContent = '更新記錄';
+  const btn = document.querySelector('#add-panel-manual button.btn-primary');
+  if (btn) btn.textContent = '更新記錄';
   openBottomSheet('sheet-diary-add');
 }
 
@@ -1631,6 +1691,22 @@ function saveFoodDBDiaryEntry() {
   const nutrition  = useServing
     ? { calories: r(f.serving.calories * amt), protein: r(f.serving.protein * amt), fat: r(f.serving.fat * amt), carbs: r(f.serving.carbs * amt), fiber: r((f.serving.fiber||0) * amt) }
     : calcNutrition(f, amt);
+  if (state.editingDiaryEntry) {
+    const { date, id } = state.editingDiaryEntry;
+    const diary = getData('diary', {});
+    const entries = diary[date] || [];
+    const idx = entries.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      entries[idx] = { ...entries[idx], meal: getAddMeal(), name: f.name, amount: useServing ? `${amt} ${unit}` : `${amt}g`, source: 'fooddb', nutrition };
+      diary[date] = entries;
+      setData('diary', diary);
+    }
+    state.editingDiaryEntry = null;
+    closeBottomSheet('sheet-diary-add');
+    renderDiary();
+    showToast('已更新飲食記錄');
+    return;
+  }
   const entry = {
     id: generateId('d'),
     meal: getAddMeal(),
@@ -1687,19 +1763,36 @@ function saveRecipeDiaryEntry() {
   if (!rc) { showToast('請先選擇食譜'); return; }
   const srv = parseFloat(document.getElementById('dr-serving').value) || 1;
   const n = rc.nutrition || {};
+  const nutrition = {
+    calories: r((n.calories||0)*srv),
+    protein:  r((n.protein||0)*srv),
+    fat:      r((n.fat||0)*srv),
+    carbs:    r((n.carbs||0)*srv),
+    fiber:    r((n.fiber||0)*srv),
+  };
+  if (state.editingDiaryEntry) {
+    const { date, id } = state.editingDiaryEntry;
+    const diary = getData('diary', {});
+    const entries = diary[date] || [];
+    const idx = entries.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      entries[idx] = { ...entries[idx], meal: getAddMeal(), name: rc.name, amount: srv === 1 ? '1份' : `${srv}份`, source: 'recipe', nutrition };
+      diary[date] = entries;
+      setData('diary', diary);
+    }
+    state.editingDiaryEntry = null;
+    closeBottomSheet('sheet-diary-add');
+    renderDiary();
+    showToast('已更新飲食記錄');
+    return;
+  }
   const entry = {
     id: generateId('d'),
     meal: getAddMeal(),
     name: rc.name,
     amount: srv === 1 ? '1份' : `${srv}份`,
     source: 'recipe',
-    nutrition: {
-      calories: r((n.calories||0)*srv),
-      protein:  r((n.protein||0)*srv),
-      fat:      r((n.fat||0)*srv),
-      carbs:    r((n.carbs||0)*srv),
-      fiber:    r((n.fiber||0)*srv),
-    }
+    nutrition,
   };
   addDiaryEntry(entry);
   closeBottomSheet('sheet-diary-add');
@@ -1928,8 +2021,8 @@ function renderProfile() {
     ${goalsSection}
     <div class="progress-section">
       <div class="section-heading">今日達標進度</div>
-      ${renderProgressBar('熱量', tot.calories, goals.calories, 'kcal')}
-      ${renderProgressBar('蛋白質', tot.protein, goals.protein, 'g')}
+      ${renderProgressBar('熱量', tot.calories, goals.calories, 'kcal', 'calorie')}
+      ${renderProgressBar('蛋白質', tot.protein, goals.protein, 'g', 'protein')}
     </div>
     <div class="ach-link-card" onclick="navigateTo('achievements')">
       ${icon('trophy', 14)} 成就館
@@ -2813,16 +2906,19 @@ function toggleQA(i) {
   if (ch) ch.style.transform = open ? '' : 'rotate(90deg)';
 }
 
-function renderProgressBar(label, current, goal, unit) {
+function renderProgressBar(label, current, goal, unit, type) {
   const pct = goal ? Math.min((current / goal) * 100, 120) : 0;
   const over = goal && current > goal;
   const dispPct = Math.min(pct, 100);
   const goalStr = goal ? `${r(goal)}${unit}` : '未設定';
+  let fillClass = 'progress-fill';
+  if (type === 'calorie' && over) fillClass += ' over';
+  if (type === 'protein' && !over) fillClass += ' protein-under';
   return `
     <div class="progress-row">
       <span class="progress-label">${label}</span>
       <div class="progress-track">
-        <div class="progress-fill${over ? ' over' : ''}" style="width:${dispPct}%"></div>
+        <div class="${fillClass}" style="width:${dispPct}%"></div>
       </div>
       <span class="progress-val">${r(current)} / ${goalStr}</span>
     </div>`;
@@ -3904,6 +4000,7 @@ function setInbodyTrendRange(range) {
 let _carIdx   = 0;   // current slide index
 let _carTotal = 0;   // total slides
 let _carSX    = 0;   // swipe start X
+let _carSY    = 0;   // swipe start Y
 let _carCX    = 0;   // swipe current X
 let _carDrag  = false;
 let _carAxis  = null; // 'h' | 'v' — determined on first move
@@ -3922,6 +4019,7 @@ function initCarouselDots() {
   // Touch events (passive — browser handles vertical scroll, we handle horizontal)
   c.addEventListener('touchstart', ev => {
     _carSX   = ev.touches[0].clientX;
+    _carSY   = ev.touches[0].clientY;
     _carCX   = _carSX;
     _carAxis = null;
     _carDrag = true;
@@ -3931,7 +4029,7 @@ function initCarouselDots() {
   c.addEventListener('touchmove', ev => {
     if (!_carDrag) return;
     const dx = ev.touches[0].clientX - _carSX;
-    const dy = ev.touches[0].clientY - _carSX;
+    const dy = ev.touches[0].clientY - _carSY;
     if (!_carAxis) _carAxis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
     if (_carAxis === 'h') {
       _carCX = ev.touches[0].clientX;
@@ -5075,13 +5173,12 @@ function _runAchievementChecks(gd) {
   if (goals.calories > 0) {
     const tot = getDailyTotals(today);
     const pct = tot.calories / goals.calories;
-    if (tot.calories > 0 && pct >= 0.9 && pct <= 1.1) tryU('goal_hit');
+    if (tot.calories > 0 && tot.calories <= goals.calories) tryU('goal_hit');
     let gs = 0, gm = 0;
     for (let i = 0; i < 30; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
       const t = getDailyTotals(dateStr(d));
-      const p = t.calories / goals.calories;
-      if (t.calories > 0 && p >= 0.9 && p <= 1.1) { gs++; gm++; }
+      if (t.calories > 0 && t.calories <= goals.calories) { gs++; gm++; }
       else break;
     }
     if (gs >= 7)  tryU('goal_week');
@@ -5200,8 +5297,7 @@ function _runAchievementChecks(gd) {
   if (goals.calories > 0) {
     const goalHit = diaryDays.some(ds => {
       const t = getDailyTotals(ds);
-      const p = t.calories / goals.calories;
-      return t.calories > 0 && p >= 0.9 && p <= 1.1 && wDates.has(ds);
+      return t.calories > 0 && t.calories <= goals.calories && wDates.has(ds);
     });
     if (goalHit) tryU('goal_workout_same');
     // goal_workout_7: 7 consecutive days both goal hit AND workout
@@ -5210,8 +5306,7 @@ function _runAchievementChecks(gd) {
       const d = new Date(); d.setDate(d.getDate() - i);
       const ds = dateStr(d);
       const t = getDailyTotals(ds);
-      const p = t.calories / goals.calories;
-      if (t.calories > 0 && p >= 0.9 && p <= 1.1 && wDates.has(ds)) gw7++;
+      if (t.calories > 0 && t.calories <= goals.calories && wDates.has(ds)) gw7++;
       else break;
     }
     if (gw7 >= 7) tryU('goal_workout_7');
@@ -5460,6 +5555,14 @@ function renderAchievements() {
     ${gridHtml}
     <div style="height:30px"></div>`;
 }
+
+// Cursor at end when focusing any input field
+document.addEventListener('focusin', e => {
+  const el = e.target;
+  if (el.tagName !== 'INPUT') return;
+  const len = (el.value || '').length;
+  requestAnimationFrame(() => { try { el.setSelectionRange(len, len); } catch(_) {} });
+}, true);
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
