@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=26">
+  <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -44,7 +44,9 @@
           <button class="header-back-btn" onclick="navigateTo('recipes')">‹</button>
         </div>
         <h1 class="page-title">食物庫</h1>
-        <div class="page-header-side"></div>
+        <div class="page-header-side">
+          <button class="fooddb-add-btn-header" onclick="openAddFoodForm()">＋ 新增</button>
+        </div>
       </div>
       <div class="search-bar-container">
         <input type="text" id="food-search" class="search-input" placeholder="搜尋食材名稱…" oninput="searchFoodDB(this.value)">
@@ -339,7 +341,7 @@
     <div class="modal-header">
       <button class="modal-close" onclick="closeModal('modal-recipe')">✕</button>
       <h2 class="modal-title" id="recipe-form-title">新增食譜</h2>
-      <button class="modal-save-btn" onclick="saveRecipeForm()">儲存</button>
+      <div></div>
     </div>
     <div class="modal-body">
       <input type="hidden" id="recipe-id">
@@ -407,6 +409,9 @@
       <div class="form-section">
         <label class="form-label">備註</label>
         <textarea id="recipe-notes" class="form-textarea" rows="3" placeholder="料理技巧、替換食材建議…"></textarea>
+      </div>
+      <div class="form-section">
+        <button class="btn-primary full-width" onclick="saveRecipeForm()">儲存食譜</button>
       </div>
     </div>
   </div>
@@ -877,7 +882,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="data.js?v=26"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

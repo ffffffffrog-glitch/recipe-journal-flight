@@ -3539,7 +3539,7 @@ function openNewWorkoutForm() {
   document.querySelectorAll('#wf-exercise-presets .preset-btn').forEach(b => b.classList.toggle('active', b.dataset.ex === '慢跑'));
   _workoutExercise = '慢跑';
   document.getElementById('wf-exercise-custom').style.display = 'none';
-  document.getElementById('sheet-workout-form').style.display = 'flex';
+  openBottomSheet('sheet-workout-form');
 }
 
 function openEditWorkout(id) {
@@ -3569,7 +3569,7 @@ function openEditWorkout(id) {
     if (!_workoutBlocks.length) _workoutBlocks = [{ name:'', weight:null, sets:null, reps:null }];
     setWorkoutType('strength');
   }
-  document.getElementById('sheet-workout-form').style.display = 'flex';
+  openBottomSheet('sheet-workout-form');
 }
 
 function setWorkoutType(type) {
@@ -3854,10 +3854,13 @@ function _buildHabitDateHeader() {
 
 function _initHabitDrag(container) {
   if (window.innerWidth >= 1024) return;
-  let dragEl = null, lastCY = 0;
 
-  // Non-passive touchstart on each handle so e.preventDefault() can stop scroll commitment
+  // Attach all touch events directly to each button (sticky touch — events fire on
+  // the element where touchstart began, even as the finger moves elsewhere).
+  // Avoids container-level listener accumulation across re-renders.
   container.querySelectorAll('.habit-drag-btn').forEach(btn => {
+    let dragEl = null, lastCY = 0;
+
     btn.addEventListener('touchstart', e => {
       e.preventDefault();
       e.stopPropagation();
@@ -3867,31 +3870,31 @@ function _initHabitDrag(container) {
       dragEl.classList.add('is-dragging');
       navigator.vibrate?.(20);
     }, { passive: false });
-  });
 
-  container.addEventListener('touchmove', e => {
-    if (!dragEl) return;
-    e.preventDefault();
-    const cy = e.touches[0].clientY;
-    const dy = cy - lastCY;
-    lastCY = cy;
-    const rows = [...container.querySelectorAll('.habit-row')];
-    const idx = rows.indexOf(dragEl);
-    if (dy < -18 && idx > 0)               rows[idx - 1].before(dragEl);
-    else if (dy > 18 && idx < rows.length - 1) rows[idx + 1].after(dragEl);
-  }, { passive: false });
+    btn.addEventListener('touchmove', e => {
+      if (!dragEl) return;
+      e.preventDefault();
+      const cy = e.touches[0].clientY;
+      const dy = cy - lastCY;
+      lastCY = cy;
+      const rows = [...container.querySelectorAll('.habit-row')];
+      const idx  = rows.indexOf(dragEl);
+      if (dy < -18 && idx > 0)                rows[idx - 1].before(dragEl);
+      else if (dy > 18 && idx < rows.length - 1) rows[idx + 1].after(dragEl);
+    }, { passive: false });
 
-  container.addEventListener('touchend', () => {
-    if (!dragEl) return;
-    dragEl.classList.remove('is-dragging');
-    const newOrder = [...container.querySelectorAll('.habit-row')].map(r => r.dataset.habitId).filter(Boolean);
-    const habits   = getData('habits', []);
-    const active   = habits.filter(h => !h.archived);
-    const archived = habits.filter(h => h.archived);
-    const reordered = newOrder.map(id => active.find(h => h.id === id)).filter(Boolean);
-    const missing   = active.filter(h => !newOrder.includes(h.id));
-    setData('habits', [...reordered, ...missing, ...archived]);
-    dragEl = null;
+    btn.addEventListener('touchend', () => {
+      if (!dragEl) return;
+      dragEl.classList.remove('is-dragging');
+      const newOrder = [...container.querySelectorAll('.habit-row')].map(r => r.dataset.habitId).filter(Boolean);
+      const habits   = getData('habits', []);
+      const active   = habits.filter(h => !h.archived);
+      const archived = habits.filter(h => h.archived);
+      const reordered = newOrder.map(id => active.find(h => h.id === id)).filter(Boolean);
+      const missing   = active.filter(h => !newOrder.includes(h.id));
+      setData('habits', [...reordered, ...missing, ...archived]);
+      dragEl = null;
+    });
   });
 }
 
@@ -5404,14 +5407,12 @@ function openCustomTaskModal(id = null) {
   document.getElementById('ct-name').value = task ? task.name : '';
   document.getElementById('ct-xp').value = task ? task.xp : 20;
   document.getElementById('ct-gold').value = task ? task.gold : 10;
-  document.getElementById('modal-custom-task').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  openBottomSheet('modal-custom-task');
   setTimeout(() => document.getElementById('ct-name').focus(), 100);
 }
 
 function closeCustomTaskModal() {
-  document.getElementById('modal-custom-task').style.display = 'none';
-  document.body.style.overflow = '';
+  closeBottomSheet('modal-custom-task');
 }
 
 function saveCustomTaskModal() {
@@ -5481,14 +5482,12 @@ function openEditDailyTaskModal(type, index) {
   document.getElementById('edit-dt-text').value = (tasks || [])[index] || '';
   document.getElementById('edit-dt-xp').value = reward.xp;
   document.getElementById('edit-dt-gold').value = reward.gold;
-  document.getElementById('modal-edit-daily-task').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  openBottomSheet('modal-edit-daily-task');
   setTimeout(() => document.getElementById('edit-dt-text').select(), 100);
 }
 
 function closeEditDailyTaskModal() {
-  document.getElementById('modal-edit-daily-task').style.display = 'none';
-  document.body.style.overflow = '';
+  closeBottomSheet('modal-edit-daily-task');
 }
 
 function saveEditDailyTask() {

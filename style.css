@@ -842,6 +842,7 @@ img { max-width: 100%; display: block; }
   min-width: 44px; display: flex; align-items: center;
 }
 .page-header-side:last-child { justify-content: flex-end; }
+.fooddb-add-btn-header { display: none; }
 
 .header-back-btn {
   width: 36px; height: 36px;
@@ -2785,5 +2786,17 @@ body.storage-error .page { padding-top: 44px; }
     grid-template-columns: repeat(8, 26px);
     gap: 12px;
   }
+
+  /* ── Food DB header: title left, add button right ── */
+  #page-fooddb .header-back-btn { display: none; }
+  #page-fooddb .page-title { text-align: left; }
+  #page-fooddb .fab { display: none; }
+  .fooddb-add-btn-header {
+    display: flex; align-items: center;
+    padding: 6px 14px; background: var(--sage); color: #fff;
+    border: none; border-radius: 8px; font-size: .82rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .fooddb-add-btn-header:hover { background: #3d5644; }
 }
 
