@@ -1722,18 +1722,20 @@ function editDiaryEntry(ds, entryId) {
       return;
     }
   } else if (entry.source === 'recipe') {
-    const recipe = getData('recipes', []).find(r => r.name === entry.name);
+    switchDiaryTab('recipe');
+    const recipes = getData('recipes', []);
+    const recipe = (entry.recipeId && recipes.find(r => r.id === entry.recipeId))
+                || recipes.find(r => r.name === entry.name);
     if (recipe) {
-      switchDiaryTab('recipe');
       selectRecipeForDiary(recipe.id);
       const srvMatch = (entry.amount || '').match(/^([\d.]+)/);
       if (srvMatch) document.getElementById('dr-serving').value = srvMatch[1];
       updateRecipeServingPreview();
-      const btn = document.querySelector('#add-panel-recipe button.btn-primary');
-      if (btn) btn.textContent = '更新記錄';
-      openBottomSheet('sheet-diary-add');
-      return;
     }
+    const btn = document.querySelector('#add-panel-recipe button.btn-primary');
+    if (btn) btn.textContent = '更新記錄';
+    openBottomSheet('sheet-diary-add');
+    return;
   }
 
   switchDiaryTab('manual');
@@ -1899,7 +1901,7 @@ function saveRecipeDiaryEntry() {
     const entries = diary[date] || [];
     const idx = entries.findIndex(e => e.id === id);
     if (idx !== -1) {
-      entries[idx] = { ...entries[idx], meal: getAddMeal(), name: rc.name, amount: srv === 1 ? '1份' : `${srv}份`, source: 'recipe', nutrition };
+      entries[idx] = { ...entries[idx], meal: getAddMeal(), name: rc.name, amount: srv === 1 ? '1份' : `${srv}份`, source: 'recipe', recipeId: rc.id, nutrition };
       diary[date] = entries;
       setData('diary', diary);
     }
@@ -1915,6 +1917,7 @@ function saveRecipeDiaryEntry() {
     name: rc.name,
     amount: srv === 1 ? '1份' : `${srv}份`,
     source: 'recipe',
+    recipeId: rc.id,
     nutrition,
   };
   addDiaryEntry(entry);
