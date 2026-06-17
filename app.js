@@ -625,10 +625,23 @@ function openBottomSheet(id) {
   const overlay = document.getElementById(id);
   overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  const sheet  = overlay.querySelector('.bottom-sheet');
-  const handle = overlay.querySelector('.sheet-handle');
-  if (!sheet || !handle) return;
+  const sheet = overlay.querySelector('.bottom-sheet');
+  if (!sheet) return;
   sheet.style.transform = '';
+
+  // Desktop: inject sticky X close button, skip drag-to-close
+  if (window.innerWidth >= 1024) {
+    sheet.querySelectorAll('.sheet-close-x').forEach(el => el.remove());
+    const xBtn = document.createElement('button');
+    xBtn.className = 'sheet-close-x';
+    xBtn.textContent = '✕';
+    xBtn.onclick = () => closeBottomSheet(id);
+    sheet.prepend(xBtn);
+    return;
+  }
+
+  const handle = overlay.querySelector('.sheet-handle');
+  if (!handle) return;
   let _sy = 0, _dragging = false;
   const onStart = e => { _sy = e.touches[0].clientY; _dragging = true; sheet.style.transition = 'none'; };
   const onMove  = e => {
@@ -3723,7 +3736,7 @@ function _buildHabitDesktopCard(habit) {
 
   return `
     <div class="habit-desktop-card">
-      <div class="habit-desktop-top" onclick="toggleHabitDay('${habit.id}','${todayDs}');renderHabits()">
+      <div class="habit-desktop-top" data-habit-id="${habit.id}" onclick="toggleHabitDay('${habit.id}','${todayDs}')"
         <div class="${cbCls}">${cbTxt}</div>
         <span class="habit-desktop-name" style="color:${habit.color}">${habit.name}</span>
       </div>
@@ -3843,15 +3856,18 @@ function _initHabitDrag(container) {
   if (window.innerWidth >= 1024) return;
   let dragEl = null, lastCY = 0;
 
-  container.addEventListener('touchstart', e => {
-    if (!e.target.closest('.habit-drag-btn')) return;
-    e.stopPropagation();
-    dragEl = e.target.closest('.habit-row');
-    if (!dragEl) return;
-    lastCY = e.touches[0].clientY;
-    dragEl.classList.add('is-dragging');
-    navigator.vibrate?.(20);
-  }, { passive: true });
+  // Non-passive touchstart on each handle so e.preventDefault() can stop scroll commitment
+  container.querySelectorAll('.habit-drag-btn').forEach(btn => {
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragEl = btn.closest('.habit-row');
+      if (!dragEl) return;
+      lastCY = e.touches[0].clientY;
+      dragEl.classList.add('is-dragging');
+      navigator.vibrate?.(20);
+    }, { passive: false });
+  });
 
   container.addEventListener('touchmove', e => {
     if (!dragEl) return;
@@ -3915,11 +3931,11 @@ function buildHabitRow(habit) {
   return `
     <div class="habit-row" data-habit-id="${habit.id}" onclick="openHabitDetail('${habit.id}')">
       <div class="habit-row-info">
+        <div class="habit-drag-btn" onclick="event.stopPropagation()">⠿</div>
         <span class="habit-row-dot" style="background:${habit.color}"></span>
         <span class="habit-row-name" style="color:${habit.color}">${habit.name}</span>
       </div>
       <div class="habit-row-squares">${squaresHtml}</div>
-      <div class="habit-drag-btn" onclick="event.stopPropagation()">⠿</div>
     </div>`;
 }
 
@@ -3932,7 +3948,24 @@ function toggleHabitDay(habitId, ds) {
   else log[ds][habitId] = next;
   setData('habitLog', log);
   if (next === 'done') { if (cur === '') onHabitLogged(); navigator.vibrate?.(15); }
-  renderHabits();
+  if (window.innerWidth >= 1024) {
+    // Partial update — avoids redrawing all canvases (prevents jitter)
+    const top = document.querySelector(`.habit-desktop-top[data-habit-id="${habitId}"]`);
+    if (top) {
+      const cb = top.querySelector('.habit-desktop-cb');
+      if (cb) {
+        cb.className = 'habit-desktop-cb';
+        cb.textContent = '';
+        if (next === 'done') { cb.classList.add('state-done'); cb.textContent = '✓'; }
+        else if (next === 'skip') { cb.classList.add('state-skip'); cb.textContent = '—'; }
+      }
+      const canvas = document.getElementById('hcvs-' + habitId);
+      const habit  = getData('habits', []).find(h => h.id === habitId);
+      if (canvas && habit) _drawHabitGrid(canvas, habitId, habit.color);
+    }
+  } else {
+    renderHabits();
+  }
 }
 
 function buildFreqLabel(freq) {
@@ -4556,60 +4589,100 @@ function _draw7DayWeightChart(canvasId) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const ds = dateStr(d);
     const w = wLog[ds] != null ? wLog[ds] : (inbodyByDate[ds] != null ? inbodyByDate[ds] : null);
-    days.push({ w, label: (d.getMonth() + 1) + '/' + d.getDate() });
+    days.push({ ds, w, label: (d.getMonth() + 1) + '/' + d.getDate() });
   }
-  const vals = days.filter(d => d.w != null).map(d => d.w);
+
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth || 300;
-  const H = 70;
+  const containerW = canvas.parentElement?.clientWidth || 300;
+  const W = containerW - 32;
+  const H = 65;
   canvas.style.height = H + 'px';
-  canvas.width = Math.round(W * dpr);
+  canvas.width  = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  if (!vals.length) {
-    ctx.fillStyle = 'rgba(160,160,160,0.5)';
-    ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+
+  const series = days.filter(d => d.w != null);
+  if (!series.length) {
+    ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('尚無體重記錄', W / 2, H / 2 + 4);
     return;
   }
-  const PAD = { t: 18, b: 18, l: 4, r: 4 };
+
+  const color = '#4D6A55';
+  const PAD = { t: 8, r: 16, b: 18, l: 38 };
   const cw = W - PAD.l - PAD.r;
   const ch = H - PAD.t - PAD.b;
-  const minV = Math.min(...vals) - 0.3;
-  const maxV = Math.max(...vals) + 0.3;
-  const range = maxV - minV || 1;
-  const px = i => PAD.l + (i / 6) * cw;
-  const py = v => PAD.t + (1 - (v - minV) / range) * ch;
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + ch);
-  grad.addColorStop(0, 'rgba(77,106,85,0.15)');
-  grad.addColorStop(1, 'rgba(77,106,85,0)');
-  const pts = days.map((d, i) => ({ x: px(i), y: d.w != null ? py(d.w) : null }));
-  const firstPt = pts.find(p => p.y != null);
-  const lastPt  = [...pts].reverse().find(p => p.y != null);
-  if (firstPt && lastPt) {
-    ctx.beginPath();
-    let started = false;
-    pts.forEach(p => { if (p.y == null) return; if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); });
-    ctx.lineTo(lastPt.x, PAD.t + ch); ctx.lineTo(firstPt.x, PAD.t + ch); ctx.closePath();
-    ctx.fillStyle = grad; ctx.fill();
+  const vals = series.map(s => s.w);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const pad  = (maxV - minV) * 0.2 || 1;
+  const lo = minV - pad, hi = maxV + pad;
+
+  // x uses day index (0-6) so spacing is always even
+  const xOf = idx => PAD.l + (idx / 6) * cw;
+  const yOf = v   => PAD.t + ch - ((v - lo) / (hi - lo)) * ch;
+
+  // Grid lines (3 horizontal)
+  ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 2; i++) {
+    const v = lo + (hi - lo) * (i / 2);
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+    ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(v * 10) / 10, PAD.l - 4, y);
   }
-  // Line
+
+  // X-axis labels: first/last days
+  ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(days[0].label, xOf(0), H - 14);
+  ctx.textAlign = 'right';
+  ctx.fillText(days[6].label, xOf(6), H - 14);
+
+  // Gradient fill (connecting only data points)
+  const firstS = series[0], lastS = series[series.length - 1];
+  const firstIdx = days.findIndex(d => d.ds === firstS.ds);
+  const lastIdx  = days.findIndex(d => d.ds === lastS.ds);
+  const grad = ctx.createLinearGradient(0, PAD.t, 0, H - PAD.b);
+  grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
   ctx.beginPath();
-  let started = false;
-  pts.forEach(p => { if (p.y == null) return; if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); });
-  ctx.strokeStyle = '#4D6A55'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
-  // Dots + values
-  days.forEach((d, i) => {
-    if (d.w == null) return;
-    ctx.beginPath(); ctx.fillStyle = '#4D6A55'; ctx.arc(pts[i].x, pts[i].y, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#4D6A55'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(d.w, pts[i].x, pts[i].y - 5);
+  let lineStarted = false;
+  series.forEach(pt => {
+    const idx = days.findIndex(d => d.ds === pt.ds);
+    if (!lineStarted) { ctx.moveTo(xOf(idx), yOf(pt.w)); lineStarted = true; }
+    else ctx.lineTo(xOf(idx), yOf(pt.w));
   });
-  // Day labels
-  ctx.fillStyle = 'rgba(130,130,130,0.8)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-  days.forEach((d, i) => ctx.fillText(d.label, pts[i].x, H - 2));
+  ctx.lineTo(xOf(lastIdx), H - PAD.b);
+  ctx.lineTo(xOf(firstIdx), H - PAD.b);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); lineStarted = false;
+  series.forEach(pt => {
+    const idx = days.findIndex(d => d.ds === pt.ds);
+    if (!lineStarted) { ctx.moveTo(xOf(idx), yOf(pt.w)); lineStarted = true; }
+    else ctx.lineTo(xOf(idx), yOf(pt.w));
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Dots
+  series.forEach(pt => {
+    const idx = days.findIndex(d => d.ds === pt.ds);
+    ctx.beginPath(); ctx.arc(xOf(idx), yOf(pt.w), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath(); ctx.arc(xOf(idx), yOf(pt.w), 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+  });
+
+  // Latest value label
+  const lIdx = days.findIndex(d => d.ds === lastS.ds);
+  const lx = xOf(lIdx), ly = yOf(lastS.w);
+  ctx.fillStyle = color; ctx.font = 'bold 10px DM Sans, sans-serif';
+  ctx.textAlign = lx > W - PAD.r - 28 ? 'right' : 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`${lastS.w}kg`, lx, ly - 4);
 }
 
 // Carousel state (JS-transform based — avoids overflow-x:hidden on .page)
@@ -5271,6 +5344,8 @@ async function fetchDailyTasks() {
   const STALE_MS = 30 * 60 * 1000; // re-fetch if same-day cache is >30 min old
   const isFresh = cached && cached.date === todayStr() && cached.fetchedAt && (Date.now() - cached.fetchedAt < STALE_MS);
   if (isFresh) { updateEarthArchive(cached); return cached; }
+  // Don't fetch before 9 AM — task list resets at midnight but isn't updated until morning
+  if (new Date().getHours() < 9 && cached) { updateEarthArchive(cached); return cached; }
   try {
     const res = await fetch(TASKS_API_URL, {
       cache: 'no-store',
@@ -5908,16 +5983,29 @@ function _runAchievementChecks(gd) {
   if (dStreak >= 200) tryU('streak_200');
   if (dStreak >= 365) tryU('streak_365');
 
-  // COMEBACK: streak >= 3 after a gap (foundPrev prevents brand-new users from triggering)
-  if (dStreak >= 3) {
-    let gap = 0, foundPrev = false;
-    for (let i = dStreak + 1; i <= dStreak + 60; i++) {
+  // COMEBACK: resume after ≥7 inactive days (any of diary/workout/habits)
+  {
+    const _wlog = getData('workoutLog', {});
+    const _hlog = getData('habitLog', {});
+    const _active = ds =>
+      (diary[ds] || []).length > 0 ||
+      (_wlog[ds] || []).length > 0 ||
+      Object.keys(_hlog[ds] || {}).length > 0;
+    let resumeIdx = -1;
+    for (let i = 0; i <= 6; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      if ((diary[dateStr(d)] || []).length > 0) { foundPrev = true; break; }
-      gap++;
+      if (_active(dateStr(d))) { resumeIdx = i; break; }
     }
-    if (foundPrev && gap >= 7)  tryU('comeback');
-    if (foundPrev && gap >= 30) tryU('comeback_epic');
+    if (resumeIdx >= 0) {
+      let gap = 0, foundPrev = false;
+      for (let i = resumeIdx + 1; i <= resumeIdx + 90; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        if (_active(dateStr(d))) { foundPrev = true; break; }
+        gap++;
+      }
+      if (foundPrev && gap >= 7)  tryU('comeback');
+      if (foundPrev && gap >= 30) tryU('comeback_epic');
+    }
   }
 
   if (gd.level >= 3)  tryU('level_3');
