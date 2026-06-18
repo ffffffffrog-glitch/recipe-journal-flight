@@ -3505,9 +3505,20 @@ function _buildWorkoutEntryBubble(e, isToday) {
       ${meta ? `<div class="wb-detail">${meta}</div>` : ''}
       ${e.intensity ? `<div class="wb-detail">${e.intensity}</div>` : ''}`;
   } else {
+    const fmtSet = r => {
+      const parts = [];
+      if (r.weight != null) parts.push(`${r.weight}kg`);
+      if (r.reps != null && r.sets != null) parts.push(`${r.reps}次 × ${r.sets}組`);
+      else if (r.reps != null) parts.push(`${r.reps}次`);
+      else if (r.sets != null) parts.push(`${r.sets}組`);
+      return parts.join(' · ');
+    };
     const rows = (e.blocks || []).map(b => {
-      const spec = [b.weight != null ? `${b.weight}kg` : '', b.sets && b.reps ? `${b.sets}×${b.reps}` : ''].filter(Boolean).join(' · ');
-      return `<div class="wb-block-row"><span class="wb-block-name">${b.name}</span><span class="wb-block-spec">${spec}</span></div>`;
+      // 相容舊格式（單組 {weight,sets,reps}）與新格式（{rows:[...]}）
+      const sets = Array.isArray(b.rows) ? b.rows : [{ weight:b.weight, reps:b.reps, sets:b.sets }];
+      const specHtml = sets.map(fmtSet).filter(Boolean)
+        .map(s => `<span class="wb-block-spec">${s}</span>`).join('');
+      return `<div class="wb-block-row"><span class="wb-block-name">${b.name}</span><span class="wb-block-specs">${specHtml}</span></div>`;
     }).join('');
     content = `<div class="wb-type-tag strength">無氧</div><div class="wb-blocks">${rows}</div>`;
   }
@@ -3527,7 +3538,7 @@ function openNewWorkoutFormForDate(date) {
 
 function openNewWorkoutForm() {
   _editingWorkoutId = null;
-  _workoutBlocks = [{ name:'', weight:null, sets:null, reps:null }];
+  _workoutBlocks = [{ name:'', rows:[{ weight:null, reps:null, sets:null }] }];
   document.getElementById('workout-form-title').textContent = '新增運動記錄';
   document.getElementById('workout-delete-btn').style.display = 'none';
   document.getElementById('wf-date').value = dateStr(new Date());
@@ -3565,8 +3576,11 @@ function openEditWorkout(id) {
     customEl.style.display = isCustom ? '' : 'none';
     if (isCustom) customEl.value = e.exercise;
   } else {
-    _workoutBlocks = (e.blocks || []).map(b => ({...b}));
-    if (!_workoutBlocks.length) _workoutBlocks = [{ name:'', weight:null, sets:null, reps:null }];
+    // 相容舊格式：舊 block 是 {name, weight, sets, reps}（單組），轉成 {name, rows:[...]}
+    _workoutBlocks = (e.blocks || []).map(b => Array.isArray(b.rows)
+      ? { name: b.name, rows: b.rows.map(r => ({ ...r })) }
+      : { name: b.name, rows: [{ weight: b.weight ?? null, reps: b.reps ?? null, sets: b.sets ?? null }] });
+    if (!_workoutBlocks.length) _workoutBlocks = [{ name:'', rows:[{ weight:null, reps:null, sets:null }] }];
     setWorkoutType('strength');
   }
   openBottomSheet('sheet-workout-form');
@@ -3590,7 +3604,7 @@ function selectExercise(ex, btn) {
 }
 
 function addStrengthBlock() {
-  _workoutBlocks.push({ name:'', weight:null, sets:null, reps:null });
+  _workoutBlocks.push({ name:'', rows:[{ weight:null, reps:null, sets:null }] });
   _renderStrengthBlocks();
 }
 
@@ -3604,8 +3618,36 @@ function setSBName(i, name) {
   _renderStrengthBlocks();
 }
 
+// 同一個訓練動作下，新增／刪除一組「重量×次數×組數」
+function addSetRow(i) {
+  _workoutBlocks[i].rows.push({ weight:null, reps:null, sets:null });
+  _renderStrengthBlocks();
+}
+
+function deleteSetRow(i, j) {
+  _workoutBlocks[i].rows.splice(j, 1);
+  if (!_workoutBlocks[i].rows.length) _workoutBlocks[i].rows.push({ weight:null, reps:null, sets:null });
+  _renderStrengthBlocks();
+}
+
 function _renderStrengthBlocks() {
-  document.getElementById('wf-blocks-container').innerHTML = _workoutBlocks.map((b, i) => `
+  document.getElementById('wf-blocks-container').innerHTML = _workoutBlocks.map((b, i) => {
+    const rowsHtml = b.rows.map((r, j) => `
+      <div class="sb-set-row">
+        <div class="sb-set-field"><label class="form-label">重量 kg</label>
+          <input type="number" class="form-input" placeholder="0" min="0" value="${r.weight??''}"
+            oninput="_workoutBlocks[${i}].rows[${j}].weight=this.value===''?null:+this.value"></div>
+        <div class="sb-set-field"><label class="form-label">次數</label>
+          <input type="number" class="form-input" placeholder="10" min="1" value="${r.reps??''}"
+            oninput="_workoutBlocks[${i}].rows[${j}].reps=this.value===''?null:+this.value"></div>
+        <div class="sb-set-field"><label class="form-label">組數</label>
+          <input type="number" class="form-input" placeholder="3" min="1" value="${r.sets??''}"
+            oninput="_workoutBlocks[${i}].rows[${j}].sets=this.value===''?null:+this.value"></div>
+        ${b.rows.length > 1
+          ? `<button class="sb-row-del" onclick="deleteSetRow(${i},${j})" title="刪除這組">✕</button>`
+          : `<span class="sb-row-del-spacer"></span>`}
+      </div>`).join('');
+    return `
     <div class="strength-block">
       <div class="sb-header">
         <input type="text" class="form-input sb-name" placeholder="訓練項目名稱" value="${b.name}"
@@ -3615,18 +3657,10 @@ function _renderStrengthBlocks() {
       <div class="sb-presets">
         ${STRENGTH_PRESETS.map(p => `<button class="preset-chip${b.name===p?' active':''}" onclick="setSBName(${i},'${p}')">${p}</button>`).join('')}
       </div>
-      <div class="sb-metrics">
-        <div class="form-section"><label class="form-label">重量 kg</label>
-          <input type="number" class="form-input" placeholder="0" min="0" value="${b.weight??''}"
-            oninput="_workoutBlocks[${i}].weight=this.value===''?null:+this.value"></div>
-        <div class="form-section"><label class="form-label">組數</label>
-          <input type="number" class="form-input" placeholder="4" min="1" value="${b.sets??''}"
-            oninput="_workoutBlocks[${i}].sets=this.value===''?null:+this.value"></div>
-        <div class="form-section"><label class="form-label">次數</label>
-          <input type="number" class="form-input" placeholder="10" min="1" value="${b.reps??''}"
-            oninput="_workoutBlocks[${i}].reps=this.value===''?null:+this.value"></div>
-      </div>
-    </div>`).join('');
+      <div class="sb-rows">${rowsHtml}</div>
+      <button class="sb-add-row" onclick="addSetRow(${i})">＋ 增加一組（不同重量／次數）</button>
+    </div>`;
+  }).join('');
 }
 
 function saveWorkoutEntry() {
@@ -3645,7 +3679,12 @@ function saveWorkoutEntry() {
     const intensity = document.getElementById('wf-intensity').value.trim();
     Object.assign(entry, { type:'cardio', exercise:ex, duration:dur, distance:dist, intensity });
   } else {
-    const blocks = _workoutBlocks.filter(b => b.name.trim());
+    const blocks = _workoutBlocks
+      .filter(b => b.name.trim())
+      .map(b => ({
+        name: b.name.trim(),
+        rows: b.rows.filter(r => r.weight != null || r.reps != null || r.sets != null)
+      }));
     if (!blocks.length) { showToast('請至少新增一個訓練項目'); return; }
     Object.assign(entry, { type:'strength', blocks });
   }
@@ -5033,8 +5072,9 @@ function drawBodyMap(rec, canvasId = 'inbody-bodymap') {
   const fLeg = `${Math.max(11, Math.round(9  * fs))}px DM Sans, sans-serif`;
 
   // Derive canvas height from the scaled line spacing
+  // 底部只需容下最下方標籤 + 圖例，原本 (3*lineH + 30) 留太多空白，砍半至 (lineH + 16)
   const cy   = Math.ceil(R * LABEL_MULT + 3 * lineH + 12);
-  const cssH = cy + Math.ceil(R * LABEL_MULT) + 3 * lineH + 30;
+  const cssH = cy + Math.ceil(R * LABEL_MULT) + lineH + 16;
 
   canvas.width   = cssW * dpr;
   canvas.height  = cssH * dpr;
@@ -6334,6 +6374,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderProfile();
   updateNavBar('profile');
   checkDailyWeightPrompt();
+  // PWA 從背景恢復時不會重跑 DOMContentLoaded，所以每次回到前景再檢查一次
+  // （checkDailyWeightPrompt 內部用日期去重，同一天不會重複跳）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkDailyWeightPrompt();
+  });
   // Diary swipe — touch + mouse, attached to document so scroll containers don't block it
   document.addEventListener('touchstart', e => { _diarySX = e.touches[0].clientX; _diarySY = e.touches[0].clientY; }, { passive: true });
   document.addEventListener('touchend', e => {

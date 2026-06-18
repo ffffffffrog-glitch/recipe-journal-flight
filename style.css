@@ -721,6 +721,8 @@ img { max-width: 100%; display: block; }
   animation: sheetUp .28s cubic-bezier(.2,.8,.4,1); border-top: 1px solid var(--border);
 }
 .bottom-sheet.large { height: 88dvh; }
+/* 運動日誌對話框加寬：App 版最寬到視窗 80%（小手機仍維持原本滿版，不縮窄） */
+#sheet-workout-form .bottom-sheet { max-width: max(480px, 80vw); }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 .sheet-handle {
@@ -1821,7 +1823,7 @@ body.storage-error .page { padding-top: 44px; }
 
 /* Bubble */
 .workout-bubble {
-  max-width: 82%; min-width: calc(5em + 48px); padding: 14px 20px; border-radius: 14px;
+  max-width: 82%; min-width: calc(5em + 48px); padding: 14px 12px; border-radius: 14px;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: opacity .1s;
 }
@@ -1852,12 +1854,16 @@ body.storage-error .page { padding-top: 44px; }
 .workout-bubble.left  .wb-detail { color: var(--text-2); }
 .workout-bubble.right .wb-detail { color: rgba(255,255,255,.85); }
 
+/* 名稱一行，下面接著各組「重量×次數×組數」，避免在窄氣泡裡擠成一行而溢出。
+   全用 block（非 flex）排版，讓 nowrap 內容的最大寬度能正常往上撐開氣泡。 */
 .wb-blocks { margin-top: 5px; }
-.wb-block-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; }
-.wb-block-name { font-size: .84rem; font-weight: 700; }
+.wb-block-row { padding: 1px 0; }
+.wb-block-row + .wb-block-row { margin-top: 5px; }
+.wb-block-specs { display: block; }
+.wb-block-name { display: block; font-size: .84rem; font-weight: 700; white-space: nowrap; }
 .workout-bubble.left  .wb-block-name { color: var(--text-1); }
 .workout-bubble.right .wb-block-name { color: #fff; }
-.wb-block-spec { font-size: .75rem; }
+.wb-block-spec { display: block; font-size: .75rem; padding-left: 2px; white-space: nowrap; }
 .workout-bubble.left  .wb-block-spec { color: var(--text-3); }
 .workout-bubble.right .wb-block-spec { color: rgba(255,255,255,.65); }
 
@@ -1900,9 +1906,16 @@ body.storage-error .page { padding-top: 44px; }
 .sb-presets { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
 .preset-chip { padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; background: none; font-size: .75rem; color: var(--text-3); cursor: pointer; font-family: var(--font); }
 .preset-chip.active { background: #e8f0ea; border-color: var(--sage); color: var(--sage); font-weight: 600; }
-.sb-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.sb-metrics .form-section { margin: 0; }
-.sb-metrics .form-label { font-size: .75rem; }
+/* 單一動作下的多組「重量×次數×組數」 */
+.sb-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.sb-set-row { display: grid; grid-template-columns: 1fr 1fr 1fr 24px; gap: 8px; align-items: end; }
+.sb-set-field { margin: 0; }
+.sb-set-field .form-label { font-size: .72rem; }
+.sb-set-field .form-input { margin: 0; }
+.sb-row-del { height: 40px; padding: 0; border: none; background: none; color: var(--text-3); font-size: .85rem; cursor: pointer; }
+.sb-row-del-spacer { width: 24px; }
+.sb-add-row { width: 100%; padding: 7px; border: 1px dashed var(--border-2); border-radius: 8px; background: none; color: var(--sage); font-size: .78rem; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.sb-add-row:active { background: var(--bg); }
 .avatar-crop-actions button:active { opacity: .8; }
 
 /* ================================================================
@@ -2770,6 +2783,8 @@ body.storage-error .page { padding-top: 44px; }
     position: relative;
   }
   .bottom-sheet.large { height: auto; max-height: 88vh; }
+  /* 運動日誌對話框：Web 版最寬到視窗 50%（不小於原本 560px） */
+  #sheet-workout-form .bottom-sheet { max-width: max(560px, 50vw); }
   .sheet-handle { background: transparent; cursor: default; }
   .sheet-close-x {
     position: absolute; top: 8px; right: 12px;
