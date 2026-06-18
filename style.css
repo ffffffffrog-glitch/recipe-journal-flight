@@ -1818,8 +1818,8 @@ body.storage-error .page { padding-top: 44px; }
 .workout-bubble-row {
   display: flex; align-items: flex-start;
 }
-.workout-bubble-row.right { align-self: flex-end; }
-.workout-bubble-row.left  { align-self: flex-start; }
+.workout-bubble-row.right { align-self: flex-end; justify-content: flex-end; width: 100%; }
+.workout-bubble-row.left  { align-self: flex-start; justify-content: flex-start; width: 100%; }
 
 /* Bubble */
 .workout-bubble {
