@@ -924,7 +924,7 @@ img { max-width: 100%; display: block; }
   border-radius: var(--r-lg);
   cursor: pointer; gap: 10px;
   -webkit-tap-highlight-color: transparent;
-  transition: background .1s;
+  transition: background .1s, transform .18s ease;
   margin-bottom: 12px;
 }
 .habit-row:last-child { margin-bottom: 0; }

@@ -3891,54 +3891,91 @@ function _buildHabitDateHeader() {
   </div>`;
 }
 
+function _persistHabitOrder(container) {
+  // Read DOM order for active rows (direct children) + archived rows (inside archive body)
+  const ids = el => [...el.querySelectorAll(':scope > .habit-row')].map(r => r.dataset.habitId).filter(Boolean);
+  const activeIds  = ids(container);
+  const archBody   = container.querySelector('#habit-archive-body');
+  const archivedIds = archBody ? ids(archBody) : [];
+  const habits = getData('habits', []);
+  const byId   = id => habits.find(h => h.id === id);
+  const ordered = [...activeIds, ...archivedIds].map(byId).filter(Boolean);
+  const missing = habits.filter(h => !ordered.includes(h));
+  setData('habits', [...ordered, ...missing]);
+}
+
+// Lift-and-follow drag: the grabbed row tracks the pointer 1:1, the other rows
+// glide to open a gap at the target slot, and it commits where you release.
+// Pointer Events cover both touch and mouse.
 function _initHabitDrag(container) {
   if (window.innerWidth >= 1024) return;
 
-  // Attach all touch events directly to each button (sticky touch — events fire on
-  // the element where touchstart began, even as the finger moves elsewhere).
-  // Avoids container-level listener accumulation across re-renders.
-  container.querySelectorAll('.habit-drag-btn').forEach(btn => {
-    let dragEl = null, lastCY = 0;
-
-    btn.addEventListener('touchstart', e => {
+  container.querySelectorAll('.habit-drag-btn').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      if (e.button && e.button !== 0) return;        // primary button / touch only
+      const dragEl = handle.closest('.habit-row');
+      if (!dragEl) return;
       e.preventDefault();
       e.stopPropagation();
-      dragEl = btn.closest('.habit-row');
-      if (!dragEl) return;
-      lastCY = e.touches[0].clientY;
+
+      // Reorder only among siblings in the same section (active vs archived live apart)
+      const parent  = dragEl.parentElement;
+      const sibs     = [...parent.querySelectorAll(':scope > .habit-row')];
+      const startIdx = sibs.indexOf(dragEl);
+      if (startIdx < 0) return;
+
+      const rects   = sibs.map(r => r.getBoundingClientRect());
+      const centers = rects.map(r => r.top + r.height / 2);
+      const cs      = getComputedStyle(dragEl);
+      const pitch   = rects[startIdx].height + (parseFloat(cs.marginBottom) || 0);
+      const startY  = e.clientY;
+      let target    = startIdx;
+
       dragEl.classList.add('is-dragging');
-      navigator.vibrate?.(20);
-    }, { passive: false });
+      dragEl.style.transition = 'none';          // grabbed row follows instantly
+      navigator.vibrate?.(15);
+      handle.setPointerCapture(e.pointerId);
 
-    btn.addEventListener('touchmove', e => {
-      if (!dragEl) return;
-      e.preventDefault();
-      const cy = e.touches[0].clientY;
-      const dy = cy - lastCY;
-      // Only reset lastCY on an actual swap — otherwise dy accumulates
-      // across frames until the threshold is reached
-      const rows = [...container.querySelectorAll('.habit-row')];
-      const idx  = rows.indexOf(dragEl);
-      if (dy < -18 && idx > 0) {
-        rows[idx - 1].before(dragEl);
-        lastCY = cy;
-      } else if (dy > 18 && idx < rows.length - 1) {
-        rows[idx + 1].after(dragEl);
-        lastCY = cy;
-      }
-    }, { passive: false });
+      const onMove = ev => {
+        const dy = ev.clientY - startY;
+        dragEl.style.transform = `translateY(${dy}px)`;
+        const draggedCenter = centers[startIdx] + dy;
 
-    btn.addEventListener('touchend', () => {
-      if (!dragEl) return;
-      dragEl.classList.remove('is-dragging');
-      const newOrder = [...container.querySelectorAll('.habit-row')].map(r => r.dataset.habitId).filter(Boolean);
-      const habits   = getData('habits', []);
-      const active   = habits.filter(h => !h.archived);
-      const archived = habits.filter(h => h.archived);
-      const reordered = newOrder.map(id => active.find(h => h.id === id)).filter(Boolean);
-      const missing   = active.filter(h => !newOrder.includes(h.id));
-      setData('habits', [...reordered, ...missing, ...archived]);
-      dragEl = null;
+        // Which slot does the grabbed row's centre sit in now?
+        target = startIdx;
+        while (target < sibs.length - 1 && draggedCenter > centers[target + 1]) target++;
+        while (target > 0 && draggedCenter < centers[target - 1]) target--;
+
+        // Shift the rows between origin and target to open the gap
+        sibs.forEach((row, i) => {
+          if (i === startIdx) return;
+          let shift = 0;
+          if (startIdx < target && i > startIdx && i <= target) shift = -pitch;
+          else if (startIdx > target && i >= target && i < startIdx) shift =  pitch;
+          row.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+      };
+
+      const onUp = () => {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('pointercancel', onUp);
+
+        // Commit DOM order (transforms cleared first so layout is clean)
+        sibs.forEach(r => { r.style.transform = ''; });
+        if (target !== startIdx) {
+          if (target < startIdx) parent.insertBefore(dragEl, sibs[target]);
+          else                   parent.insertBefore(dragEl, sibs[target].nextSibling);
+        }
+        dragEl.classList.remove('is-dragging');
+        dragEl.style.transform = '';
+        dragEl.style.transition = '';
+        _persistHabitOrder(container);
+      };
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+      handle.addEventListener('pointercancel', onUp);
     });
   });
 }
