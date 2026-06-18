@@ -3876,11 +3876,17 @@ function _initHabitDrag(container) {
       e.preventDefault();
       const cy = e.touches[0].clientY;
       const dy = cy - lastCY;
-      lastCY = cy;
+      // Only reset lastCY on an actual swap — otherwise dy accumulates
+      // across frames until the threshold is reached
       const rows = [...container.querySelectorAll('.habit-row')];
       const idx  = rows.indexOf(dragEl);
-      if (dy < -18 && idx > 0)                rows[idx - 1].before(dragEl);
-      else if (dy > 18 && idx < rows.length - 1) rows[idx + 1].after(dragEl);
+      if (dy < -18 && idx > 0) {
+        rows[idx - 1].before(dragEl);
+        lastCY = cy;
+      } else if (dy > 18 && idx < rows.length - 1) {
+        rows[idx + 1].after(dragEl);
+        lastCY = cy;
+      }
     }, { passive: false });
 
     btn.addEventListener('touchend', () => {
@@ -5347,8 +5353,6 @@ async function fetchDailyTasks() {
   const STALE_MS = 30 * 60 * 1000; // re-fetch if same-day cache is >30 min old
   const isFresh = cached && cached.date === todayStr() && cached.fetchedAt && (Date.now() - cached.fetchedAt < STALE_MS);
   if (isFresh) { updateEarthArchive(cached); return cached; }
-  // Don't fetch before 9 AM — task list resets at midnight but isn't updated until morning
-  if (new Date().getHours() < 9 && cached) { updateEarthArchive(cached); return cached; }
   try {
     const res = await fetch(TASKS_API_URL, {
       cache: 'no-store',
