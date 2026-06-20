@@ -6597,6 +6597,42 @@ function renderAchievements() {
 // optimization), this scans ALL history so "remove = recompute" is faithful.
 // NOTE: mirrors the thresholds in _runAchievementChecks + _runHabitAchievementChecks
 // + _recheckHabitAchievements — keep in sync if those change.
+// Longest run of consecutive calendar days among a Set of ISO date strings.
+// Used so streak achievements validate against the BEST run ever in the data,
+// not just the current streak ending today.
+function _longestDayRun(dateSet) {
+  if (!dateSet || !dateSet.size) return 0;
+  const DAY = 86400000;
+  let max = 0;
+  dateSet.forEach(ds => {
+    const startMs = new Date(ds + 'T00:00:00').getTime();
+    if (dateSet.has(dateStr(new Date(startMs - DAY)))) return;   // not a run start
+    let len = 1, cur = startMs;
+    while (dateSet.has(dateStr(new Date(cur + DAY)))) { len++; cur += DAY; }
+    if (len > max) max = len;
+  });
+  return max;
+}
+
+// Longest historical 'done' run for one habit (mirrors _streakDaily rules:
+// done = +1, skip = neutral, missing/empty = break). Scans all history.
+function _maxHabitStreak(habitId, log) {
+  const statusOf = ds => (log[ds] || {})[habitId] || '';
+  const logged = Object.keys(log).filter(ds => statusOf(ds) === 'done' || statusOf(ds) === 'skip').sort();
+  if (!logged.length) return 0;
+  const DAY = 86400000;
+  let cur = 0, max = 0;
+  let t = new Date(logged[0] + 'T00:00:00').getTime();
+  const end = new Date(logged[logged.length - 1] + 'T00:00:00').getTime();
+  while (t <= end) {
+    const s = statusOf(dateStr(new Date(t)));
+    if (s === 'done') { cur++; if (cur > max) max = cur; }
+    else if (s !== 'skip') cur = 0;   // empty/missing breaks; skip is neutral
+    t += DAY;
+  }
+  return max;
+}
+
 function _computeValidAchievements(gd) {
   const valid = new Set();
   const add = id => valid.add(id);
@@ -6660,18 +6696,17 @@ function _computeValidAchievements(gd) {
   if (allEntries.some(e => e.loggedAt && (new Date(e.loggedAt).getHours() >= 23 || new Date(e.loggedAt).getHours() < 2))) add('night_owl');
   if (allEntries.some(e => e.loggedAt && new Date(e.loggedAt).getHours() < 6)) add('early_bird');
 
-  // GOAL
-  if (goals.calories > 0) {
-    if (diaryDays.some(ds => { const t = getDailyTotals(ds); return t.calories > 0 && t.calories <= goals.calories; })) add('goal_hit');
-    let gs = 0;
-    for (let i = 0; i < 30; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = getDailyTotals(dateStr(d)); if (t.calories > 0 && t.calories <= goals.calories) gs++; else break; }
-    if (gs >= 7)  add('goal_week');
-    if (gs >= 30) add('goal_month');
-  }
+  // GOAL — use longest run ever (not current streak)
+  const goalMetDays = goals.calories > 0
+    ? diaryDays.filter(ds => { const t = getDailyTotals(ds); return t.calories > 0 && t.calories <= goals.calories; })
+    : [];
+  if (goalMetDays.length) add('goal_hit');
+  const goalRun = _longestDayRun(new Set(goalMetDays));
+  if (goalRun >= 7)  add('goal_week');
+  if (goalRun >= 30) add('goal_month');
   if (goals.protein > 0) {
-    let ps = 0;
-    for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = getDailyTotals(dateStr(d)); if (t.protein > 0 && t.protein >= goals.protein) ps++; else break; }
-    if (ps >= 7) add('protein_7');
+    const proteinDays = diaryDays.filter(ds => { const t = getDailyTotals(ds); return t.protein > 0 && t.protein >= goals.protein; });
+    if (_longestDayRun(new Set(proteinDays)) >= 7) add('protein_7');
   }
 
   // WORKOUT
@@ -6687,23 +6722,23 @@ function _computeValidAchievements(gd) {
   const wByDate = {};
   wLog.forEach(e => { (wByDate[e.date] = wByDate[e.date] || new Set()).add(e.type); });
   if (Object.values(wByDate).some(s => s.has('cardio') && s.has('strength'))) add('both_same_day');
-  const wStreak = _calcWorkoutStreak(wLog);
-  if (wStreak >= 7)  add('workout_streak_7');
-  if (wStreak >= 30) add('workout_streak_30');
+  const maxWorkoutRun = _longestDayRun(new Set(wLog.map(e => e.date)));
+  if (maxWorkoutRun >= 7)  add('workout_streak_7');
+  if (maxWorkoutRun >= 30) add('workout_streak_30');
   const weekendWeeks = new Set(wLog.filter(e => {
     const [y, m, d] = e.date.split('-').map(Number); const day = new Date(y, m - 1, d).getDay(); return day === 0 || day === 6;
   }).map(e => { const [y, m, d] = e.date.split('-').map(Number); const dt = new Date(y, m - 1, d); dt.setDate(dt.getDate() - dt.getDay()); return dateStr(dt); }));
   if (weekendWeeks.size >= 8) add('weekend_warrior');
 
-  // STREAK
-  const dStreak = _calcDiaryStreak(diary);
-  if (dStreak >= 3)   add('streak_3');
-  if (dStreak >= 7)   add('streak_7');
-  if (dStreak >= 14)  add('streak_14');
-  if (dStreak >= 30)  add('streak_30');
-  if (dStreak >= 100) add('streak_100');
-  if (dStreak >= 200) add('streak_200');
-  if (dStreak >= 365) add('streak_365');
+  // STREAK — longest run ever (not current streak)
+  const maxDiaryRun = _longestDayRun(new Set(diaryDays));
+  if (maxDiaryRun >= 3)   add('streak_3');
+  if (maxDiaryRun >= 7)   add('streak_7');
+  if (maxDiaryRun >= 14)  add('streak_14');
+  if (maxDiaryRun >= 30)  add('streak_30');
+  if (maxDiaryRun >= 100) add('streak_100');
+  if (maxDiaryRun >= 200) add('streak_200');
+  if (maxDiaryRun >= 365) add('streak_365');
 
   // COMEBACK (mirrors _runAchievementChecks)
   {
@@ -6738,11 +6773,11 @@ function _computeValidAchievements(gd) {
   if (allQDates.some(d => qDone[d].main?.some(Boolean) || qDone[d].side?.some(Boolean))) add('quest_first');
   if (allQDates.some(d => qDone[d].main?.length > 0 && qDone[d].main.every(Boolean))) add('quest_main_done');
   if (allQDates.some(d => qDone[d].main?.every(Boolean) && qDone[d].side?.every(Boolean))) add('quest_all_done');
-  if (allQDates.filter(d => qDone[d].main?.length > 0 && qDone[d].main.every(Boolean)).length >= 100) add('quest_100');
-  let qStreak = 0;
-  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const rec = qDone[dateStr(d)]; if (rec && rec.main?.length > 0 && rec.main.every(Boolean)) qStreak++; else break; }
-  if (qStreak >= 7)  add('quest_week');
-  if (qStreak >= 30) add('quest_month');
+  const mainDoneDays = allQDates.filter(d => qDone[d].main?.length > 0 && qDone[d].main.every(Boolean));
+  if (mainDoneDays.length >= 100) add('quest_100');
+  const questRun = _longestDayRun(new Set(mainDoneDays));
+  if (questRun >= 7)  add('quest_week');
+  if (questRun >= 30) add('quest_month');
 
   // perfect_day (full-history)
   Object.keys(diary).forEach(ds => {
@@ -6753,34 +6788,28 @@ function _computeValidAchievements(gd) {
     if (wLog.some(e => e.date === ds)) add('perfect_day');
   });
 
-  // COMBO
+  // COMBO — longest runs ever
   const wDates = new Set(wLog.map(e => e.date));
-  if (goals.calories > 0) {
-    if (diaryDays.some(ds => { const t = getDailyTotals(ds); return t.calories > 0 && t.calories <= goals.calories && wDates.has(ds); })) add('goal_workout_same');
-    let gw7 = 0;
-    for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); const t = getDailyTotals(ds); if (t.calories > 0 && t.calories <= goals.calories && wDates.has(ds)) gw7++; else break; }
-    if (gw7 >= 7) add('goal_workout_7');
-  }
-  let dwStreak = 0;
-  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); if ((diary[ds] || []).length > 0 && wDates.has(ds)) dwStreak++; else break; }
-  if (dwStreak >= 7)  add('diet_workout_7');
-  if (dwStreak >= 30) add('diet_workout_30');
+  if (goalMetDays.some(ds => wDates.has(ds))) add('goal_workout_same');
+  if (_longestDayRun(new Set(goalMetDays.filter(ds => wDates.has(ds)))) >= 7) add('goal_workout_7');
+  const dietWorkoutDays = diaryDays.filter(ds => wDates.has(ds));
+  const dwRun = _longestDayRun(new Set(dietWorkoutDays));
+  if (dwRun >= 7)  add('diet_workout_7');
+  if (dwRun >= 30) add('diet_workout_30');
   if (uniqueFoods >= 20 && wLog.length >= 50) add('variety_workout_combo');
-  let qdStreak = 0;
-  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); const rec = qDone[ds]; if (rec && rec.main?.length > 0 && rec.main.every(Boolean) && (diary[ds] || []).length > 0) qdStreak++; else break; }
-  if (qdStreak >= 7) add('quest_diary_7');
+  if (_longestDayRun(new Set(mainDoneDays.filter(ds => (diary[ds] || []).length > 0))) >= 7) add('quest_diary_7');
 
   // HABIT (mirrors _runHabitAchievementChecks)
   const allHabits = getData('habits', []);
   const habitLog  = getData('habitLog', {});
   if (Object.values(habitLog).some(d => Object.values(d || {}).some(v => v === 'done'))) add('habit_first');
-  const maxHS = allHabits.reduce((mx, h) => Math.max(mx, calcHabitStreak(h)), 0);
+  const maxHS = allHabits.reduce((mx, h) => Math.max(mx, _maxHabitStreak(h.id, habitLog)), 0);
   if (maxHS >= 7)   add('habit_streak_7');
   if (maxHS >= 30)  add('habit_streak_30');
   if (maxHS >= 100) add('habit_streak_100');
   const grpS = key => {
     const kws = HABIT_KEYWORD_GROUPS[key];
-    return allHabits.filter(h => kws.some(kw => h.name.includes(kw))).reduce((mx, h) => Math.max(mx, calcHabitStreak(h)), 0);
+    return allHabits.filter(h => kws.some(kw => h.name.includes(kw))).reduce((mx, h) => Math.max(mx, _maxHabitStreak(h.id, habitLog)), 0);
   };
   const readS = grpS('read'), waterS = grpS('water'), sugarS = grpS('no_sugar');
   if (readS >= 7)   add('read_7');
@@ -6791,7 +6820,7 @@ function _computeValidAchievements(gd) {
   if (sugarS >= 7)   add('no_sugar_7');
   if (sugarS >= 30)  add('no_sugar_30');
   if (sugarS >= 100) add('no_sugar_100');
-  if (dStreak >= 30 && maxHS >= 30) add('streak_habit_combo');
+  if (maxDiaryRun >= 30 && maxHS >= 30) add('streak_habit_combo');
 
   return valid;
 }
