@@ -4575,7 +4575,7 @@ function renderInbody() {
     </div>
     <div class="weight-7d-card">
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
-      <canvas id="weight-7d-chart" class="weight-7d-canvas"></canvas>
+      <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
     </div>`;
 
   // Last record time — plain centered text, no box
@@ -4680,6 +4680,40 @@ function _crispCanvas(canvas, cssH) {
 
 // Weekly weight trend: one point per 7-day bucket (anchored at the earliest record),
 // each point being that week's average weight.
+
+// Weekly weight buckets as a series for the detail view: [{date: week-start, v: avg, dateLabel: "M/D–M/D"}].
+// Anchored at the earliest record; optional range filter (3m/6m). Used by the full-screen scrubber.
+function _weeklyWeightSeries(range) {
+  const byDate = {};
+  Object.entries(getData('weightLog', {})).forEach(([d, w]) => { if (w != null) byDate[d] = w; });
+  getData('inbody', []).forEach(r => { if (r.weight != null && byDate[r.date] == null) byDate[r.date] = r.weight; });
+  const dates = Object.keys(byDate).sort();
+  if (!dates.length) return [];
+
+  const DAY = 86400000;
+  const first = new Date(dates[0] + 'T00:00:00').getTime();
+  const buckets = new Map();
+  dates.forEach(ds => {
+    const k = Math.floor((new Date(ds + 'T00:00:00').getTime() - first) / (7 * DAY));
+    const b = buckets.get(k) || { sum: 0, cnt: 0 };
+    b.sum += byDate[ds]; b.cnt++;
+    buckets.set(k, b);
+  });
+  const f = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  let series = [...buckets.keys()].sort((a, b) => a - b).map(k => {
+    const b = buckets.get(k);
+    const start = new Date(first + k * 7 * DAY), end = new Date(first + (k * 7 + 6) * DAY);
+    return { date: dateStr(start), v: Math.round((b.sum / b.cnt) * 10) / 10, dateLabel: `${f(start)}–${f(end)}` };
+  });
+
+  if (range === '3m' || range === '6m') {
+    const c = new Date(); c.setMonth(c.getMonth() - (range === '3m' ? 3 : 6));
+    const cutoff = dateStr(c);
+    series = series.filter(p => p.date >= cutoff);
+  }
+  return series;
+}
+
 function _drawWeeklyWeightChart(canvasId) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -5043,8 +5077,8 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
 let _trendDetail = null;
 const _TD_PAD = { t: 18, r: 22, b: 32, l: 46 };
 
-function openTrendDetail(field, unit, color, includeWeightLog, title) {
-  _trendDetail = { field, unit, color, includeWeightLog, title, range: _inbodyTrendRange, activeIdx: -1, series: [] };
+function openTrendDetail(field, unit, color, includeWeightLog, title, mode) {
+  _trendDetail = { field, unit, color, includeWeightLog, title, mode: mode || 'metric', range: _inbodyTrendRange, activeIdx: -1, series: [] };
   const ov = document.createElement('div');
   ov.id = 'trend-detail-overlay';
   ov.className = 'trend-detail-overlay';
@@ -5085,7 +5119,9 @@ function _td_syncToggle() {
 
 function _td_rebuild() {
   const d = _trendDetail; if (!d) return;
-  d.series = _trendSeries(getData('inbody', []), d.field, d.includeWeightLog, d.range);
+  d.series = d.mode === 'weekly'
+    ? _weeklyWeightSeries(d.range)
+    : _trendSeries(getData('inbody', []), d.field, d.includeWeightLog, d.range);
   d.activeIdx = d.series.length - 1;   // start at the latest point
   _td_draw();
 }
@@ -5173,7 +5209,7 @@ function _td_draw() {
   // Readout
   if (readout) {
     readout.innerHTML = `<div class="td-val" style="color:${color}">${s[ai].v}<span class="td-unit"> ${d.unit}</span></div>
-                         <div class="td-date">${s[ai].date}</div>`;
+                         <div class="td-date">${s[ai].dateLabel || s[ai].date}</div>`;
   }
 }
 
