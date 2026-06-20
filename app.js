@@ -4574,7 +4574,7 @@ function renderInbody() {
       </div>
     </div>
     <div class="weight-7d-card">
-      <div class="weight-7d-title">近7日體重</div>
+      <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas"></canvas>
     </div>`;
 
@@ -4637,8 +4637,8 @@ function renderInbody() {
 
   container.innerHTML = html;
 
-  // 7-day weight chart
-  _draw7DayWeightChart('weight-7d-chart');
+  // Weekly weight average chart
+  _drawWeeklyWeightChart('weight-7d-chart');
 
   // Draw trend charts
   if (allRecords.length >= 2) {
@@ -4663,52 +4663,75 @@ function setInbodyTrendRange(range) {
   renderInbody();
 }
 
-function _draw7DayWeightChart(canvasId) {
+// Set up a canvas for crisp HiDPI drawing. Returns CSS-pixel dims + a scaled ctx,
+// so all drawing code can use plain CSS px while staying sharp on retina screens.
+function _crispCanvas(canvas, cssH) {
+  const dpr  = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.parentElement?.clientWidth || 300;
+  canvas.style.height = cssH + 'px';      // override the attribute height so layout = cssH
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssW, cssH);
+  return { ctx, W: cssW, H: cssH };
+}
+
+// Weekly weight trend: one point per 7-day bucket (anchored at the earliest record),
+// each point being that week's average weight.
+function _drawWeeklyWeightChart(canvasId) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
-  const wLog = getData('weightLog', {});
-  const inbodyByDate = {};
-  getData('inbody', []).forEach(rec => { if (rec.weight != null) inbodyByDate[rec.date] = rec.weight; });
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = dateStr(d);
-    const w = wLog[ds] != null ? wLog[ds] : (inbodyByDate[ds] != null ? inbodyByDate[ds] : null);
-    days.push({ ds, w, label: (d.getMonth() + 1) + '/' + d.getDate() });
-  }
 
-  const dpr = window.devicePixelRatio || 1;
-  const containerW = canvas.parentElement?.clientWidth || 300;
-  const W = containerW - 32;
-  const H = 65;
-  canvas.style.height = H + 'px';
-  canvas.width  = Math.round(W * dpr);
-  canvas.height = Math.round(H * dpr);
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
+  // Every weight reading by date (weightLog first, then InBody records)
+  const byDate = {};
+  Object.entries(getData('weightLog', {})).forEach(([d, w]) => { if (w != null) byDate[d] = w; });
+  getData('inbody', []).forEach(r => { if (r.weight != null && byDate[r.date] == null) byDate[r.date] = r.weight; });
+  const dates = Object.keys(byDate).sort();
 
-  const series = days.filter(d => d.w != null);
-  if (!series.length) {
+  const { ctx, W, H } = _crispCanvas(canvas, 65);
+
+  if (!dates.length) {
     ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('尚無體重記錄', W / 2, H / 2 + 4);
+    ctx.fillText('尚無體重記錄', W / 2, H / 2);
     return;
   }
 
+  // Group into 7-day buckets from the earliest record; each point = that week's average
+  const DAY = 86400000;
+  const first = new Date(dates[0] + 'T00:00:00').getTime();
+  const buckets = new Map();
+  dates.forEach(ds => {
+    const k = Math.floor((new Date(ds + 'T00:00:00').getTime() - first) / (7 * DAY));
+    const b = buckets.get(k) || { sum: 0, cnt: 0 };
+    b.sum += byDate[ds]; b.cnt++;
+    buckets.set(k, b);
+  });
+  let series = [...buckets.keys()].sort((a, b) => a - b).map(k => {
+    const b = buckets.get(k);
+    const start = new Date(first + k * 7 * DAY);
+    return { k, avg: Math.round((b.sum / b.cnt) * 10) / 10,
+             label: (start.getMonth() + 1) + '/' + start.getDate() };
+  });
+  const MAXB = 10;                          // show the most recent ~10 weeks
+  if (series.length > MAXB) series = series.slice(series.length - MAXB);
+
   const color = '#4D6A55';
   const PAD = { t: 8, r: 16, b: 18, l: 38 };
-  const cw = W - PAD.l - PAD.r;
-  const ch = H - PAD.t - PAD.b;
-  const vals = series.map(s => s.w);
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const vals = series.map(s => s.avg);
   const minV = Math.min(...vals), maxV = Math.max(...vals);
   const pad  = (maxV - minV) * 0.2 || 1;
   const lo = minV - pad, hi = maxV + pad;
 
-  // x uses day index (0-6) so spacing is always even
-  const xOf = idx => PAD.l + (idx / 6) * cw;
-  const yOf = v   => PAD.t + ch - ((v - lo) / (hi - lo)) * ch;
+  const minK = series[0].k, maxK = series[series.length - 1].k;
+  const spanK = Math.max(1, maxK - minK);
+  const xOf = k => series.length === 1 ? PAD.l + cw / 2 : PAD.l + ((k - minK) / spanK) * cw;
+  const yOf = v => PAD.t + ch - ((v - lo) / (hi - lo)) * ch;
 
-  // Grid lines (3 horizontal)
+  // Grid lines (3 horizontal) + y labels
   ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
   for (let i = 0; i <= 2; i++) {
     const v = lo + (hi - lo) * (i / 2);
@@ -4719,55 +4742,38 @@ function _draw7DayWeightChart(canvasId) {
     ctx.fillText(Math.round(v * 10) / 10, PAD.l - 4, y);
   }
 
-  // X-axis labels: first/last days
-  ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(days[0].label, xOf(0), H - 14);
-  ctx.textAlign = 'right';
-  ctx.fillText(days[6].label, xOf(6), H - 14);
+  // X-axis labels: first / last bucket start dates
+  ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif'; ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';  ctx.fillText(series[0].label, PAD.l, H - 14);
+  if (series.length > 1) { ctx.textAlign = 'right'; ctx.fillText(series[series.length - 1].label, W - PAD.r, H - 14); }
 
-  // Gradient fill (connecting only data points)
-  const firstS = series[0], lastS = series[series.length - 1];
-  const firstIdx = days.findIndex(d => d.ds === firstS.ds);
-  const lastIdx  = days.findIndex(d => d.ds === lastS.ds);
-  const grad = ctx.createLinearGradient(0, PAD.t, 0, H - PAD.b);
-  grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
-  ctx.beginPath();
-  let lineStarted = false;
-  series.forEach(pt => {
-    const idx = days.findIndex(d => d.ds === pt.ds);
-    if (!lineStarted) { ctx.moveTo(xOf(idx), yOf(pt.w)); lineStarted = true; }
-    else ctx.lineTo(xOf(idx), yOf(pt.w));
-  });
-  ctx.lineTo(xOf(lastIdx), H - PAD.b);
-  ctx.lineTo(xOf(firstIdx), H - PAD.b);
-  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+  // Gradient fill + line (need ≥2 points for a line)
+  if (series.length >= 2) {
+    const grad = ctx.createLinearGradient(0, PAD.t, 0, H - PAD.b);
+    grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
+    ctx.beginPath();
+    series.forEach((pt, i) => { const x = xOf(pt.k), y = yOf(pt.avg); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    ctx.lineTo(xOf(maxK), H - PAD.b); ctx.lineTo(xOf(minK), H - PAD.b);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
 
-  // Line
-  ctx.beginPath(); lineStarted = false;
-  series.forEach(pt => {
-    const idx = days.findIndex(d => d.ds === pt.ds);
-    if (!lineStarted) { ctx.moveTo(xOf(idx), yOf(pt.w)); lineStarted = true; }
-    else ctx.lineTo(xOf(idx), yOf(pt.w));
-  });
-  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.beginPath();
+    series.forEach((pt, i) => { const x = xOf(pt.k), y = yOf(pt.avg); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+  }
 
   // Dots
   series.forEach(pt => {
-    const idx = days.findIndex(d => d.ds === pt.ds);
-    ctx.beginPath(); ctx.arc(xOf(idx), yOf(pt.w), 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = color; ctx.fill();
-    ctx.beginPath(); ctx.arc(xOf(idx), yOf(pt.w), 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff'; ctx.fill();
+    const x = xOf(pt.k), y = yOf(pt.avg);
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 2,   0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
   });
 
-  // Latest value label
-  const lIdx = days.findIndex(d => d.ds === lastS.ds);
-  const lx = xOf(lIdx), ly = yOf(lastS.w);
+  // Latest weekly-average label
+  const lastS = series[series.length - 1];
+  const lx = xOf(lastS.k), ly = yOf(lastS.avg);
   ctx.fillStyle = color; ctx.font = 'bold 10px DM Sans, sans-serif';
-  ctx.textAlign = lx > W - PAD.r - 28 ? 'right' : 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(`${lastS.w}kg`, lx, ly - 4);
+  ctx.textAlign = lx > W - PAD.r - 28 ? 'right' : 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`${lastS.avg}kg`, lx, ly - 4);
 }
 
 // Carousel state (JS-transform based — avoids overflow-x:hidden on .page)
@@ -4950,11 +4956,7 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
     series.sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  const containerW = canvas.parentElement?.clientWidth || 300;
-  canvas.width = containerW - 32;
-  const W = canvas.width, H = canvas.height;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
+  const { ctx, W, H } = _crispCanvas(canvas, 65);
 
   if (series.length < 2) {
     ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
