@@ -4595,15 +4595,15 @@ function renderInbody() {
     html += `
       <div class="trend-card">
         <div class="trend-card-header"><span class="trend-card-title">體重趨勢 (kg)</span>${toggleHtml}</div>
-        <canvas id="trend-weight" class="trend-canvas" height="65"></canvas>
+        <canvas id="trend-weight" class="trend-canvas" height="65" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas>
       </div>
       <div class="trend-card">
         <div class="trend-card-header"><span class="trend-card-title">體脂率趨勢 (%)</span></div>
-        <canvas id="trend-fat" class="trend-canvas" height="65"></canvas>
+        <canvas id="trend-fat" class="trend-canvas" height="65" onclick="openTrendDetail('fatPct','%','#D98866',false,'體脂率趨勢')"></canvas>
       </div>
       <div class="trend-card">
         <div class="trend-card-header"><span class="trend-card-title">肌肉量趨勢 (kg)</span></div>
-        <canvas id="trend-muscle" class="trend-canvas" height="65"></canvas>
+        <canvas id="trend-muscle" class="trend-canvas" height="65" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas>
       </div>`;
   }
 
@@ -4929,32 +4929,33 @@ function saveWeightFromPrompt() {
   showToast(`已記錄 ${val} kg ✓`);
 }
 
+// Build a sorted [{date, v}] series for a metric, honoring the active range.
+// Shared by the small trend cards and the full-screen detail view.
+function _trendSeries(allRecords, field, includeWeightLog, range) {
+  let cutoff = null;
+  if (range === '3m' || range === '6m') {
+    const c = new Date(); c.setMonth(c.getMonth() - (range === '3m' ? 3 : 6));
+    cutoff = dateStr(c);
+  }
+  let series = allRecords
+    .map(r => ({ date: r.date, v: r[field] }))
+    .filter(d => d.v != null && (!cutoff || d.date >= cutoff));
+  if (includeWeightLog && field === 'weight') {
+    Object.entries(getData('weightLog', {})).forEach(([date, w]) => {
+      if (w == null || (cutoff && date < cutoff)) return;
+      if (!series.find(d => d.date === date)) series.push({ date, v: w });
+    });
+  }
+  series.sort((a, b) => a.date.localeCompare(b.date));
+  return series;
+}
+
 // ===== SINGLE-METRIC TREND CHART =====
 function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeWeightLog) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  const cutoffDate = () => {
-    const c = new Date();
-    if (_inbodyTrendRange === '3m') c.setMonth(c.getMonth() - 3);
-    else if (_inbodyTrendRange === '6m') c.setMonth(c.getMonth() - 6);
-    else return null;
-    return dateStr(c);
-  };
-  const cutoff = cutoffDate();
-
-  let series = allRecords
-    .map(r => ({ date: r.date, v: r[field] }))
-    .filter(d => d.v != null && (!cutoff || d.date >= cutoff));
-
-  if (includeWeightLog && field === 'weight') {
-    const wLog = getData('weightLog', {});
-    Object.entries(wLog).forEach(([date, w]) => {
-      if (cutoff && date < cutoff) return;
-      if (!series.find(d => d.date === date)) series.push({ date, v: w });
-    });
-    series.sort((a, b) => a.date.localeCompare(b.date));
-  }
+  const series = _trendSeries(allRecords, field, includeWeightLog, _inbodyTrendRange);
 
   const { ctx, W, H } = _crispCanvas(canvas, 65);
 
@@ -5036,6 +5037,162 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
     ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     ctx.fillText(`${last.v}${unit}`, lastX - 4, lastY - 4);
   }
+}
+
+// ===== FULL-SCREEN TREND DETAIL (draggable scrubber) =====
+let _trendDetail = null;
+const _TD_PAD = { t: 18, r: 22, b: 32, l: 46 };
+
+function openTrendDetail(field, unit, color, includeWeightLog, title) {
+  _trendDetail = { field, unit, color, includeWeightLog, title, range: _inbodyTrendRange, activeIdx: -1, series: [] };
+  const ov = document.createElement('div');
+  ov.id = 'trend-detail-overlay';
+  ov.className = 'trend-detail-overlay';
+  ov.innerHTML = `
+    <div class="td-header">
+      <div class="td-title">${title}</div>
+      <button class="td-close" onclick="closeTrendDetail()">✕</button>
+    </div>
+    <div class="td-toggle">
+      <button class="td-range-btn" data-r="3m">近3月</button>
+      <button class="td-range-btn" data-r="6m">近6月</button>
+      <button class="td-range-btn" data-r="all">全部</button>
+    </div>
+    <div class="td-readout" id="td-readout"></div>
+    <div class="td-canvas-wrap"><canvas id="td-canvas"></canvas></div>
+    <div class="td-hint">← 拖動白線查看各個紀錄點 →</div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+
+  ov.querySelectorAll('.td-range-btn').forEach(b => {
+    b.onclick = () => { _trendDetail.range = b.dataset.r; _td_syncToggle(); _td_rebuild(); };
+  });
+  _td_syncToggle();
+  _td_rebuild();
+  _td_attachPointer();
+}
+
+function closeTrendDetail() {
+  document.getElementById('trend-detail-overlay')?.remove();
+  document.body.style.overflow = '';
+  _trendDetail = null;
+}
+
+function _td_syncToggle() {
+  document.querySelectorAll('#trend-detail-overlay .td-range-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.r === _trendDetail.range));
+}
+
+function _td_rebuild() {
+  const d = _trendDetail; if (!d) return;
+  d.series = _trendSeries(getData('inbody', []), d.field, d.includeWeightLog, d.range);
+  d.activeIdx = d.series.length - 1;   // start at the latest point
+  _td_draw();
+}
+
+function _td_geometry(W) {
+  const d = _trendDetail, s = d.series;
+  const cw = W - _TD_PAD.l - _TD_PAD.r;
+  const toMs = ds => new Date(ds).getTime();
+  const firstMs = toMs(s[0].date), lastMs = toMs(s[s.length - 1].date);
+  const spanMs = Math.max(1, lastMs - firstMs);
+  const xOf = p => s.length === 1 ? _TD_PAD.l + cw / 2 : _TD_PAD.l + ((toMs(p.date) - firstMs) / spanMs) * cw;
+  return { xOf };
+}
+
+function _td_draw() {
+  const d = _trendDetail; if (!d) return;
+  const canvas = document.getElementById('td-canvas'); if (!canvas) return;
+  const wrap = canvas.parentElement;
+  const cssH = wrap.clientHeight || 280;
+  const { ctx, W, H } = _crispCanvas(canvas, cssH);
+  const s = d.series;
+  const readout = document.getElementById('td-readout');
+
+  if (!s.length) {
+    ctx.fillStyle = '#AEADA8'; ctx.font = '14px DM Sans, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('資料不足，請新增更多記錄', W / 2, H / 2);
+    if (readout) readout.innerHTML = '';
+    return;
+  }
+
+  const color = d.color;
+  const cH = H - _TD_PAD.t - _TD_PAD.b;
+  const vals = s.map(p => p.v);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const pad = (maxV - minV) * 0.15 || 1;
+  const lo = minV - pad, hi = maxV + pad;
+  const { xOf } = _td_geometry(W);
+  const yOf = v => _TD_PAD.t + cH - ((v - lo) / (hi - lo)) * cH;
+
+  // Grid (4 rows) + y labels
+  ctx.font = '11px DM Sans, sans-serif';
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * (i / 3), y = yOf(v);
+    ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(_TD_PAD.l, y); ctx.lineTo(W - _TD_PAD.r, y); ctx.stroke();
+    ctx.fillStyle = '#AEADA8'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(v * 10) / 10, _TD_PAD.l - 6, y);
+  }
+
+  // X labels: first / last
+  const fmt = ds => { const [, m, dd] = ds.split('-'); return `${+m}/${+dd}`; };
+  ctx.fillStyle = '#AEADA8'; ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';  ctx.fillText(fmt(s[0].date), _TD_PAD.l, H - _TD_PAD.b + 8);
+  if (s.length > 1) { ctx.textAlign = 'right'; ctx.fillText(fmt(s[s.length - 1].date), W - _TD_PAD.r, H - _TD_PAD.b + 8); }
+
+  // Area + line
+  if (s.length >= 2) {
+    const grad = ctx.createLinearGradient(0, _TD_PAD.t, 0, H - _TD_PAD.b);
+    grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
+    ctx.beginPath();
+    s.forEach((p, i) => { const x = xOf(p), y = yOf(p.v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    ctx.lineTo(xOf(s[s.length - 1]), H - _TD_PAD.b); ctx.lineTo(xOf(s[0]), H - _TD_PAD.b);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath();
+    s.forEach((p, i) => { const x = xOf(p), y = yOf(p.v); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  // Scrubber line at the active point
+  const ai = Math.max(0, Math.min(d.activeIdx, s.length - 1));
+  const ax = xOf(s[ai]), ay = yOf(s[ai].v);
+  ctx.strokeStyle = color; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(ax, _TD_PAD.t); ctx.lineTo(ax, H - _TD_PAD.b); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+  // Dots (active one larger)
+  s.forEach((p, i) => {
+    const x = xOf(p), y = yOf(p.v), on = i === ai;
+    ctx.beginPath(); ctx.arc(x, y, on ? 6.5 : 3.5, 0, Math.PI * 2); ctx.fillStyle = on ? color : '#fff'; ctx.fill();
+    if (!on) { ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, on ? 2.5 : 0, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+  });
+
+  // Readout
+  if (readout) {
+    readout.innerHTML = `<div class="td-val" style="color:${color}">${s[ai].v}<span class="td-unit"> ${d.unit}</span></div>
+                         <div class="td-date">${s[ai].date}</div>`;
+  }
+}
+
+function _td_attachPointer() {
+  const canvas = document.getElementById('td-canvas'); if (!canvas) return;
+  let active = false;
+  const pick = clientX => {
+    const d = _trendDetail; if (!d || !d.series.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const { xOf } = _td_geometry(rect.width);
+    const x = clientX - rect.left;
+    let best = 0, bd = Infinity;
+    d.series.forEach((p, i) => { const dx = Math.abs(xOf(p) - x); if (dx < bd) { bd = dx; best = i; } });
+    if (best !== d.activeIdx) { d.activeIdx = best; navigator.vibrate?.(8); _td_draw(); }
+  };
+  canvas.addEventListener('pointerdown', e => { active = true; canvas.setPointerCapture(e.pointerId); pick(e.clientX); });
+  canvas.addEventListener('pointermove', e => { if (active) pick(e.clientX); });
+  canvas.addEventListener('pointerup',   () => { active = false; });
+  canvas.addEventListener('pointercancel', () => { active = false; });
 }
 
 function buildInbodyCard(rec) {
