@@ -6590,6 +6590,292 @@ function renderAchievements() {
     <div style="height:30px"></div>`;
 }
 
+// ===== ACHIEVEMENT MANAGEMENT (recompute / remove) =====
+// Authoritative full-history validity computation. Returns the Set of achievement
+// IDs that the CURRENT data genuinely earns. Unlike _runAchievementChecks (which
+// only scans today/yesterday for triple_crown/all_4_meals/goal_hit as a hot-path
+// optimization), this scans ALL history so "remove = recompute" is faithful.
+// NOTE: mirrors the thresholds in _runAchievementChecks + _runHabitAchievementChecks
+// + _recheckHabitAchievements — keep in sync if those change.
+function _computeValidAchievements(gd) {
+  const valid = new Set();
+  const add = id => valid.add(id);
+  const diary   = getData('diary', {});
+  const wLog    = getData('workoutLog', []);
+  const today   = todayStr();
+  const profile = getData('profile', {});
+  const goals   = profile.goals || defaultGoals();
+
+  // RECIPE
+  const recipes = getData('recipes', []);
+  if (recipes.length >= 1)  add('recipe_first');
+  if (recipes.length >= 10) add('recipe_10');
+  if (recipes.length >= 30) add('recipe_30');
+  if (recipes.some(r => r.image)) add('recipe_with_img');
+
+  // FOOD
+  const allEntries = Object.values(diary).flat();
+  const diaryDays  = Object.keys(diary).filter(ds => (diary[ds] || []).length > 0);
+  if (allEntries.length >= 1)  add('first_meal');
+  if (diaryDays.length >= 10)  add('meal_10');
+  if (diaryDays.length >= 30)  add('meal_30');
+  if (diaryDays.length >= 50)  add('diary_50');
+  if (diaryDays.length >= 100) add('diary_100');
+  if (diaryDays.length >= 365) add('diary_365');
+
+  // triple_crown / all_4_meals — scan ALL history (any day that qualifies)
+  diaryDays.forEach(ds => {
+    const ms = new Set((diary[ds] || []).map(e => e.meal));
+    if (['早餐','午餐','晚餐'].every(m => ms.has(m)))        add('triple_crown');
+    if (['早餐','午餐','晚餐','點心'].every(m => ms.has(m))) add('all_4_meals');
+  });
+
+  const uniqueFoods = new Set(allEntries.map(e => e.name)).size;
+  if (uniqueFoods >= 5)  add('variety_5');
+  if (uniqueFoods >= 15) add('variety_15');
+  if (uniqueFoods >= 30) add('variety_30');
+
+  const countFoodKw = group => {
+    const kws = FOOD_KEYWORD_GROUPS[group];
+    return allEntries.filter(e => kws.some(kw => (e.name || '').includes(kw))).length;
+  };
+  if (countFoodKw('chicken') >= 30)  add('chicken_30');
+  if (countFoodKw('chicken') >= 100) add('chicken_100');
+  if (countFoodKw('beef') >= 30) add('beef_30');
+  if (countFoodKw('beef') >= 80) add('beef_80');
+  if (countFoodKw('pork') >= 30) add('pork_30');
+  if (countFoodKw('pork') >= 80) add('pork_80');
+  if (countFoodKw('egg') >= 50)  add('egg_50');
+  if (countFoodKw('egg') >= 150) add('egg_150');
+  if (countFoodKw('fish') >= 30)  add('fish_30');
+  if (countFoodKw('fish') >= 100) add('fish_100');
+  if (countFoodKw('broccoli')     >= 30) add('broccoli_30');
+  if (countFoodKw('sweet_potato') >= 30) add('sweet_potato_30');
+  if (countFoodKw('tofu')         >= 30) add('tofu_30');
+  if (countFoodKw('avocado')      >= 20) add('avocado_20');
+  if (countFoodKw('oat')          >= 60) add('oat_60');
+
+  // Hidden (full-history)
+  if (allEntries.length > 0 && diaryDays.some(ds => ds.slice(5) === '01-01')) add('new_year');
+  if (allEntries.some(e => e.loggedAt && (new Date(e.loggedAt).getHours() >= 23 || new Date(e.loggedAt).getHours() < 2))) add('night_owl');
+  if (allEntries.some(e => e.loggedAt && new Date(e.loggedAt).getHours() < 6)) add('early_bird');
+
+  // GOAL
+  if (goals.calories > 0) {
+    if (diaryDays.some(ds => { const t = getDailyTotals(ds); return t.calories > 0 && t.calories <= goals.calories; })) add('goal_hit');
+    let gs = 0;
+    for (let i = 0; i < 30; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = getDailyTotals(dateStr(d)); if (t.calories > 0 && t.calories <= goals.calories) gs++; else break; }
+    if (gs >= 7)  add('goal_week');
+    if (gs >= 30) add('goal_month');
+  }
+  if (goals.protein > 0) {
+    let ps = 0;
+    for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = getDailyTotals(dateStr(d)); if (t.protein > 0 && t.protein >= goals.protein) ps++; else break; }
+    if (ps >= 7) add('protein_7');
+  }
+
+  // WORKOUT
+  const cardioN = wLog.filter(e => e.type === 'cardio').length;
+  const strengthN = wLog.filter(e => e.type === 'strength').length;
+  if (wLog.length >= 1)   add('first_workout');
+  if (cardioN >= 10)      add('cardio_10');
+  if (cardioN >= 30)      add('cardio_30');
+  if (strengthN >= 10)    add('strength_10');
+  if (strengthN >= 30)    add('strength_30');
+  if (wLog.length >= 30)  add('workout_30_total');
+  if (wLog.length >= 100) add('workout_100_total');
+  const wByDate = {};
+  wLog.forEach(e => { (wByDate[e.date] = wByDate[e.date] || new Set()).add(e.type); });
+  if (Object.values(wByDate).some(s => s.has('cardio') && s.has('strength'))) add('both_same_day');
+  const wStreak = _calcWorkoutStreak(wLog);
+  if (wStreak >= 7)  add('workout_streak_7');
+  if (wStreak >= 30) add('workout_streak_30');
+  const weekendWeeks = new Set(wLog.filter(e => {
+    const [y, m, d] = e.date.split('-').map(Number); const day = new Date(y, m - 1, d).getDay(); return day === 0 || day === 6;
+  }).map(e => { const [y, m, d] = e.date.split('-').map(Number); const dt = new Date(y, m - 1, d); dt.setDate(dt.getDate() - dt.getDay()); return dateStr(dt); }));
+  if (weekendWeeks.size >= 8) add('weekend_warrior');
+
+  // STREAK
+  const dStreak = _calcDiaryStreak(diary);
+  if (dStreak >= 3)   add('streak_3');
+  if (dStreak >= 7)   add('streak_7');
+  if (dStreak >= 14)  add('streak_14');
+  if (dStreak >= 30)  add('streak_30');
+  if (dStreak >= 100) add('streak_100');
+  if (dStreak >= 200) add('streak_200');
+  if (dStreak >= 365) add('streak_365');
+
+  // COMEBACK (mirrors _runAchievementChecks)
+  {
+    const _wlog = getData('workoutLog', {});
+    const _hlog = getData('habitLog', {});
+    const _active = ds => (diary[ds] || []).length > 0 || (_wlog[ds] || []).length > 0 || Object.keys(_hlog[ds] || {}).length > 0;
+    let resumeIdx = -1;
+    for (let i = 0; i <= 6; i++) { const d = new Date(); d.setDate(d.getDate() - i); if (_active(dateStr(d))) { resumeIdx = i; break; } }
+    if (resumeIdx >= 0) {
+      let gap = 0, foundPrev = false;
+      for (let i = resumeIdx + 1; i <= resumeIdx + 90; i++) { const d = new Date(); d.setDate(d.getDate() - i); if (_active(dateStr(d))) { foundPrev = true; break; } gap++; }
+      if (foundPrev && gap >= 7)  add('comeback');
+      if (foundPrev && gap >= 30) add('comeback_epic');
+    }
+  }
+
+  // LEVEL / GOLD (current state)
+  if (gd.level >= 3)  add('level_3');
+  if (gd.level >= 5)  add('level_5');
+  if (gd.level >= 10) add('level_10');
+  if (gd.level >= 15) add('max_level');
+  const gold = gd.gold || 0;
+  if (gold >= 500)   add('gold_500');
+  if (gold >= 2000)  add('gold_2000');
+  if (gold >= 5000)  add('gold_5000');
+  if (gold >= 10000) add('gold_10000');
+  if (gold >= 50000) add('gold_50000');
+
+  // QUEST
+  const qDone = getData('dailyQuestsDone', {});
+  const allQDates = Object.keys(qDone);
+  if (allQDates.some(d => qDone[d].main?.some(Boolean) || qDone[d].side?.some(Boolean))) add('quest_first');
+  if (allQDates.some(d => qDone[d].main?.length > 0 && qDone[d].main.every(Boolean))) add('quest_main_done');
+  if (allQDates.some(d => qDone[d].main?.every(Boolean) && qDone[d].side?.every(Boolean))) add('quest_all_done');
+  if (allQDates.filter(d => qDone[d].main?.length > 0 && qDone[d].main.every(Boolean)).length >= 100) add('quest_100');
+  let qStreak = 0;
+  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const rec = qDone[dateStr(d)]; if (rec && rec.main?.length > 0 && rec.main.every(Boolean)) qStreak++; else break; }
+  if (qStreak >= 7)  add('quest_week');
+  if (qStreak >= 30) add('quest_month');
+
+  // perfect_day (full-history)
+  Object.keys(diary).forEach(ds => {
+    const meals = new Set((diary[ds] || []).map(e => e.meal));
+    if (!['早餐','午餐','晚餐','點心'].every(m => meals.has(m))) return;
+    const rec = qDone[ds];
+    if (!rec || !rec.main?.every(Boolean) || !rec.side?.every(Boolean)) return;
+    if (wLog.some(e => e.date === ds)) add('perfect_day');
+  });
+
+  // COMBO
+  const wDates = new Set(wLog.map(e => e.date));
+  if (goals.calories > 0) {
+    if (diaryDays.some(ds => { const t = getDailyTotals(ds); return t.calories > 0 && t.calories <= goals.calories && wDates.has(ds); })) add('goal_workout_same');
+    let gw7 = 0;
+    for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); const t = getDailyTotals(ds); if (t.calories > 0 && t.calories <= goals.calories && wDates.has(ds)) gw7++; else break; }
+    if (gw7 >= 7) add('goal_workout_7');
+  }
+  let dwStreak = 0;
+  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); if ((diary[ds] || []).length > 0 && wDates.has(ds)) dwStreak++; else break; }
+  if (dwStreak >= 7)  add('diet_workout_7');
+  if (dwStreak >= 30) add('diet_workout_30');
+  if (uniqueFoods >= 20 && wLog.length >= 50) add('variety_workout_combo');
+  let qdStreak = 0;
+  for (let i = 0; i <= 365; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); const rec = qDone[ds]; if (rec && rec.main?.length > 0 && rec.main.every(Boolean) && (diary[ds] || []).length > 0) qdStreak++; else break; }
+  if (qdStreak >= 7) add('quest_diary_7');
+
+  // HABIT (mirrors _runHabitAchievementChecks)
+  const allHabits = getData('habits', []);
+  const habitLog  = getData('habitLog', {});
+  if (Object.values(habitLog).some(d => Object.values(d || {}).some(v => v === 'done'))) add('habit_first');
+  const maxHS = allHabits.reduce((mx, h) => Math.max(mx, calcHabitStreak(h)), 0);
+  if (maxHS >= 7)   add('habit_streak_7');
+  if (maxHS >= 30)  add('habit_streak_30');
+  if (maxHS >= 100) add('habit_streak_100');
+  const grpS = key => {
+    const kws = HABIT_KEYWORD_GROUPS[key];
+    return allHabits.filter(h => kws.some(kw => h.name.includes(kw))).reduce((mx, h) => Math.max(mx, calcHabitStreak(h)), 0);
+  };
+  const readS = grpS('read'), waterS = grpS('water'), sugarS = grpS('no_sugar');
+  if (readS >= 7)   add('read_7');
+  if (readS >= 30)  add('read_30');
+  if (readS >= 100) add('read_100');
+  if (waterS >= 7)  add('water_7');
+  if (waterS >= 30) add('water_30');
+  if (sugarS >= 7)   add('no_sugar_7');
+  if (sugarS >= 30)  add('no_sugar_30');
+  if (sugarS >= 100) add('no_sugar_100');
+  if (dStreak >= 30 && maxHS >= 30) add('streak_habit_combo');
+
+  return valid;
+}
+
+function openAchievementsManage() {
+  if (document.getElementById('ach-manage-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'ach-manage-overlay';
+  ov.className = 'ach-manage-overlay';
+  ov.innerHTML = `
+    <div class="amg-header">
+      <div class="amg-title">成就管理</div>
+      <button class="td-close" onclick="closeAchievementsManage()">✕</button>
+    </div>
+    <div class="amg-sub">這裡只顯示已達成的成就。移除某個成就會讓系統依「目前的全部資料」重新計算：若仍符合條件會自動保留，若已不符合（例如你修正了紀錄）才會被移除。</div>
+    <div class="amg-list" id="amg-list"></div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  renderAchievementsManageList();
+}
+
+function closeAchievementsManage() {
+  document.getElementById('ach-manage-overlay')?.remove();
+  document.body.style.overflow = '';
+  if (state.currentPage === 'achievements') renderAchievements();
+}
+
+function renderAchievementsManageList() {
+  const el = document.getElementById('amg-list'); if (!el) return;
+  const gd = getGameData();
+  const unlocked = gd.achievements || [];
+  const titleByAch = {};
+  TITLES_DEF.forEach(t => { if (t.unlock !== 'default') titleByAch[t.unlock] = t.id; });
+  if (!unlocked.length) {
+    el.innerHTML = `<div class="amg-empty">還沒有已達成的成就</div>`;
+    return;
+  }
+  el.innerHTML = Object.entries(ACHIEVEMENTS_DEF)
+    .filter(([id]) => unlocked.includes(id))
+    .map(([id, def]) => {
+      const date  = (gd.achievementDates || {})[id];
+      const title = titleByAch[id];
+      const meta = [title ? `稱號：${title}` : '', date || ''].filter(Boolean).join(' · ');
+      return `
+        <div class="amg-item">
+          <div class="amg-icon">${icon(def.icon, 18)}</div>
+          <div class="amg-info">
+            <div class="amg-name">${def.name}</div>
+            <div class="amg-desc">${def.desc}</div>
+            ${meta ? `<div class="amg-meta">${meta}</div>` : ''}
+          </div>
+          <button class="amg-remove" onclick="manageRemoveAchievement('${id}')">移除</button>
+        </div>`;
+    }).join('');
+}
+
+function manageRemoveAchievement(id) {
+  const def = ACHIEVEMENTS_DEF[id]; if (!def) return;
+  showConfirm(
+    `移除「${def.name}」後，系統會依目前所有資料重新計算這個成就。<br><br>若你的資料仍符合條件，它會重新達成並保留；若已不再符合（例如你修正了紀錄），就會被移除。<br><br>確定要重新計算嗎？`,
+    () => {
+      const gd = getGameData();
+      const valid = _computeValidAchievements(gd);
+      if (valid.has(id)) {
+        showToast(`「${def.name}」仍符合條件，已保留`);
+        return;
+      }
+      gd.achievements = (gd.achievements || []).filter(a => a !== id);
+      if (gd.achievementDates) delete gd.achievementDates[id];
+      const td = TITLES_DEF.find(t => t.unlock === id);
+      if (td) {
+        gd.titles = (gd.titles || []).filter(t => t !== td.id);
+        if (gd.activeTitle === td.id) gd.activeTitle = '旅人';
+      }
+      gd.xp = Math.max(0, (gd.xp || 0) - 50);   // claw back the achievement's reward
+      gd.level = _calcLevel(gd.xp);
+      setData('gamification', gd);
+      showToast(`已移除「${def.name}」`);
+      renderAchievementsManageList();
+    },
+    '確定重新計算'
+  );
+}
+
 // Cursor at end when focusing any input field
 document.addEventListener('focusin', e => {
   const el = e.target;

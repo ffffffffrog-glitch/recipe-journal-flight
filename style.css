@@ -845,6 +845,45 @@ img { max-width: 100%; display: block; }
 }
 .page-header-side:last-child { justify-content: flex-end; }
 .fooddb-add-btn-header { display: none; }
+.header-action-btn {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--text-2); cursor: pointer;
+  border-radius: 50%; transition: background .15s, color .15s;
+}
+.header-action-btn:active, .header-action-btn:hover { background: var(--bg); color: var(--sage); }
+
+/* Achievement management overlay */
+.ach-manage-overlay {
+  position: fixed; inset: 0; z-index: 400; background: var(--bg);
+  display: flex; flex-direction: column;
+  padding: 16px; padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  animation: fadeIn .18s ease;
+}
+.amg-header { display: flex; align-items: center; justify-content: space-between; }
+.amg-title { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.amg-sub { font-size: .78rem; color: var(--text-3); line-height: 1.5; margin-top: 10px; }
+.amg-list { flex: 1; min-height: 0; overflow-y: auto; margin-top: 14px; -webkit-overflow-scrolling: touch; }
+.amg-empty { text-align: center; color: var(--text-3); font-size: .85rem; padding: 50px 0; }
+.amg-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.amg-icon { color: var(--sage); flex-shrink: 0; display: flex; }
+.amg-info { flex: 1; min-width: 0; }
+.amg-name { font-size: .9rem; font-weight: 700; color: var(--text); }
+.amg-desc { font-size: .78rem; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+.amg-meta { font-size: .72rem; color: var(--sage); margin-top: 3px; }
+.amg-remove {
+  flex-shrink: 0; padding: 7px 14px; border: 1px solid var(--border);
+  background: var(--white); color: #b91c1c; border-radius: 8px;
+  font-size: .8rem; font-weight: 600; font-family: var(--font); cursor: pointer; transition: all .15s;
+}
+.amg-remove:active, .amg-remove:hover { background: #fce8e8; border-color: #f0c0c0; }
+@media (min-width: 1024px) {
+  .ach-manage-overlay { max-width: 640px; margin: 0 auto; box-shadow: 0 0 0 100vmax rgba(0,0,0,.4); }
+}
 
 .header-back-btn {
   width: 36px; height: 36px;
