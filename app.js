@@ -419,6 +419,174 @@ function getDailyTotals(ds) {
   }, { calories:0, protein:0, fat:0, carbs:0, fiber:0 });
 }
 
+// ===== WEEKLY EXPORT (human-readable, for AI review) =====
+// Default range = the most recent COMPLETE Mon–Sun week (today counts only if Sunday).
+function _defaultExportWeek() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const sunday = new Date(today); sunday.setDate(today.getDate() - today.getDay()); // today if Sunday, else last Sunday
+  const monday = new Date(sunday); monday.setDate(sunday.getDate() - 6);
+  return { start: dateStr(monday), end: dateStr(sunday) };
+}
+
+function buildWeeklyExportText(startDs, endDs) {
+  const DOW = ['日', '一', '二', '三', '四', '五', '六'];
+  const diary = getData('diary', {});
+  const wLog  = getData('workoutLog', []);
+  const weightLog = getData('weightLog', {});
+  const inbodyW = {};
+  getData('inbody', []).forEach(r => { if (r.weight != null) inbodyW[r.date] = r.weight; });
+
+  const dates = [];
+  for (let d = new Date(startDs + 'T00:00:00'), end = new Date(endDs + 'T00:00:00'); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(dateStr(d));
+  }
+  const label = ds => { const [, m, da] = ds.split('-'); return `${+m}/${+da} 週${DOW[new Date(ds + 'T00:00:00').getDay()]}`; };
+  const r1 = n => Math.round(n), r2 = n => Math.round(n * 10) / 10;
+  const out = [];
+
+  out.push('食譜日誌 週報');
+  out.push(`區間：${startDs} ～ ${endDs}`);
+  out.push('');
+
+  // Summary
+  let daysWithDiary = 0, sumCal = 0, sumP = 0;
+  dates.forEach(ds => { if ((diary[ds] || []).length) { const t = getDailyTotals(ds); daysWithDiary++; sumCal += t.calories; sumP += t.protein; } });
+  const wInRange = wLog.filter(e => e.date >= startDs && e.date <= endDs);
+  const weights = dates
+    .map(ds => ({ ds, w: weightLog[ds] != null ? weightLog[ds] : (inbodyW[ds] != null ? inbodyW[ds] : null) }))
+    .filter(x => x.w != null);
+  out.push('═══ 摘要 ═══');
+  out.push(`飲食：${dates.length} 天中 ${daysWithDiary} 天有紀錄${daysWithDiary ? `，平均每日 ${r1(sumCal / daysWithDiary)} kcal／蛋白 ${r1(sumP / daysWithDiary)}g` : ''}`);
+  out.push(`運動：${wInRange.length} 次（有氧 ${wInRange.filter(e => e.type === 'cardio').length}、無氧 ${wInRange.filter(e => e.type === 'strength').length}）`);
+  if (weights.length) {
+    const first = weights[0].w, last = weights[weights.length - 1].w, diff = r2(last - first);
+    out.push(`體重：${first}kg → ${last}kg（${diff >= 0 ? '+' : ''}${diff}kg），平均 ${r2(weights.reduce((s, x) => s + x.w, 0) / weights.length)}kg`);
+  } else out.push('體重：本週無紀錄');
+  out.push('');
+
+  // Diary
+  out.push('═══ 飲食紀錄 ═══');
+  dates.forEach(ds => {
+    const entries = diary[ds] || [];
+    if (!entries.length) { out.push(`【${label(ds)}】無紀錄`); return; }
+    const t = getDailyTotals(ds);
+    out.push(`【${label(ds)}】合計 ${r1(t.calories)} kcal｜蛋白 ${r1(t.protein)}g｜脂肪 ${r1(t.fat)}g｜碳水 ${r1(t.carbs)}g｜纖維 ${r1(t.fiber)}g`);
+    ['早餐', '午餐', '晚餐', '點心'].forEach(meal => {
+      entries.filter(e => (e.meal || '點心') === meal).forEach(e => {
+        const n = e.nutrition || {};
+        out.push(`  ${meal}：${e.name}${e.amount ? ` ${e.amount}` : ''} — ${r1(n.calories || 0)} kcal（蛋白${r1(n.protein || 0)} 脂肪${r1(n.fat || 0)} 碳水${r1(n.carbs || 0)}）`);
+      });
+    });
+  });
+  out.push('');
+
+  // Workout
+  out.push('═══ 運動紀錄 ═══');
+  const fmtSet = r => {
+    const p = [];
+    if (r.weight != null) p.push(`${r.weight}kg`);
+    if (r.reps != null && r.sets != null) p.push(`${r.reps}次×${r.sets}組`);
+    else if (r.reps != null) p.push(`${r.reps}次`);
+    else if (r.sets != null) p.push(`${r.sets}組`);
+    return p.join(' ');
+  };
+  dates.forEach(ds => {
+    const items = wInRange.filter(e => e.date === ds);
+    if (!items.length) { out.push(`【${label(ds)}】無紀錄`); return; }
+    out.push(`【${label(ds)}】`);
+    items.forEach(e => {
+      if (e.type === 'cardio') {
+        const meta = [e.duration ? `${e.duration}分鐘` : '', e.distance ? `${e.distance}km` : '', e.intensity || ''].filter(Boolean).join('・');
+        out.push(`  有氧：${e.exercise || '有氧運動'}${meta ? `（${meta}）` : ''}`);
+      } else {
+        const blocks = (e.blocks || []).map(b => {
+          const sets = Array.isArray(b.rows) ? b.rows : [{ weight: b.weight, reps: b.reps, sets: b.sets }];
+          const spec = sets.map(fmtSet).filter(Boolean).join('、');
+          return `${b.name}${spec ? ` ${spec}` : ''}`;
+        }).join('；');
+        out.push(`  無氧：${blocks}`);
+      }
+      if (e.note) out.push(`    備註：${e.note}`);
+    });
+  });
+  out.push('');
+
+  // Weight
+  out.push('═══ 體重 ═══');
+  if (!weights.length) out.push('本週無體重紀錄');
+  else {
+    weights.forEach(x => out.push(`${label(x.ds)}：${x.w} kg`));
+    out.push(`（本週平均 ${r2(weights.reduce((s, x) => s + x.w, 0) / weights.length)} kg）`);
+  }
+
+  return out.join('\n');
+}
+
+function openExportSheet() {
+  if (document.getElementById('export-overlay')) return;
+  const wk = _defaultExportWeek();
+  const ov = document.createElement('div');
+  ov.id = 'export-overlay';
+  ov.className = 'ach-manage-overlay';
+  ov.innerHTML = `
+    <div class="amg-header">
+      <div class="amg-title">匯出紀錄</div>
+      <button class="td-close" onclick="closeExportSheet()">✕</button>
+    </div>
+    <div class="amg-sub">選擇匯出區間（預設為最近一個完整的週一～週日）。內容包含該區間的飲食、運動、體重，整理成純文字方便與 AI 討論每週進度。</div>
+    <div class="exp-range">
+      <label>開始<input type="date" id="exp-start" value="${wk.start}" onchange="generateExport()"></label>
+      <label>結束<input type="date" id="exp-end" value="${wk.end}" onchange="generateExport()"></label>
+    </div>
+    <textarea id="exp-preview" class="exp-preview" readonly></textarea>
+    <div class="exp-actions">
+      <button class="btn-primary" style="flex:2" onclick="copyExport()">複製到剪貼簿</button>
+      <button class="btn-ghost" style="flex:1" onclick="downloadExport()">下載</button>
+      ${navigator.share ? `<button class="btn-ghost" style="flex:1" onclick="shareExport()">分享</button>` : ''}
+    </div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  generateExport();
+}
+
+function closeExportSheet() {
+  document.getElementById('export-overlay')?.remove();
+  document.body.style.overflow = '';
+}
+
+function generateExport() {
+  const s = document.getElementById('exp-start')?.value, e = document.getElementById('exp-end')?.value;
+  if (!s || !e) return;
+  const text = s <= e ? buildWeeklyExportText(s, e) : buildWeeklyExportText(e, s);
+  const ta = document.getElementById('exp-preview'); if (ta) ta.value = text;
+}
+
+function copyExport() {
+  const ta = document.getElementById('exp-preview'); const text = ta?.value || '';
+  if (!text) return;
+  const fallback = () => { ta.removeAttribute('readonly'); ta.select(); try { document.execCommand('copy'); showToast('已複製到剪貼簿 ✓'); } catch (_) { showToast('複製失敗，請手動選取'); } ta.setAttribute('readonly', ''); window.getSelection()?.removeAllRanges(); };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => showToast('已複製到剪貼簿 ✓')).catch(fallback);
+  else fallback();
+}
+
+function downloadExport() {
+  const text = document.getElementById('exp-preview')?.value || '';
+  if (!text) return;
+  const s = document.getElementById('exp-start').value, e = document.getElementById('exp-end').value;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `週報_${s}_${e}.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function shareExport() {
+  const text = document.getElementById('exp-preview')?.value || '';
+  if (!text || !navigator.share) return;
+  navigator.share({ title: '食譜日誌 週報', text }).catch(() => {});
+}
+
 // ===== TOAST =====
 let toastTimer;
 function showToast(msg) {
