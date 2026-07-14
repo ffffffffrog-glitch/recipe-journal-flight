@@ -108,9 +108,9 @@ const DEFAULT_FOOD_DB = [
   { id:'f093', name:'牛板腱（嫩肩里肌）', state:'熟食', category:'肉類', per100g:{ calories:184, protein:27.2, fat:7.5, carbs:0.1, fiber:0.0 }, note:'煎烤熟成率約 75%；100g 熟肉約成年人掌心大，或火鍋薄肉片 5～6 片' },
   { id:'f094', name:'牛里肌（菲力）', state:'生食', category:'肉類', per100g:{ calories:115, protein:21.0, fat:2.9, carbs:0.1, fiber:0.0 }, note:'又稱菲力' },
   { id:'f095', name:'牛里肌（菲力）', state:'熟食', category:'肉類', per100g:{ calories:153, protein:28.0, fat:3.9, carbs:0.1, fiber:0.0 }, note:'煎烤熟成率約 75%；100g 熟肉約女生拳頭大，或厚 3cm 圓柱狀牛排一塊' },
-  { id:'f096', name:'紅辣椒', state:'生食', category:'蔬菜', per100g:{ calories:40, protein:2.0, fat:0.6, carbs:8.0, fiber:4.0 }, serving:{ unit:'條', calories:2, protein:0.1, fat:0.03, carbs:0.4, fiber:0.2 }, note:'1 條約大拇指長度，切片後約裝滿 1/3 個中式湯匙（約 5g）' },
+  { id:'f096', name:'紅辣椒', state:'生食', category:'調味料', per100g:{ calories:40, protein:2.0, fat:0.6, carbs:8.0, fiber:4.0 }, serving:{ unit:'條', calories:2, protein:0.1, fat:0.03, carbs:0.4, fiber:0.2 }, note:'1 條約大拇指長度，切片後約裝滿 1/3 個中式湯匙（約 5g）' },
   { id:'f097', name:'黑胡椒粒', state:'加工品', category:'調味料', per100g:{ calories:250, protein:10.0, fat:3.5, carbs:65.0, fiber:25.0 }, serving:{ unit:'茶匙', calories:5, protein:0.2, fat:0.07, carbs:1.3, fiber:0.5 }, note:'1 茶匙約 2g ≈ 速食店胡椒包 2 包，或研磨罐轉 8～10 下' },
-  { id:'f098', name:'九層塔', state:'生食', category:'蔬菜', per100g:{ calories:26, protein:3.0, fat:0.6, carbs:4.0, fiber:3.4 }, serving:{ unit:'把', calories:1.3, protein:0.15, fat:0.03, carbs:0.2, fiber:0.17 }, note:'1 把約 10 片生葉（約 5g），單手輕抓一小把；炒熟後嚴重縮水約剩 1 湯匙' },
+  { id:'f098', name:'九層塔', state:'生食', category:'調味料', per100g:{ calories:26, protein:3.0, fat:0.6, carbs:4.0, fiber:3.4 }, serving:{ unit:'把', calories:1.3, protein:0.15, fat:0.03, carbs:0.2, fiber:0.17 }, note:'1 把約 10 片生葉（約 5g），單手輕抓一小把；炒熟後嚴重縮水約剩 1 湯匙' },
 ];
 
 // 每次擴充 DEFAULT_FOOD_DB 就 +1；initStorage 會把新的預設併入既有使用者的食物庫
@@ -121,10 +121,9 @@ const FOOD_DEFAULTS_VERSION = 4;
 // 每次要 push 前，把該次更新內容加成一筆新的（version 用日期），使用者打開通知中心就會看到。
 const SYSTEM_UPDATES = [
   {
-    version: '2026-07-14b',
+    version: '2026-07-14',
     title: '2026/07/14 更新',
     features: [
-      '新增食材：牛板腱（嫩肩里肌）、牛里肌（菲力）（含生／熟）、紅辣椒、黑胡椒粒、九層塔（辛香料以「每份」計，附份量參考）',
       '新增「戒超加工食品」成就系列（習慣連續打卡解鎖）',
       '成就頁的累積類成就直接顯示進度條，還差多少一目了然',
       '食物庫新增「使用排行」：食譜與食材分開統計，前三名頒獎台',
@@ -137,7 +136,6 @@ const SYSTEM_UPDATES = [
       '通知中心新增「系統更新」公告',
     ],
     fixes: [
-      '修正食譜新增食材時，下拉建議清單無法捲動、只能選到最前面幾筆的問題',
       '修正食物庫偶爾整頁空白（單筆食材資料異常時會拖垮整份清單）',
       '修正食譜內含的食材沒被計入食材成就（吃食譜「烤雞腿」現在也算進「雞肉常客」）',
     ],
