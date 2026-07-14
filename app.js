@@ -36,6 +36,10 @@ function selectTheme(id) {
 }
 
 function renderSettings() {
+  const ver = document.getElementById('settings-version');
+  if (ver && typeof APP_VERSION !== 'undefined') {
+    ver.textContent = `版本 ${APP_VERSION} · 最後更新 ${APP_UPDATED}`;
+  }
   const el = document.getElementById('export-timestamp');
   if (el) {
     const last = getData('lastExportDate', null);
@@ -365,15 +369,20 @@ function initStorage() {
     setData('foodDB', DEFAULT_FOOD_DB);
     setData('foodDBDefaultsVersion', FOOD_DEFAULTS_VERSION);
   } else if (getData('foodDBDefaultsVersion', 1) < FOOD_DEFAULTS_VERSION) {
-    // 併入新版預設食材：以「名稱＋狀態」與「id」去重 —— 使用者已有的同名同狀態品項保留、略過我方預設。
-    // 用名稱＋狀態（而非只有名稱）才能同時保留同名的生食／熟食兩筆。
-    // 只在版本提升時跑一次，避免使用者刪掉的預設每次啟動又被加回。
+    // 併入新版預設食材（只在版本提升時跑一次）：
+    // - id 相同 = 這筆是我方預設 → 同步「分類」（修正先前分類錯誤），不動使用者編輯過的營養值
+    // - 否則以「名稱＋狀態」去重：使用者已有的同名同狀態品項保留、略過我方預設
+    //   （用名稱＋狀態才能同時保留同名的生食／熟食兩筆）
     const fdb   = getData('foodDB', []);
+    const byId  = {}; fdb.forEach(f => { byId[f.id] = f; });
     const keyOf = f => f.name + '|' + (f.state || '');
     const seen  = new Set(fdb.map(keyOf));
-    const ids   = new Set(fdb.map(f => f.id));
     DEFAULT_FOOD_DB.forEach(def => {
-      if (ids.has(def.id) || seen.has(keyOf(def))) return;
+      if (byId[def.id]) {
+        if (byId[def.id].category !== def.category) byId[def.id].category = def.category;
+        return;
+      }
+      if (seen.has(keyOf(def))) return;
       fdb.push(def);
     });
     setData('foodDB', fdb);

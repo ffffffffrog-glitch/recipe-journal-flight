@@ -955,6 +955,9 @@ img { max-width: 100%; display: block; }
 .exp-actions { display: flex; gap: 8px; margin-top: 12px; }
 .exp-actions button { padding: 11px; border-radius: 8px; }
 
+/* Settings version line */
+.settings-version { text-align: center; font-size: .72rem; color: var(--text-3); padding: 4px 0 12px; }
+
 /* Settings toggle switch */
 .settings-row-static { cursor: default; }
 .switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; }

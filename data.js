@@ -115,7 +115,11 @@ const DEFAULT_FOOD_DB = [
 
 // 每次擴充 DEFAULT_FOOD_DB 就 +1；initStorage 會把新的預設併入既有使用者的食物庫
 // （同名者略過，以使用者手動新增的為準）。
-const FOOD_DEFAULTS_VERSION = 4;
+const FOOD_DEFAULTS_VERSION = 5;
+
+// 顯示在「設定」最上方的版本 / 最後更新日期（每次部署時一起更新）
+const APP_VERSION = 'v38';
+const APP_UPDATED = '2026/07/14';
 
 // 系統更新公告（顯示在通知中心「系統更新」）。最新的放最前面。
 // 每次要 push 前，把該次更新內容加成一筆新的（version 用日期），使用者打開通知中心就會看到。
