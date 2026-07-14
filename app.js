@@ -40,6 +40,7 @@ function renderSettings() {
   if (ver && typeof APP_VERSION !== 'undefined') {
     ver.textContent = `版本 ${APP_VERSION} · 最後更新 ${APP_UPDATED}`;
   }
+  if (window._renderAccountUI) window._renderAccountUI();
   const el = document.getElementById('export-timestamp');
   if (el) {
     const last = getData('lastExportDate', null);
@@ -362,6 +363,8 @@ function setData(key, val) {
     console.error(e);
     if (!_storageFullError) { _storageFullError = true; _showStorageFullBanner(); }
   }
+  // 通知雲端同步層（sync.js）此鍵有變動；_applyingRemote 期間不回報，避免把剛拉下來的資料又標記成本地變更
+  try { if (window._onLocalDataChanged) window._onLocalDataChanged(key); } catch(_) {}
 }
 
 function initStorage() {

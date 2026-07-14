@@ -1,4 +1,4 @@
-const CACHE = 'recipe-app-v39';
+const CACHE = 'recipe-app-v40';
 
 const SHELL = [
   './',
@@ -6,6 +6,8 @@ const SHELL = [
   './app.js',
   './style.css',
   './data.js',
+  './sync.js',
+  './vendor/supabase.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-180.png',
@@ -29,6 +31,9 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
+
+  // Supabase（登入/同步 API）一律走網路、不快取，避免拿到過期資料或快取 POST 出錯
+  if (url.includes('supabase.co') || url.includes('supabase.in')) return;
 
   if (url.includes('api.github.com')) {
     e.respondWith(
