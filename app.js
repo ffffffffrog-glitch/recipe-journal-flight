@@ -707,26 +707,10 @@ function updateDesktopRightPanel(pageId) {
   };
 
   if (pageId === 'diary') {
-    const tot   = getDailyTotals(todayStr());
-    const goals = (getData('profile', {}).goals) || defaultGoals();
-    const remCal = Math.max(0, goals.calories - Math.round(tot.calories));
-    rp.className = 'desktop-rp rp-on';
-    rp.innerHTML = `
-      <div class="rp-title">今日攝取</div>
-      <div>
-        <div class="rp-big">${Math.round(tot.calories)} <span class="rp-big-unit">kcal</span></div>
-        <div class="rp-sub">目標 ${goals.calories} kcal</div>
-        <div class="rp-sub-good">還差 ${remCal} kcal</div>
-      </div>
-      <div class="rp-divider"></div>
-      <div>
-        ${bar(tot.protein, goals.protein, '蛋白質', 'g')}
-        ${bar(tot.fat,     goals.fat,     '脂肪',   'g')}
-        ${bar(tot.carbs,   goals.carbs,   '碳水',   'g')}
-      </div>`;
+    rp.className = 'desktop-rp'; // 日誌已有頁內營養右欄，隱藏全域右欄避免重複
 
   } else if (pageId === 'workout') {
-    const all  = getData('workout', []);
+    const all  = getData('workoutLog', []);
     const now  = new Date();
     const wsD  = new Date(now); wsD.setDate(now.getDate() - now.getDay());
     const wsStr = `${wsD.getFullYear()}-${String(wsD.getMonth()+1).padStart(2,'0')}-${String(wsD.getDate()).padStart(2,'0')}`;
@@ -776,25 +760,7 @@ function updateDesktopRightPanel(pageId) {
       </div>`;
 
   } else if (pageId === 'profile') {
-    const records = getData('inbody', []);
-    if (!records.length) { rp.className = 'desktop-rp'; return; }
-    const rec = records.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
-    rp.className = 'desktop-rp rp-on';
-    rp.innerHTML = `
-      <div class="rp-title">最新體組成</div>
-      <div style="font-size:10px;color:var(--text-3);margin-top:-6px">${rec.date}</div>
-      <div>
-        <div class="rp-big">${rec.weight ?? '—'} <span class="rp-big-unit">kg</span></div>
-        <div class="rp-sub">體重</div>
-      </div>
-      <div class="rp-divider"></div>
-      <div>
-        ${stat('肌肉量', rec.muscle != null ? rec.muscle + ' kg' : '—')}
-        ${stat('體脂率', rec.fatPct != null ? rec.fatPct + '%' : '—')}
-        ${stat('BMI', rec.bmi ?? '—')}
-        ${stat('內臟脂肪', rec.visceral ?? '—')}
-        ${stat('基礎代謝', rec.bmr ? rec.bmr + ' kcal' : '—')}
-      </div>`;
+    rp.className = 'desktop-rp'; // 儀表板已為滿版，隱藏右欄
 
   } else {
     rp.className = 'desktop-rp'; // hide
@@ -821,6 +787,7 @@ function onPageEnter(pageId) {
   if (pageId === 'achievements')  renderAchievements();
   if (pageId === 'inbody')        renderInbody();
   if (pageId === 'settings')      { renderThemePicker(); renderSettings(); }
+  if (window.innerWidth >= 1024) updateSidebarPlayer();
   updateDesktopRightPanel(pageId);
 }
 
@@ -904,6 +871,7 @@ function filterRecipes() {
   if (!recipes.length) {
     const addCard = isDesktop ? `<div class="recipe-add-card" onclick="openNewRecipeForm()"><div class="recipe-add-icon">＋</div><div class="recipe-add-label">新增食譜</div></div>` : '';
     container.innerHTML = addCard + `<div class="recipe-empty"><div class="empty-icon">${icon('book-open', 48)}</div><p>尚無食譜<br>${isDesktop ? '點擊左上方「＋」' : '點擊右下角「＋」'}新增第一道料理！</p></div>`;
+    _clearRecipePane('尚無食譜，點左側「＋ 新增食譜」開始建立');
     return;
   }
 
@@ -916,12 +884,13 @@ function filterRecipes() {
 
   if (!filtered.length) {
     container.innerHTML = `<div class="recipe-empty"><p style="padding-top:60px">找不到相符的食譜</p></div>`;
+    _clearRecipePane('找不到相符的食譜');
     return;
   }
 
   const addCard = isDesktop ? `<div class="recipe-add-card" onclick="openNewRecipeForm()"><div class="recipe-add-icon">＋</div><div class="recipe-add-label">新增食譜</div></div>` : '';
   container.innerHTML = addCard + filtered.map(recipe => `
-    <div class="recipe-card" onclick="openRecipeDetail('${recipe.id}')">
+    <div class="recipe-card" data-rid="${recipe.id}" onclick="openRecipeDetail('${recipe.id}')">
       ${recipe.image
         ? `<img class="recipe-card-img" src="${recipe.image}" alt="${recipe.name}" loading="lazy">`
         : `<div class="recipe-card-img-placeholder">${icon('utensils', 32)}</div>`}
@@ -934,15 +903,26 @@ function filterRecipes() {
         </div>
       </div>
     </div>`).join('');
+
+  if (isDesktop) {
+    const sel = filtered.find(r => r.id === state.selectedRecipeId) || filtered[0];
+    if (sel) openRecipeDetail(sel.id);
+  }
+}
+
+function _clearRecipePane(msg) {
+  if (window.innerWidth < 1024) return;
+  const pane = document.getElementById('recipe-detail-pane');
+  if (pane) pane.innerHTML = `<div class="rdp-placeholder">${msg || '選擇左側食譜以檢視詳情'}</div>`;
 }
 
 function openRecipeDetail(recipeId) {
   const recipe = getData('recipes', []).find(r => r.id === recipeId);
   if (!recipe) return;
   state.editingRecipeId = recipeId;
-  document.getElementById('detail-title').textContent = recipe.name;
+  state.selectedRecipeId = recipeId;
 
-  document.getElementById('recipe-detail-body').innerHTML = `
+  const bodyHTML = `
     ${recipe.image
       ? `<img class="recipe-detail-img" src="${recipe.image}" alt="${recipe.name}">`
       : `<div class="recipe-detail-img-placeholder">${icon('utensils', 48)}</div>`}
@@ -998,6 +978,17 @@ function openRecipeDetail(recipeId) {
       </div>
     </div>`;
 
+  if (window.innerWidth >= 1024) {
+    const pane = document.getElementById('recipe-detail-pane');
+    if (pane) {
+      pane.innerHTML = `<div class="rdp-header"><div class="rdp-title">${recipe.name}</div><button class="rdp-edit" onclick="openEditRecipeForm('${recipe.id}')" title="編輯食譜">${icon('pen-left', 16)}</button></div><div class="rdp-scroll">${bodyHTML}</div>`;
+    }
+    document.querySelectorAll('#recipe-list .recipe-card').forEach(c => c.classList.toggle('sel', c.dataset.rid === recipeId));
+    return;
+  }
+
+  document.getElementById('detail-title').textContent = recipe.name;
+  document.getElementById('recipe-detail-body').innerHTML = bodyHTML;
   openModal('modal-recipe-detail');
 }
 
@@ -1540,6 +1531,7 @@ function renderFoodDB() {
     container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-light);opacity:0.6;font-style:italic">找不到符合條件的食材</div>`;
     return;
   }
+  if (window.innerWidth >= 1024) { container.innerHTML = _foodDBTable(foods); return; }
   container.innerHTML = foods.map(f => {
     try {
       const hasSrv = f.serving && f.serving.unit;
@@ -1577,6 +1569,62 @@ function renderFoodDB() {
 function searchFoodDB(q) {
   state.currentFoodSearch = q.toLowerCase();
   renderFoodDB();
+}
+
+// ===== 食材庫桌機資料表 =====
+function sortFoodDB(key) {
+  if (state.foodSortKey === key) {
+    state.foodSortDir = state.foodSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.foodSortKey = key;
+    state.foodSortDir = key === 'name' || key === 'category' || key === 'state' ? 'asc' : 'desc';
+  }
+  renderFoodDB();
+}
+
+function _foodDBTable(foods) {
+  const key = state.foodSortKey || 'name';
+  const dir = state.foodSortDir || 'asc';
+  const val = f => {
+    if (key === 'name') return f.name || '';
+    if (key === 'category') return f.category || '';
+    if (key === 'state') return f.state || '';
+    return (f.per100g && f.per100g[key] != null) ? f.per100g[key] : 0;
+  };
+  const sorted = foods.slice().sort((a, b) => {
+    const va = val(a), vb = val(b);
+    const c = (typeof va === 'number' && typeof vb === 'number')
+      ? va - vb : String(va).localeCompare(String(vb), 'zh-Hant');
+    return dir === 'asc' ? c : -c;
+  });
+  const arrow = k => key === k ? `<span class="fd-arrow">${dir === 'asc' ? '▲' : '▼'}</span>` : '';
+  const th = (k, label, cls) => `<th class="${cls || ''} fd-sortable${key === k ? ' sorted' : ''}" onclick="sortFoodDB('${k}')">${label}${arrow(k)}</th>`;
+  const n = v => (v ?? 0);
+  const rows = sorted.map(f => {
+    const p = f.per100g || {};
+    return `<tr class="fd-row" onclick="openEditFoodForm('${f.id}')">
+      <td class="l fd-name">${f.name || '(未命名)'}</td>
+      <td class="l"><span class="fd-cat">${f.category || '其他'}</span></td>
+      <td class="l"><span class="fd-state">${f.state || '一般'}</span></td>
+      <td class="fd-num"><b class="tnum">${n(p.calories)}</b></td>
+      <td class="fd-num tnum">${n(p.protein)}</td>
+      <td class="fd-num tnum">${n(p.fat)}</td>
+      <td class="fd-num tnum">${n(p.carbs)}</td>
+      <td class="fd-num tnum">${n(p.fiber)}</td>
+      <td class="fd-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn edit" onclick="openEditFoodForm('${f.id}')" title="編輯">${icon('pen-left', 15)}</button>
+        <button class="icon-btn delete" onclick="deleteFoodConfirm('${f.id}')" title="刪除">${icon('trash-2', 15)}</button>
+      </td>
+    </tr>`;
+  }).join('');
+  return `<div class="fooddb-table-wrap"><table class="fooddb-table">
+    <thead><tr>
+      ${th('name', '食材', 'l')}${th('category', '分類', 'l')}${th('state', '狀態', 'l')}
+      ${th('calories', '熱量')}${th('protein', '蛋白質')}${th('fat', '脂肪')}${th('carbs', '碳水')}${th('fiber', '纖維')}
+      <th class="fd-actions-h">每 100g</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
 }
 
 // ===== FOOD USAGE STATS (podium) =====
@@ -1832,6 +1880,19 @@ function renderDiary() {
   const displayPct = Math.min(kcalPct, 100);
 
   const isOver = goals.calories && tot.calories > goals.calories;
+
+  const grouped = {};
+  MEALS.forEach(m => grouped[m] = []);
+  entries.forEach(e => { (grouped[e.meal] || grouped['點心']).push(e); });
+
+  // ── 桌機：月曆 + 2×2 餐卡 + 營養右欄 ──
+  if (window.innerWidth >= 1024) {
+    document.getElementById('daily-summary').innerHTML = _diarySummaryRail(tot, goals);
+    _renderDiaryCalendar(ds);
+    document.getElementById('diary-entries').innerHTML = MEALS.map(meal => _diaryMealCard(meal, grouped[meal], ds)).join('');
+    return;
+  }
+
   document.getElementById('daily-summary').innerHTML = `
     <div class="kcal-slash-row">
       <span class="kcal-current">${r(tot.calories)}</span>
@@ -1848,10 +1909,6 @@ function renderDiary() {
       <div class="macro-pill"><span class="mp-val">${r(tot.carbs)}g</span><span class="mp-lbl">碳水</span></div>
       <div class="macro-pill"><span class="mp-val">${r(tot.fiber)}g</span><span class="mp-lbl">纖維</span></div>
     </div>`;
-
-  const grouped = {};
-  MEALS.forEach(m => grouped[m] = []);
-  entries.forEach(e => { (grouped[e.meal] || grouped['點心']).push(e); });
 
   let html = '';
   MEALS.forEach(meal => {
@@ -1884,6 +1941,89 @@ function renderDiary() {
     html = `<div style="text-align:center;padding:40px;color:var(--ink-light);opacity:0.6;font-style:italic">今日尚無飲食記錄<br>點擊右下角「＋」開始記錄</div>`;
   }
   document.getElementById('diary-entries').innerHTML = html;
+}
+
+// ── 桌機日誌：右欄營養摘要 ──
+function _diarySummaryRail(tot, goals) {
+  const calPct = goals.calories ? tot.calories / goals.calories * 100 : 0;
+  const over = goals.calories && tot.calories > goals.calories;
+  const rem = Math.max(0, Math.round((goals.calories || 0) - tot.calories));
+  return `
+    <div class="drail-title">今日攝取</div>
+    <div class="drail-ring">${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`)}</div>
+    <div class="drail-cal"><b class="tnum">${r(tot.calories)}</b> / ${goals.calories || 0} kcal</div>
+    <div class="drail-rem">${over ? '已超出 ' + (Math.round(tot.calories) - (goals.calories || 0)) + ' kcal' : '還可以吃 ' + rem + ' kcal'}</div>
+    <div class="drail-divider"></div>
+    <div class="dash-macros">
+      ${_dashMacro('蛋白質', tot.protein, goals.protein, ' g')}
+      ${_dashMacro('脂肪', tot.fat, goals.fat, ' g')}
+      ${_dashMacro('碳水', tot.carbs, goals.carbs, ' g')}
+      ${_dashMacro('纖維', tot.fiber, goals.fiber, ' g')}
+    </div>`;
+}
+
+// ── 桌機日誌：單一餐別卡片 ──
+function _diaryMealCard(meal, items, ds) {
+  const mealTot = r(items.reduce((s, e) => s + (e.nutrition?.calories || 0), 0));
+  const body = items.length ? items.map(entry => `
+    <div class="dmeal-item">
+      <div class="dmeal-item-main">
+        <div class="dmeal-item-name">${entry.name}</div>
+        ${entry.amount ? `<div class="dmeal-item-amt">${entry.amount}</div>` : ''}
+      </div>
+      <div class="dmeal-item-kcal tnum">${r(entry.nutrition?.calories || 0)} kcal</div>
+      <button class="dmeal-item-btn" onclick="editDiaryEntry('${ds}','${entry.id}')" title="編輯">${icon('pen-left', 12)}</button>
+      <button class="dmeal-item-btn del" onclick="deleteDiaryEntry('${ds}','${entry.id}')" title="刪除">✕</button>
+    </div>`).join('') : `<div class="dmeal-empty">尚無記錄</div>`;
+  return `<div class="dmeal-card">
+    <div class="dmeal-head">
+      <span class="dmeal-ic">${icon(MEAL_ICONS[meal], 14)}</span>
+      <span class="dmeal-name">${meal}</span>
+      <span class="dmeal-kcal tnum">${mealTot} kcal</span>
+    </div>
+    <div class="dmeal-body">${body}</div>
+    <button class="dmeal-add" onclick="openAddDiaryEntrySheet('${meal}')">＋ 加入${meal}</button>
+  </div>`;
+}
+
+// ── 桌機日誌：左欄月曆 ──
+function _renderDiaryCalendar(ds) {
+  const el = document.getElementById('diary-cal');
+  if (!el) return;
+  const [y, m] = ds.split('-').map(Number);
+  const diary = getData('diary', {});
+  const today = todayStr();
+  const startDow = new Date(y, m - 1, 1).getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const dows = ['日', '一', '二', '三', '四', '五', '六'];
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += `<div class="dcal-cell blank"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dstr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const has = (diary[dstr] && diary[dstr].length) ? ' has' : '';
+    const isToday = dstr === today ? ' today' : '';
+    const isSel = dstr === ds ? ' sel' : '';
+    cells += `<div class="dcal-cell${has}${isToday}${isSel}" onclick="setDiaryDate('${dstr}')">${d}</div>`;
+  }
+  const monthPrefix = `${y}-${String(m).padStart(2, '0')}`;
+  const monthDays = Object.keys(diary).filter(k => k.startsWith(monthPrefix) && diary[k] && diary[k].length).length;
+  el.innerHTML = `
+    <div class="dcal-head">
+      <button class="dcal-nav" onclick="diaryCalMonth(-1)">‹</button>
+      <span>${y} 年 ${m} 月</span>
+      <button class="dcal-nav" onclick="diaryCalMonth(1)">›</button>
+    </div>
+    <div class="dcal-grid">
+      ${dows.map(d => `<div class="dcal-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>
+    <div class="dcal-info">📅 本月已記錄 <b>${monthDays}</b> 天</div>`;
+}
+
+function diaryCalMonth(delta) {
+  const [y, m] = state.currentDate.split('-').map(Number);
+  state.currentDate = dateStr(new Date(y, m - 1 + delta, 1));
+  renderDiary();
 }
 
 function changeDiaryDate(delta) {
@@ -2054,14 +2194,14 @@ function quickAddFood(name) {
   onDiaryAdded();
 }
 
-function openAddDiaryEntrySheet() {
+function openAddDiaryEntrySheet(presetMeal) {
   state.editingDiaryEntry = null;
   const titleEl = document.querySelector('#sheet-diary-add .sheet-title');
   if (titleEl) titleEl.textContent = '新增飲食記錄';
   ['#add-panel-manual button.btn-primary','#add-panel-fooddb button.btn-primary','#add-panel-recipe button.btn-primary']
     .forEach(sel => { const b = document.querySelector(sel); if (b) b.textContent = '新增記錄'; });
-  // Auto-detect meal from current time
-  setAddMeal(_detectMealByTime());
+  // 有指定餐別（桌機餐卡）就用它，否則依時間自動判斷
+  setAddMeal(presetMeal && MEALS.includes(presetMeal) ? presetMeal : _detectMealByTime());
   switchDiaryTab('manual');
   ['dm-name','dm-amount','dm-calories','dm-protein','dm-fat','dm-carbs','dm-fiber']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -2421,7 +2561,7 @@ let _pdtAchCat = '';
 
 function openProfileEdit() {
   _profileEditMode = true;
-  renderProfileDesktop('settings');
+  renderProfileDesktop();
 }
 
 function _filterPdtAch(s, c) {
@@ -2431,29 +2571,254 @@ function _filterPdtAch(s, c) {
   if (el) el.innerHTML = _buildPdtAchievements();
 }
 
-function renderProfileDesktop(tab) {
-  if (tab) _profileDesktopTab = tab;
+// ===== Desktop dashboard (取代原個人主頁 tab 版) =====
+function renderProfileDesktop() {
+  updateSidebarPlayer();
   const container = document.getElementById('profile-content');
   if (!container) return;
 
-  const tabs = [
-    { id: 'basic', label: '基本' },
-    { id: 'inbody', label: '體組成' },
-    { id: 'achievements', label: '成就館' },
-    { id: 'settings', label: '設定' },
-  ];
+  // notif badge (mirror mobile)
+  const notifDot = document.getElementById('profile-notif-dot');
+  if (notifDot) {
+    const badge = _hasBadge();
+    notifDot.style.display = badge ? '' : 'none';
+    if (badge) _recordNotifShown();
+  }
 
-  const tabsHtml = `<div class="profile-dtabs">${
-    tabs.map(t => `<button class="pdtab${_profileDesktopTab === t.id ? ' active' : ''}" onclick="renderProfileDesktop('${t.id}')">${t.label}</button>`).join('')
-  }</div>`;
+  if (_profileEditMode) {
+    container.innerHTML = `<div class="dash"><div class="dash-editcard">${_buildProfileEditForm()}</div></div>`;
+    return;
+  }
+  container.innerHTML = _buildDashboard();
+}
 
-  let content = '';
-  if (_profileDesktopTab === 'basic') content = _buildPdtBasic();
-  else if (_profileDesktopTab === 'inbody') content = _buildPdtInbody();
-  else if (_profileDesktopTab === 'achievements') content = _buildPdtAchievements();
-  else content = _buildPdtSettings();
+function updateSidebarPlayer() {
+  const el = document.getElementById('sidebar-player');
+  if (!el) return;
+  const gd = getGameData();
+  const profile = getData('profile', {});
+  const cur = LEVEL_TABLE.find(e => e.level === gd.level) || LEVEL_TABLE[0];
+  const next = LEVEL_TABLE.find(e => e.level === gd.level + 1);
+  const xpInLevel = gd.xp - cur.xp;
+  const xpNeeded = next ? next.xp - cur.xp : 1;
+  const xpPct = next ? Math.min(100, Math.round(xpInLevel / xpNeeded * 100)) : 100;
+  const avatarData = getData('avatarData', null);
+  const av = avatarData ? `<img src="${avatarData}" alt="頭貼">` : icon('user', 20);
+  el.innerHTML = `
+    <label for="avatar-file-input" class="sp-top" title="更換頭貼">
+      <div class="sp-avatar">${av}</div>
+      <div class="sp-id">
+        <div class="sp-name">${profile.name || '使用者'}</div>
+        <div class="sp-title">${cur.name} · Lv.${gd.level}</div>
+      </div>
+    </label>
+    <div class="sp-xp">
+      <div class="sp-xp-row"><span>XP</span><span class="tnum">${gd.xp} / ${next ? next.xp : 'MAX'}</span></div>
+      <div class="sp-xp-bar"><i style="width:${xpPct}%"></i></div>
+    </div>
+    <div class="sp-foot"><span class="sp-coin">◉ ${gd.gold || 0}</span><span>金幣</span></div>`;
+}
 
-  container.innerHTML = tabsHtml + `<div class="profile-dtab-content">${content}</div>`;
+function _dashRing(pct, centerHtml, color) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  return `<div class="dash-ring" style="--p:${p};--rc:${color || 'var(--sage)'}"><div class="dash-ring-in">${centerHtml}</div></div>`;
+}
+
+function _dashMacro(label, cur, goal, unit) {
+  const g = goal || 0;
+  const p = g ? Math.min(100, Math.round(cur / g * 100)) : 0;
+  const over = cur > g && g > 0;
+  return `<div class="dash-macro"><div class="dash-macro-top"><span class="l">${label}</span><span class="v tnum">${Math.round(cur)} / ${g}${unit}</span></div><div class="dash-mbar"><i class="${over ? 'over' : ''}" style="width:${p}%"></i></div></div>`;
+}
+
+function _dashSpark(pts) {
+  if (!pts || pts.length < 2) return '<div class="dash-empty">資料不足，記錄體重後顯示趨勢</div>';
+  const ws = pts.map(p => p.w);
+  const min = Math.min(...ws), max = Math.max(...ws);
+  const range = (max - min) || 1;
+  const W = 280, H = 60, step = W / (pts.length - 1);
+  const coords = pts.map((p, i) => [i * step, H - ((p.w - min) / range) * (H - 10) - 5]);
+  const line = coords.map(c => c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+  const last = coords[coords.length - 1];
+  const area = `0,${H} ` + line + ` ${last[0].toFixed(1)},${H}`;
+  return `<svg class="dash-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon points="${area}" fill="var(--sage-faint)"/><polyline points="${line}" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="var(--sage)"/></svg>`;
+}
+
+function _buildDashboard() {
+  const profile = getData('profile', {});
+  const goals = profile.goals || defaultGoals();
+  const tot = getDailyTotals(todayStr());
+  const calPct = goals.calories ? tot.calories / goals.calories * 100 : 0;
+  const remCal = Math.max(0, Math.round((goals.calories || 0) - tot.calories));
+
+  // weight trend
+  const wLog = getData('weightLog', {});
+  const inbodyRecs = getData('inbody', []);
+  const wmap = {};
+  inbodyRecs.forEach(rec => { if (rec.weight != null) wmap[rec.date] = rec.weight; });
+  Object.keys(wLog).forEach(d => { if (wLog[d] != null) wmap[d] = wLog[d]; });
+  const wpts = Object.keys(wmap).sort().map(d => ({ d, w: wmap[d] })).slice(-14);
+  // 7-day avg
+  const w7 = [];
+  for (let i = 0; i < 7; i++) { const dd = new Date(); dd.setDate(dd.getDate() - i); const ds = dateStr(dd); if (wmap[ds] != null) w7.push(wmap[ds]); }
+  const avg7 = w7.length ? r(w7.reduce((s, v) => s + v, 0) / w7.length, 1) : null;
+  const wDelta = wpts.length >= 2 ? r(wpts[wpts.length - 1].w - wpts[0].w, 1) : null;
+
+  // workouts this week
+  const workouts = getData('workoutLog', []);
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const wsStr = dateStr(weekStart);
+  const week = workouts.filter(w => w.date >= wsStr);
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const monthCount = workouts.filter(w => w.date >= monthStr).length;
+  const cardioN = week.filter(w => w.type === 'cardio').length;
+  const strengthN = week.filter(w => w.type === 'strength').length;
+  const cardioMin = week.filter(w => w.type === 'cardio').reduce((s, w) => s + (w.duration || 0), 0);
+  const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+  const dayLbl = ['一', '二', '三', '四', '五', '六', '日'];
+  const dayCount = {}; week.forEach(w => { const dd = new Date(w.date + 'T00:00:00'); dayCount[dd.getDay()] = (dayCount[dd.getDay()] || 0) + 1; });
+  const maxDay = Math.max(1, ...Object.values(dayCount));
+  const wkBars = dayOrder.map((dnum, i) => {
+    const c = dayCount[dnum] || 0;
+    const h = c ? Math.max(15, Math.round(c / maxDay * 100)) : 6;
+    return `<div><div class="dash-wkbar ${c ? 'on' : ''}" style="height:${h}%"></div><div class="d">${dayLbl[i]}</div></div>`;
+  }).join('');
+
+  // habits
+  const habits = getData('habits', []).filter(h => !h.archived);
+  const habitLog = getData('habitLog', {});
+  const habitRows = habits.slice(0, 5).map(h => {
+    const streak = calcHabitStreak(h);
+    let dots = '';
+    for (let i = 6; i >= 0; i--) { const dd = new Date(); dd.setDate(dd.getDate() - i); const ds = dateStr(dd); const on = (habitLog[ds] || {})[h.id] === 'done'; dots += `<i class="${on ? 'on' : ''}"></i>`; }
+    return `<div class="dash-hs"><span class="dash-hs-dot" style="background:${h.color || 'var(--sage)'}"></span><span class="dash-hs-name">${h.name}</span><div class="dash-hs-week">${dots}</div><span class="dash-hs-streak tnum">🔥 ${streak}</span></div>`;
+  }).join('');
+
+  // quests today
+  const dq = getData('dailyQuestsDone', {});
+  const td = dq[todayStr()];
+  const qItems = [];
+  if (td) {
+    (td.mainTasks || []).forEach((t, i) => qItems.push({ t, done: !!(td.main && td.main[i]) }));
+    (td.sideTasks || []).forEach((t, i) => qItems.push({ t, done: !!(td.side && td.side[i]) }));
+  }
+  const qDone = qItems.filter(q => q.done).length;
+  const questMini = qItems.length
+    ? qItems.slice(0, 6).map(q => `<div class="dash-qm ${q.done ? 'done' : ''}"><span class="dash-qm-box ${q.done ? 'done' : ''}">${q.done ? '✓' : ''}</span><span class="dash-qm-txt">${q.t}</span></div>`).join('')
+    : `<div class="dash-empty">今日尚未載入任務，點此前往</div>`;
+
+  // achievements
+  const gd = getGameData();
+  const achDates = gd.achievementDates || {};
+  const unlocked = (gd.achievements || []).filter(id => ACHIEVEMENTS_DEF[id]);
+  const achTotal = Object.keys(ACHIEVEMENTS_DEF).length;
+  const recentAch = unlocked.slice().sort((a, b) => (achDates[b] || '').localeCompare(achDates[a] || '')).slice(0, 3);
+  const achRecentHtml = recentAch.length
+    ? recentAch.map(id => { const d = ACHIEVEMENTS_DEF[id]; return `<div class="dash-ar"><div class="dash-ar-ic">${icon(d.icon || 'trophy', 18)}</div><div class="dash-ar-body"><div class="dash-ar-name">${d.name}</div><div class="dash-ar-desc">${d.desc || ''}</div></div>${achDates[id] ? `<div class="dash-ar-date">${achDates[id]}</div>` : ''}</div>`; }).join('')
+    : `<div class="dash-empty">完成行動即可解鎖成就</div>`;
+
+  const hour = now.getHours();
+  const greet = hour < 5 ? '夜深了' : hour < 11 ? '早安' : hour < 14 ? '午安' : hour < 18 ? '午後好' : '晚安';
+
+  return `
+  <div class="dash">
+    <div class="dash-greet">
+      <div>
+        <div class="dash-greet-h">${greet}，${profile.name || '冒險者'}</div>
+        <div class="dash-greet-sub">${_dashTodayLabel()}</div>
+      </div>
+      <button class="dash-quick" onclick="openAddDiaryEntrySheet()">＋ 快速記錄飲食</button>
+    </div>
+
+    <div class="dash-links">
+      <button class="dash-link-btn" onclick="navigateTo('inbody')">${icon('activity', 15)} 體組成記錄</button>
+      <button class="dash-link-btn" onclick="navigateTo('achievements')">${icon('trophy', 15)} 成就館</button>
+      <button class="dash-link-btn" onclick="openQASheet()">${icon('book-open', 15)} 知識庫</button>
+      <button class="dash-link-btn" onclick="navigateTo('settings')">${icon('settings', 15)} 設定</button>
+    </div>
+
+    <div class="dash-bento">
+      <div class="card dash-card b-nutri">
+        <div class="dash-card-h">今日營養 <button class="dash-link" onclick="navigateTo('diary')">前往日誌 →</button></div>
+        <div class="dash-nutri-head">
+          ${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`)}
+          <div class="dash-nutri-cal">
+            <div class="big"><b class="tnum">${Math.round(tot.calories)}</b> / ${goals.calories || 0}</div>
+            <div class="unit">kcal 已攝取</div>
+            <div class="rem">${tot.calories > (goals.calories || 0) ? '已超出目標 ' + (Math.round(tot.calories) - (goals.calories || 0)) + ' kcal' : '還可以吃 ' + remCal + ' kcal'}</div>
+          </div>
+        </div>
+        <div class="dash-macros">
+          ${_dashMacro('蛋白質', tot.protein, goals.protein, ' g')}
+          ${_dashMacro('脂肪', tot.fat, goals.fat, ' g')}
+          ${_dashMacro('碳水', tot.carbs, goals.carbs, ' g')}
+          ${_dashMacro('纖維', tot.fiber, goals.fiber, ' g')}
+        </div>
+      </div>
+
+      <div class="card dash-card b-weight" onclick="navigateTo('inbody')" style="cursor:pointer">
+        <div class="dash-card-h">體重趨勢 <span class="dash-link">體組成 →</span></div>
+        <div class="dash-stat">
+          <b class="tnum">${avg7 != null ? avg7 : '—'}</b><span>kg · 7日均重</span>
+          ${wDelta != null && wDelta !== 0 ? `<span class="dash-delta ${wDelta < 0 ? 'down' : 'up'}">${wDelta < 0 ? '↓' : '↑'} ${Math.abs(wDelta)}</span>` : ''}
+        </div>
+        ${_dashSpark(wpts)}
+        <div class="dash-foot-note">近 ${wpts.length || 0} 筆紀錄</div>
+      </div>
+
+      <div class="card dash-card b-workout" onclick="navigateTo('workout')" style="cursor:pointer">
+        <div class="dash-card-h">本週運動 <span class="dash-link">運動 →</span></div>
+        <div class="dash-stat"><b class="tnum">${week.length}</b><span>次</span></div>
+        <div class="dash-wkbars">${wkBars}</div>
+        <div class="dash-foot-note">有氧 ${cardioN} · 重訓 ${strengthN}${cardioMin ? ' · ' + cardioMin + ' 分' : ''} · 本月 ${monthCount} 次</div>
+      </div>
+
+      <div class="card dash-card b-habits" onclick="navigateTo('habits')" style="cursor:pointer">
+        <div class="dash-card-h">習慣連續 <span class="dash-link">習慣 →</span></div>
+        ${habitRows ? `<div class="dash-habits">${habitRows}</div>` : '<div class="dash-empty">還沒有習慣，去新增一個吧</div>'}
+      </div>
+
+      <div class="card dash-card b-quests" onclick="navigateTo('quests')" style="cursor:pointer">
+        <div class="dash-card-h">今日任務 <span class="dash-link">${qItems.length ? qDone + '/' + qItems.length : '前往'} →</span></div>
+        <div class="dash-quests">${questMini}</div>
+      </div>
+
+      <div class="card dash-card b-ach" onclick="navigateTo('achievements')" style="cursor:pointer">
+        <div class="dash-card-h">最新成就 <span class="dash-link">${unlocked.length}/${achTotal} →</span></div>
+        <div class="dash-achs">${achRecentHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _dashTodayLabel() {
+  const d = new Date();
+  const wd = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 星期${wd}`;
+}
+
+function _buildProfileEditForm() {
+  const profile = getData('profile', {});
+  const body = profile.body || {};
+  const lastInbody = getData('inbody', []).slice(-1)[0];
+  return `
+    <div class="dash-editform">
+      <div class="dash-editform-title">編輯基本資料</div>
+      <div class="profile-setup-grid">
+        <div class="profile-setup-item" style="grid-column:1/-1"><label>暱稱</label><input type="text" id="body-name" value="${profile.name || ''}" placeholder="使用者"></div>
+        <div class="profile-setup-item" style="grid-column:1/-1"><label>個人簡介</label><input type="text" id="body-bio" value="${profile.bio || ''}" placeholder="減脂計畫第 1 個月…"></div>
+        <div class="profile-setup-item"><label>年齡</label><input type="number" id="body-age" value="${body.age || ''}" placeholder="25" min="10" max="99"></div>
+        <div class="profile-setup-item"><label>身高 (cm)</label><input type="number" id="body-height" value="${body.height || ''}" placeholder="170"></div>
+        <div class="profile-setup-item"><label>體重 (kg)</label><input type="number" id="body-weight" value="${body.weight || lastInbody?.weight || ''}" placeholder="65" step="0.1"></div>
+        <div class="profile-setup-item"><label>性別</label><select id="body-gender"><option value="male" ${body.gender === 'male' ? 'selected' : ''}>男</option><option value="female" ${body.gender === 'female' ? 'selected' : ''}>女</option></select></div>
+        <div class="profile-setup-item" style="grid-column:1/-1"><label>活動量</label><select id="body-activity"><option value="1.2" ${body.activity === '1.2' ? 'selected' : ''}>久坐（幾乎不運動）</option><option value="1.375" ${body.activity === '1.375' ? 'selected' : ''}>輕度（週1-3天）</option><option value="1.55" ${body.activity === '1.55' ? 'selected' : ''}>中度（週3-5天）</option><option value="1.725" ${body.activity === '1.725' ? 'selected' : ''}>高度（週6-7天）</option><option value="1.9" ${body.activity === '1.9' ? 'selected' : ''}>極高（每天高強度）</option></select></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn-ghost" style="flex:1" onclick="cancelProfileEdit()">取消</button>
+        <button class="btn-primary" style="flex:2" onclick="saveProfileSetup()">儲存</button>
+      </div>
+    </div>`;
 }
 
 function _buildPdtBasic() {
@@ -4224,7 +4589,7 @@ function renderHabitsDesktop() {
     return;
   }
 
-  container.innerHTML = `<div style="padding:12px 16px">${active.map(h => _buildHabitDesktopCard(h)).join('')}</div>`;
+  container.innerHTML = `<div class="hdk-grid">${active.map(h => _buildHabitDesktopCard(h)).join('')}</div>`;
 
   setTimeout(() => {
     active.forEach(h => {
@@ -4238,17 +4603,26 @@ function _buildHabitDesktopCard(habit) {
   const log = getData('habitLog', {});
   const todayDs = todayStr();
   const st = (log[todayDs] || {})[habit.id] || '';
+  const cur = calcHabitStreak(habit.id);
+  const all = (typeof calcAllStreaks === 'function') ? calcAllStreaks(habit.id, log) : [];
+  const best = all.length ? all[0].len : cur;
+  const freqLabel = buildFreqLabel(habit.freq);
 
-  let cbCls = 'habit-desktop-cb';
-  let cbTxt = '';
-  if (st === 'done') { cbCls += ' state-done'; cbTxt = '✓'; }
-  else if (st === 'skip') { cbCls += ' state-skip'; cbTxt = '—'; }
+  let cbCls = 'hdk-check', cbTxt = '＋';
+  if (st === 'done') { cbCls += ' done'; cbTxt = '✓'; }
+  else if (st === 'skip') { cbCls += ' skip'; cbTxt = '—'; }
 
   return `
-    <div class="habit-desktop-card">
-      <div class="habit-desktop-top" data-habit-id="${habit.id}" onclick="toggleHabitDay('${habit.id}','${todayDs}')"
-        <div class="${cbCls}">${cbTxt}</div>
-        <span class="habit-desktop-name" style="color:${habit.color}">${habit.name}</span>
+    <div class="hdk-card">
+      <div class="hdk-top" onclick="openHabitDetail('${habit.id}')">
+        <span class="hdk-dot" style="background:${habit.color}"></span>
+        <span class="hdk-name">${habit.name}</span>
+        <span class="hdk-freq">${freqLabel}</span>
+      </div>
+      <div class="hdk-stats">
+        <div class="hdk-stat"><b class="tnum">🔥 ${cur}</b><span>目前連續</span></div>
+        <div class="hdk-stat"><b class="tnum">${best}</b><span>最長紀錄</span></div>
+        <button class="${cbCls}" onclick="event.stopPropagation();toggleHabitDay('${habit.id}','${todayDs}')" title="今日打卡">${cbTxt}</button>
       </div>
       <canvas id="hcvs-${habit.id}" class="habit-grid-canvas"></canvas>
     </div>`;

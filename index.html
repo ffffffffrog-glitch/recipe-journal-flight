@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=39">
+  <link rel="stylesheet" href="style.css?v=46">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -34,6 +34,7 @@
         <input type="text" id="recipe-search-q" class="search-input" placeholder="搜尋名稱、食材、步驟…" oninput="filterRecipes()">
       </div>
       <div id="recipe-list" class="recipe-grid pb-80"></div>
+      <div id="recipe-detail-pane" class="recipe-detail-pane"></div>
       <button class="fab" onclick="openNewRecipeForm()" title="新增食譜">＋</button>
     </section>
 
@@ -85,6 +86,7 @@
         <button class="diary-add-btn" onclick="openAddDiaryEntrySheet()">＋ 新增飲食</button>
       </div>
       <input type="date" id="diary-date-input" style="visibility:hidden;height:0;padding:0;border:0" onchange="setDiaryDate(this.value)">
+      <div id="diary-cal" class="diary-cal-rail"></div>
       <div id="daily-summary" class="daily-summary"></div>
       <div id="diary-entries" class="diary-entries"></div>
       <button class="fab" onclick="openAddDiaryEntrySheet()" title="新增飲食記錄">＋</button>
@@ -379,6 +381,7 @@
     <button class="nav-btn active" data-page="profile" onclick="navigateTo('profile')">
       <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span class="nav-label">個人</span>
     </button>
+    <div class="sidebar-player" id="sidebar-player"></div>
   </nav>
   <div id="desktop-rp" class="desktop-rp"></div>
 </div>
@@ -935,7 +938,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="data.js?v=32"></script>
-<script src="app.js?v=43"></script>
+<script src="app.js?v=50"></script>
 <script src="vendor/supabase.js?v=1"></script>
 <script src="sync.js?v=1"></script>
 <script>
