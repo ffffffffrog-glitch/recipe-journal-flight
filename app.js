@@ -1232,11 +1232,10 @@ function searchIngredient(input) {
 
   const matchesHtml = matches.map(f => `
     <div class="suggestion-item"
-         onmousedown="selectIngredient(${idx},'${f.id}','${f.name.replace(/'/g,"\\'")}',event)"
-         ontouchstart="selectIngredient(${idx},'${f.id}','${f.name.replace(/'/g,"\\'")}',event)">
+         onclick="selectIngredient(${idx},'${f.id}','${f.name.replace(/'/g,"\\'")}',event)">
       <span class="sug-name">${f.name}</span>
       <span class="food-state-badge ${stateBadgeClass(f.state)} sug-state">${f.state}</span>
-      <span class="sug-kcal">${f.per100g.calories}kcal</span>
+      <span class="sug-kcal">${f.per100g?.calories ?? 0}kcal</span>
     </div>`).join('');
 
   sugBox.innerHTML = matchesHtml || `<div class="sug-empty">無符合食材</div>`;
