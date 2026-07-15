@@ -1585,11 +1585,13 @@ function sortFoodDB(key) {
 function _foodDBTable(foods) {
   const key = state.foodSortKey || 'name';
   const dir = state.foodSortDir || 'asc';
+  // 有份量資料就以「每份」為準顯示，否則退回每 100g（比照手機版），避免只有份量的品項顯示 0
+  const disp = f => (f.serving && f.serving.unit) ? f.serving : (f.per100g || {});
   const val = f => {
     if (key === 'name') return f.name || '';
     if (key === 'category') return f.category || '';
     if (key === 'state') return f.state || '';
-    return (f.per100g && f.per100g[key] != null) ? f.per100g[key] : 0;
+    const d = disp(f); return d[key] != null ? d[key] : 0;
   };
   const sorted = foods.slice().sort((a, b) => {
     const va = val(a), vb = val(b);
@@ -1601,16 +1603,18 @@ function _foodDBTable(foods) {
   const th = (k, label, cls) => `<th class="${cls || ''} fd-sortable${key === k ? ' sorted' : ''}" onclick="sortFoodDB('${k}')">${label}${arrow(k)}</th>`;
   const n = v => (v ?? 0);
   const rows = sorted.map(f => {
-    const p = f.per100g || {};
+    const d = disp(f);
+    const basis = (f.serving && f.serving.unit) ? `每${f.serving.unit}` : '每100g';
     return `<tr class="fd-row" onclick="openEditFoodForm('${f.id}')">
       <td class="l fd-name">${f.name || '(未命名)'}</td>
       <td class="l"><span class="fd-cat">${f.category || '其他'}</span></td>
       <td class="l"><span class="fd-state">${f.state || '一般'}</span></td>
-      <td class="fd-num"><b class="tnum">${n(p.calories)}</b></td>
-      <td class="fd-num tnum">${n(p.protein)}</td>
-      <td class="fd-num tnum">${n(p.fat)}</td>
-      <td class="fd-num tnum">${n(p.carbs)}</td>
-      <td class="fd-num tnum">${n(p.fiber)}</td>
+      <td class="l fd-basis">${basis}</td>
+      <td class="fd-num"><b class="tnum">${n(d.calories)}</b></td>
+      <td class="fd-num tnum">${n(d.protein)}</td>
+      <td class="fd-num tnum">${n(d.fat)}</td>
+      <td class="fd-num tnum">${n(d.carbs)}</td>
+      <td class="fd-num tnum">${n(d.fiber)}</td>
       <td class="fd-actions" onclick="event.stopPropagation()">
         <button class="icon-btn edit" onclick="openEditFoodForm('${f.id}')" title="編輯">${icon('pen-left', 15)}</button>
         <button class="icon-btn delete" onclick="deleteFoodConfirm('${f.id}')" title="刪除">${icon('trash-2', 15)}</button>
@@ -1620,8 +1624,9 @@ function _foodDBTable(foods) {
   return `<div class="fooddb-table-wrap"><table class="fooddb-table">
     <thead><tr>
       ${th('name', '食材', 'l')}${th('category', '分類', 'l')}${th('state', '狀態', 'l')}
+      <th class="l">基準</th>
       ${th('calories', '熱量')}${th('protein', '蛋白質')}${th('fat', '脂肪')}${th('carbs', '碳水')}${th('fiber', '纖維')}
-      <th class="fd-actions-h">每 100g</th>
+      <th class="fd-actions-h"></th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -1950,7 +1955,7 @@ function _diarySummaryRail(tot, goals) {
   const rem = Math.max(0, Math.round((goals.calories || 0) - tot.calories));
   return `
     <div class="drail-title">今日攝取</div>
-    <div class="drail-ring">${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`)}</div>
+    <div class="drail-ring">${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`, calPct > 100 ? 'var(--coral)' : 'var(--sage)')}</div>
     <div class="drail-cal"><b class="tnum">${r(tot.calories)}</b> / ${goals.calories || 0} kcal</div>
     <div class="drail-rem">${over ? '已超出 ' + (Math.round(tot.calories) - (goals.calories || 0)) + ' kcal' : '還可以吃 ' + rem + ' kcal'}</div>
     <div class="drail-divider"></div>
@@ -1992,6 +1997,7 @@ function _renderDiaryCalendar(ds) {
   if (!el) return;
   const [y, m] = ds.split('-').map(Number);
   const diary = getData('diary', {});
+  const goals = getData('profile', {}).goals || defaultGoals();
   const today = todayStr();
   const startDow = new Date(y, m - 1, 1).getDay();
   const daysInMonth = new Date(y, m, 0).getDate();
@@ -2000,7 +2006,12 @@ function _renderDiaryCalendar(ds) {
   for (let i = 0; i < startDow; i++) cells += `<div class="dcal-cell blank"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dstr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const has = (diary[dstr] && diary[dstr].length) ? ' has' : '';
+    const dayEntries = diary[dstr] || [];
+    let has = '';
+    if (dayEntries.length) {
+      const cal = dayEntries.reduce((s, e) => s + (e.nutrition?.calories || 0), 0);
+      has = (goals.calories && cal > goals.calories) ? ' has over' : ' has';   // 超標紅點、未超標綠點
+    }
     const isToday = dstr === today ? ' today' : '';
     const isSel = dstr === ds ? ' sel' : '';
     cells += `<div class="dcal-cell${has}${isToday}${isSel}" onclick="setDiaryDate('${dstr}')">${d}</div>`;
@@ -2017,7 +2028,8 @@ function _renderDiaryCalendar(ds) {
       ${dows.map(d => `<div class="dcal-dow">${d}</div>`).join('')}
       ${cells}
     </div>
-    <div class="dcal-info">📅 本月已記錄 <b>${monthDays}</b> 天</div>`;
+    <div class="dcal-info">📅 本月已記錄 <b>${monthDays}</b> 天</div>
+    <div class="dcal-legend"><span><i class="lg-ok"></i>未超標</span><span><i class="lg-over"></i>熱量超標</span></div>`;
 }
 
 function diaryCalMonth(delta) {
@@ -2184,7 +2196,7 @@ function quickAddFood(name) {
     loggedAt: new Date().toISOString()
   };
   const d = getData('diary', {});
-  const ds = todayStr();
+  const ds = state.currentDate || todayStr();   // 加到目前檢視的日期，而非永遠今天
   if (!d[ds]) d[ds] = [];
   d[ds].push(entry);
   setData('diary', d);
@@ -2627,8 +2639,8 @@ function _dashRing(pct, centerHtml, color) {
 function _dashMacro(label, cur, goal, unit) {
   const g = goal || 0;
   const p = g ? Math.min(100, Math.round(cur / g * 100)) : 0;
-  const over = cur > g && g > 0;
-  return `<div class="dash-macro"><div class="dash-macro-top"><span class="l">${label}</span><span class="v tnum">${Math.round(cur)} / ${g}${unit}</span></div><div class="dash-mbar"><i class="${over ? 'over' : ''}" style="width:${p}%"></i></div></div>`;
+  const reached = g > 0 && cur >= g;   // 達標=完整綠、未達標=淺綠（比照手機版精神）
+  return `<div class="dash-macro"><div class="dash-macro-top"><span class="l">${label}</span><span class="v tnum">${Math.round(cur)} / ${g}${unit}</span></div><div class="dash-mbar"><i class="${reached ? 'reached' : ''}" style="width:${p}%"></i></div></div>`;
 }
 
 function _dashSpark(pts) {
@@ -2688,7 +2700,7 @@ function _buildDashboard() {
   // habits
   const habits = getData('habits', []).filter(h => !h.archived);
   const habitLog = getData('habitLog', {});
-  const habitRows = habits.slice(0, 5).map(h => {
+  const habitRows = habits.map(h => {
     const streak = calcHabitStreak(h);
     let dots = '';
     for (let i = 6; i >= 0; i--) { const dd = new Date(); dd.setDate(dd.getDate() - i); const ds = dateStr(dd); const on = (habitLog[ds] || {})[h.id] === 'done'; dots += `<i class="${on ? 'on' : ''}"></i>`; }
@@ -2742,7 +2754,7 @@ function _buildDashboard() {
       <div class="card dash-card b-nutri">
         <div class="dash-card-h">今日營養 <button class="dash-link" onclick="navigateTo('diary')">前往日誌 →</button></div>
         <div class="dash-nutri-head">
-          ${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`)}
+          ${_dashRing(calPct, `<b class="tnum">${Math.round(calPct)}%</b><span>目標</span>`, calPct > 100 ? 'var(--coral)' : 'var(--sage)')}
           <div class="dash-nutri-cal">
             <div class="big"><b class="tnum">${Math.round(tot.calories)}</b> / ${goals.calories || 0}</div>
             <div class="unit">kcal 已攝取</div>
@@ -4309,6 +4321,16 @@ function renderWorkout() {
     else groups.push({ date: e.date, entries: [e] });
   }
 
+  // ── 桌機：時間軸卡片（新→舊）──
+  if (window.innerWidth >= 1024) {
+    const desc = groups.slice().reverse();
+    chat.innerHTML = desc.map(g => `
+      <div class="wtl-day"><span>${_workoutDateLabel(g.date)}</span><span class="wtl-line"></span></div>
+      ${g.entries.slice().reverse().map(e => _workoutTimelineCard(e)).join('')}
+    `).join('');
+    return;
+  }
+
   let html = '';
   for (const g of groups) {
     html += `<div class="workout-date-sep"><span>${_workoutDateLabel(g.date)}</span></div>`;
@@ -4318,6 +4340,51 @@ function renderWorkout() {
   }
   chat.innerHTML = html;
   chat.scrollTop = chat.scrollHeight;
+}
+
+function _workoutTimelineCard(e) {
+  const time = e.createdAt ? new Date(e.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+  let icoCls, icoTxt, name, sub, tags;
+  if (e.type === 'cardio') {
+    icoCls = 'cardio'; icoTxt = '🏃';
+    name = e.exercise || '有氧運動';
+    sub = e.intensity || '';
+    tags = [
+      e.duration ? `<span class="wtl-tag"><b>${e.duration}</b> 分</span>` : '',
+      e.distance ? `<span class="wtl-tag"><b>${e.distance}</b> km</span>` : '',
+      e.calories ? `<span class="wtl-tag"><b>${e.calories}</b> kcal</span>` : '',
+    ].filter(Boolean).join('');
+  } else {
+    icoCls = 'strength'; icoTxt = '🏋️';
+    name = e.exercise || '重量訓練';
+    const blocks = e.blocks || [];
+    sub = `${blocks.length} 個動作`;
+    const fmtSet = r => {
+      const parts = [];
+      if (r.weight != null) parts.push(`${r.weight}kg`);
+      if (r.reps != null && r.sets != null) parts.push(`${r.sets}×${r.reps}`);
+      else if (r.reps != null) parts.push(`${r.reps}次`);
+      else if (r.sets != null) parts.push(`${r.sets}組`);
+      return parts.join(' · ');
+    };
+    tags = blocks.map(b => {
+      const sets = Array.isArray(b.rows) ? b.rows : [{ weight: b.weight, reps: b.reps, sets: b.sets }];
+      const spec = sets.map(fmtSet).filter(Boolean).join(' / ');
+      return `<span class="wtl-tag"><b>${b.name || '動作'}</b>${spec ? ' ' + spec : ''}</span>`;
+    }).join('');
+  }
+  const note = e.note ? `<div class="wtl-note">${e.note}</div>` : '';
+  return `
+    <div class="wtl-card" onclick="openEditWorkout('${e.id}')">
+      <div class="wtl-ic ${icoCls}">${icoTxt}</div>
+      <div class="wtl-body">
+        <div class="wtl-name">${name}</div>
+        ${sub ? `<div class="wtl-sub">${sub}</div>` : ''}
+        ${tags ? `<div class="wtl-tags">${tags}</div>` : ''}
+        ${note}
+      </div>
+      ${time ? `<div class="wtl-time">${time}</div>` : ''}
+    </div>`;
 }
 
 function _workoutDateLabel(ds) {
@@ -4632,9 +4699,9 @@ function _drawHabitGrid(canvas, habitId, color) {
   const log = getData('habitLog', {});
   const W = 26, H = 7;
   const dpr = window.devicePixelRatio || 1;
-  // Cap cell size at 10px so the grid stays compact (user request: 40-50% of old size)
-  const gap = 2;
-  const cellSize = 10;
+  // 桌機卡片有空間，方塊放大一點（提案樣式）
+  const gap = 3;
+  const cellSize = 14;
   const gridW = W * (cellSize + gap) - gap;
   const gridH = H * (cellSize + gap) - gap;
   canvas.style.width  = gridW + 'px';
@@ -5414,6 +5481,7 @@ function renderInbody() {
   const todayW = todayWLog[todayStr()];
   const wInput = todayW != null ? todayW : '';
   let html = `
+    <div class="inbody-top">
     <div class="quick-weight-card">
       <div class="qw-label">${icon('activity', 14)} 今日體重</div>
       <div class="qw-row">
@@ -5425,6 +5493,7 @@ function renderInbody() {
     <div class="weight-7d-card">
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
+    </div>
     </div>`;
 
   // Last record time — plain centered text, no box
@@ -5442,6 +5511,7 @@ function renderInbody() {
         <button class="trend-toggle-btn${_inbodyTrendRange==='all'?' active':''}" onclick="setInbodyTrendRange('all')">全部</button>
       </div>`;
     html += `
+      <div class="inbody-trends">
       <div class="trend-card">
         <div class="trend-card-header"><span class="trend-card-title">體重趨勢 (kg)</span>${toggleHtml}</div>
         <canvas id="trend-weight" class="trend-canvas" height="65" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas>
@@ -5453,6 +5523,7 @@ function renderInbody() {
       <div class="trend-card">
         <div class="trend-card-header"><span class="trend-card-title">肌肉量趨勢 (kg)</span></div>
         <canvas id="trend-muscle" class="trend-canvas" height="65" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas>
+      </div>
       </div>`;
   }
 

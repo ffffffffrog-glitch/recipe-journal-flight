@@ -3094,12 +3094,11 @@ body.storage-error .page { padding-top: 44px; }
   .sidebar-player {
     display: flex; flex-direction: column; gap: 10px;
     margin-top: auto;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px;
+    padding: 14px 6px 6px;
+    border-top: 1px solid var(--border);
   }
-  .sp-top { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .sp-top { display: flex; align-items: center; gap: 10px; }
+  .sp-avatar { cursor: pointer; }
   .sp-avatar {
     width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
     background: var(--sage-pale); color: var(--sage);
@@ -3116,7 +3115,7 @@ body.storage-error .page { padding-top: 44px; }
   .sp-coin { color: #B08636; font-weight: 700; }
 
   /* ══ 儀表板 ══ */
-  .dash { padding: 22px 28px 48px; max-width: 1280px; }
+  .dash { padding: 22px 28px 48px; max-width: 1400px; width: 100%; margin: 0 auto; align-self: center; }
   .dash-greet { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
   .dash-greet-h { font-size: 21px; font-weight: 800; letter-spacing: -.01em; color: var(--text); }
   .dash-greet-sub { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
@@ -3136,7 +3135,7 @@ body.storage-error .page { padding-top: 44px; }
   .dash-link-btn svg { width: 15px; height: 15px; }
   .dash-link-btn:hover { border-color: var(--sage); color: var(--sage); background: var(--sage-faint); }
 
-  .dash-bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; align-items: start; }
+  .dash-bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; align-items: stretch; }
   .dash-card {
     background: var(--white); border: 1px solid var(--border);
     border-radius: 16px; padding: 17px 18px;
@@ -3181,8 +3180,8 @@ body.storage-error .page { padding-top: 44px; }
   .dash-macro-top .l { color: var(--text-2); font-weight: 600; }
   .dash-macro-top .v { color: var(--text-3); }
   .dash-mbar { height: 7px; border-radius: 99px; background: var(--sage-faint); overflow: hidden; }
-  .dash-mbar > i { display: block; height: 100%; border-radius: 99px; background: var(--sage); }
-  .dash-mbar > i.over { background: var(--coral); }
+  .dash-mbar > i { display: block; height: 100%; border-radius: 99px; background: var(--sage-light); }
+  .dash-mbar > i.reached { background: var(--sage); }
 
   .dash-stat { display: flex; align-items: baseline; gap: 7px; }
   .dash-stat b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
@@ -3236,7 +3235,7 @@ body.storage-error .page { padding-top: 44px; }
 @media (min-width: 1024px) {
   #page-recipes.active {
     display: grid;
-    grid-template-columns: 366px 1fr;
+    grid-template-columns: 1fr 400px;
     grid-template-rows: auto 1fr;
     grid-template-areas: "header header" "list detail";
     height: 100%;
@@ -3246,40 +3245,43 @@ body.storage-error .page { padding-top: 44px; }
   .recipe-desktop-header { grid-area: header; border-bottom: 1px solid var(--border); }
   #page-recipes .recipe-filter-bar { display: none; }
 
+  /* 清單：多欄卡片網格（給總覽最多空間） */
   #recipe-list.recipe-grid {
     grid-area: list;
-    display: flex; flex-direction: column; gap: 7px;
-    grid-template-columns: none;
-    padding: 10px; margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 12px;
+    padding: 16px; margin: 0;
     overflow-y: auto;
-    border-right: 1px solid var(--border);
+    align-content: start;
     background: var(--bg);
   }
   #recipe-list .recipe-card {
-    display: flex; flex-direction: row; align-items: center; gap: 11px;
-    padding: 8px; border-radius: 11px; border: 1px solid transparent;
-    background: var(--white); box-shadow: none; cursor: pointer;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--white); box-shadow: none; cursor: pointer; overflow: hidden;
   }
-  #recipe-list .recipe-card:hover { background: var(--sage-faint); }
-  #recipe-list .recipe-card.sel { background: var(--sage-pale); border-color: var(--sage-muted); }
+  #recipe-list .recipe-card:hover { border-color: var(--sage-muted); }
+  #recipe-list .recipe-card.sel { border-color: var(--sage); box-shadow: 0 0 0 1px var(--sage); }
   #recipe-list .recipe-card-img,
   #recipe-list .recipe-card-img-placeholder {
-    width: 54px; height: 54px; border-radius: 9px; flex-shrink: 0;
-    object-fit: cover; margin: 0;
+    width: 100%; height: 108px; object-fit: cover; margin: 0; border-radius: 0;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  #recipe-list .recipe-card-body { flex: 1; min-width: 0; padding: 0; }
-  #recipe-list .recipe-card-name { font-size: 13.5px; font-weight: 700; margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #recipe-list .recipe-card-meta { font-size: 11px; gap: 10px; }
+  #recipe-list .recipe-card-body { padding: 9px 11px 11px; }
+  #recipe-list .recipe-card-name { font-size: 13px; font-weight: 700; margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #recipe-list .recipe-card-meta { display: flex; font-size: 10.5px; gap: 9px; flex-wrap: wrap; }
   #recipe-list .recipe-add-card {
-    flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-    align-self: auto; min-height: 0; padding: 12px; border-radius: 11px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; min-height: 150px; border-radius: 12px;
   }
-  #recipe-list .recipe-add-icon { font-size: 20px; margin: 0; }
-  #recipe-list .recipe-add-label { font-size: 12.5px; }
+  #recipe-list .recipe-add-icon { font-size: 26px; margin: 0; }
+  #recipe-list .recipe-add-label { font-size: 12px; }
 
   #recipe-detail-pane {
     grid-area: detail; display: flex; flex-direction: column;
     overflow: hidden; background: var(--white);
+    border-left: 1px solid var(--border);
   }
   .rdp-header {
     display: flex; align-items: center; gap: 10px;
@@ -3295,7 +3297,7 @@ body.storage-error .page { padding-top: 44px; }
   .rdp-scroll { flex: 1; overflow-y: auto; }
   .rdp-scroll .recipe-detail-img,
   .rdp-scroll .recipe-detail-img-placeholder { max-height: 260px; object-fit: cover; }
-  .rdp-scroll .recipe-detail-body { max-width: 720px; }
+  .rdp-scroll .recipe-detail-body { max-width: none; }
   .rdp-placeholder { padding: 90px 30px; text-align: center; color: var(--text-3); font-size: 13px; }
 }
 
@@ -3329,6 +3331,7 @@ body.storage-error .page { padding-top: 44px; }
   .fd-row:hover { background: var(--sage-faint); }
   .fd-name { font-weight: 600; }
   .fd-cat { font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .fd-basis { font-size: 11px; color: var(--text-3); }
   .fd-state { font-size: 10.5px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-2); }
   .fd-num b { font-weight: 800; }
   .fd-actions { white-space: nowrap; }
@@ -3372,9 +3375,15 @@ body.storage-error .page { padding-top: 44px; }
   .dcal-cell.blank { pointer-events: none; }
   .dcal-cell:hover:not(.blank) { background: var(--sage-faint); }
   .dcal-cell.has::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--sage); }
+  .dcal-cell.has.over::after { background: var(--coral); }
   .dcal-cell.today { font-weight: 700; color: var(--sage); }
   .dcal-cell.sel { background: var(--sage); color: #fff; font-weight: 700; }
   .dcal-cell.sel.has::after { background: #fff; }
+  /* legend */
+  .dcal-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 10.5px; color: var(--text-3); }
+  .dcal-legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .dcal-legend .lg-ok { background: var(--sage); }
+  .dcal-legend .lg-over { background: var(--coral); }
   .dcal-info { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-2); }
   .dcal-info b { color: var(--sage); }
 
@@ -3421,12 +3430,32 @@ body.storage-error .page { padding-top: 44px; }
 
 /* ════════════ 運動 / 習慣 / 任務 / 成就 ════════════ */
 @media (min-width: 1024px) {
-  /* 運動：聊天時間軸置中 + 右側統計欄（#desktop-rp） */
-  #page-workout .workout-chat { max-width: 760px; width: 100%; margin: 0 auto; padding: 18px 20px 40px; }
+  /* 運動：時間軸卡片 + 右側統計欄（#desktop-rp） */
+  #page-workout .workout-chat { max-width: 760px; width: 100%; margin: 0 auto; padding: 18px 24px 44px; display: block; }
+  .wtl-day { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; color: var(--text-2); margin: 18px 2px 10px; }
+  .wtl-day:first-child { margin-top: 0; }
+  .wtl-line { flex: 1; height: 1px; background: var(--border); }
+  .wtl-card {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+  }
+  .wtl-card:hover { border-color: var(--sage-muted); }
+  .wtl-ic { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .wtl-ic.cardio { background: #EAF0F3; }
+  .wtl-ic.strength { background: var(--sage-pale); }
+  .wtl-body { flex: 1; min-width: 0; }
+  .wtl-name { font-size: 14px; font-weight: 700; }
+  .wtl-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .wtl-tags { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 9px; }
+  .wtl-tag { font-size: 11.5px; color: var(--text-2); }
+  .wtl-tag b { color: var(--text); font-weight: 700; }
+  .wtl-note { font-size: 11.5px; color: var(--text-3); margin-top: 8px; }
+  .wtl-time { font-size: 11px; color: var(--text-3); flex-shrink: 0; }
 
   /* 習慣：卡片網格 + 內嵌熱力圖 */
   #page-habits #habits-content { overflow-y: auto; }
-  .hdk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 16px 24px 44px; max-width: 1120px; }
+  .hdk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 16px 24px 44px; max-width: 1120px; margin: 0 auto; }
   .hdk-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
   .hdk-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; cursor: pointer; }
   .hdk-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
@@ -3465,6 +3494,16 @@ body.storage-error .page { padding-top: 44px; }
 
   /* 設定 / 體組成：置中不撐滿 */
   #page-settings .settings-content { max-width: 720px; margin: 0 auto; }
-  #page-inbody .inbody-page { max-width: 760px; margin: 0 auto; }
+  #page-inbody .inbody-page { max-width: 1000px; margin: 0 auto; }
+  #page-inbody .inbody-top { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  #page-inbody .inbody-trends { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  #page-inbody .quick-weight-card,
+  #page-inbody .weight-7d-card { margin: 0; }
+  #page-inbody .record-carousel-wrap { margin-top: 14px; }
+}
+
+/* ════════════ 超寬螢幕：內容置中、不擠一角也不過度拉伸 ════════════ */
+@media (min-width: 1800px) {
+  .page-container { max-width: 1680px; margin-left: auto; margin-right: auto; }
 }
 

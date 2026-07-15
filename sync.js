@@ -9,8 +9,33 @@ const SUPABASE_KEY = 'sb_publishable_-K9YUdArrHEeJejUBxQYiw_UuBToL0C';
 const SYNC_KEYS = [
   'diary', 'foodDB', 'recipes', 'workoutLog', 'weightLog',
   'habits', 'habitLog', 'inbody', 'gamification', 'profile',
-  'dailyQuestsDone', 'appTheme', 'askWeightDaily',
+  'dailyQuestsDone', 'appTheme', 'askWeightDaily', 'avatarData',
 ];
+
+// 以 id 為主鍵的「集合」：合併時做「聯集」而非整包覆蓋，避免任一裝置的新增品項被另一裝置蓋掉。
+const ID_COLLECTIONS = ['foodDB', 'recipes', 'inbody', 'workoutLog', 'habits'];
+// 以日期為 key 的「對照表」：合併日期鍵的聯集（同一天以較新一方為準）。
+const DATE_MAPS = ['diary', 'habitLog', 'weightLog'];
+
+// 合併單一鍵：集合做聯集、日期表做鍵聯集，其餘沿用「較新者勝」。
+function _mergeValue(key, localVal, remoteVal, remoteNewer) {
+  if (ID_COLLECTIONS.includes(key) && Array.isArray(localVal) && Array.isArray(remoteVal)) {
+    const primary   = remoteNewer ? remoteVal : localVal;   // 較新一方的版本為準
+    const secondary = remoteNewer ? localVal : remoteVal;   // 另一方僅補進「對方沒有的 id」
+    const ids = new Set(primary.map(x => x && x.id).filter(Boolean));
+    const merged = primary.slice();
+    secondary.forEach(x => { if (x && x.id && !ids.has(x.id)) { merged.push(x); ids.add(x.id); } });
+    return merged;
+  }
+  if (DATE_MAPS.includes(key) && localVal && remoteVal
+      && typeof localVal === 'object' && typeof remoteVal === 'object'
+      && !Array.isArray(localVal) && !Array.isArray(remoteVal)) {
+    const primary   = remoteNewer ? remoteVal : localVal;
+    const secondary = remoteNewer ? localVal : remoteVal;
+    return Object.assign({}, secondary, primary);   // 同一天的 key 以 primary（較新方）為準
+  }
+  return remoteNewer ? remoteVal : localVal;
+}
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;   // 5 分鐘
 
 let _sb = null;               // supabase client
@@ -111,11 +136,22 @@ async function _pullAndMerge() {
   _applyingRemote = true;
   try {
     SYNC_KEYS.forEach(key => {
+      if (rVal[key] === undefined) return;
       const rt = rTs[key] || 0, lt = meta.ts[key] || 0;
-      if (rt > lt && rVal[key] !== undefined) {
-        localStorage.setItem(key, JSON.stringify(rVal[key]));
-        meta.ts[key] = rt;
+      const localVal = getData(key, undefined);
+      const remoteNewer = rt > lt;
+      const mergedVal = (localVal === undefined)
+        ? rVal[key]
+        : _mergeValue(key, localVal, rVal[key], remoteNewer);
+      const nextStr = JSON.stringify(mergedVal);
+      if (nextStr !== JSON.stringify(localVal)) {
+        localStorage.setItem(key, nextStr);
         changed = true;
+      }
+      // 合併後時間戳取兩邊較大值；集合聯集有補進新內容時，標記為本地已更新以便回推雲端
+      meta.ts[key] = Math.max(rt, lt);
+      if (ID_COLLECTIONS.includes(key) && nextStr !== JSON.stringify(rVal[key])) {
+        meta.ts[key] = Date.now();
       }
     });
   } finally { _applyingRemote = false; }
