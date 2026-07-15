@@ -5472,6 +5472,8 @@ function renderInbody() {
   const container  = document.getElementById('inbody-content');
   if (!container) return;
 
+  if (window.innerWidth >= 1024) { _renderInbodyDesktop(allRecords, records, container); return; }
+
   // Today's quick weight card
   const todayWLog = getData('weightLog', {});
   const todayW = todayWLog[todayStr()];
@@ -5577,6 +5579,116 @@ function renderInbody() {
 function setInbodyTrendRange(range) {
   _inbodyTrendRange = range;
   renderInbody();
+}
+
+// ===== 體組成桌機版：體態儀表板（master-detail）=====
+let _ibdSelectedId = null;
+
+function _ibdSelect(id) { _ibdSelectedId = id; renderInbody(); }
+
+function _renderInbodyDesktop(allRecords, records, container) {
+  const fmt = v => (v != null && v !== '') ? v : '—';
+  const hasData = records.length > 0;
+
+  // 選中的紀錄（預設最新）
+  let sel = records.find(r => r.id === _ibdSelectedId) || records[0] || null;
+
+  // 今日快速體重
+  const todayW = getData('weightLog', {})[todayStr()];
+  const wInput = todayW != null ? todayW : '';
+
+  // 最新體重 + 與前一筆差值
+  const latest = records[0];
+  const prev   = records[1];
+  let deltaHtml = '';
+  if (latest && prev && latest.weight != null && prev.weight != null) {
+    const d = r(latest.weight - prev.weight, 1);
+    if (d !== 0) deltaHtml = `<span class="ibd-delta ${d < 0 ? 'down' : 'up'}">${d < 0 ? '↓' : '↑'} ${Math.abs(d)}</span>`;
+  }
+
+  const chip = (label, val) => `<div class="ibd-chip"><b class="tnum">${val}</b><span>${label}</span></div>`;
+  const statChips = latest ? `
+    ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
+    ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
+    ${chip('BMI', fmt(latest.bmi))}
+    ${chip('內臟脂肪', fmt(latest.visceral))}
+    ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : '';
+
+  const toggle = `
+    <div class="trend-toggle">
+      <button class="trend-toggle-btn${_inbodyTrendRange==='3m'?' active':''}" onclick="setInbodyTrendRange('3m')">近3月</button>
+      <button class="trend-toggle-btn${_inbodyTrendRange==='6m'?' active':''}" onclick="setInbodyTrendRange('6m')">近6月</button>
+      <button class="trend-toggle-btn${_inbodyTrendRange==='all'?' active':''}" onclick="setInbodyTrendRange('all')">全部</button>
+    </div>`;
+
+  const chartsHtml = allRecords.length >= 2 ? `
+    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">體重趨勢 (kg)</span>${toggle}</div><canvas id="trend-weight" class="trend-canvas" height="70" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas></div>
+    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">體脂率趨勢 (%)</span></div><canvas id="trend-fat" class="trend-canvas" height="70" onclick="openTrendDetail('fatPct','%','#D98866',false,'體脂率趨勢')"></canvas></div>
+    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">肌肉量趨勢 (kg)</span></div><canvas id="trend-muscle" class="trend-canvas" height="70" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas></div>`
+    : `<div class="ibd-empty-charts">至少 2 筆完整紀錄才會顯示趨勢圖</div>`;
+
+  // 選中紀錄的雷達 + 數據
+  const hasSeg = sel && (sel.leftArm || sel.rightArm || sel.trunk || sel.leftLeg || sel.rightLeg);
+  const detailHtml = sel ? `
+    <div class="ibd-detail-head">
+      <span class="ibd-detail-date">📅 ${sel.date}</span>
+      <button class="ibd-detail-edit" onclick="openEditInbodySheet('${sel.id}')" title="編輯">${icon('pen-left', 14)}</button>
+    </div>
+    <div class="ibd-detail-metrics">
+      ${chip('體重', sel.weight != null ? sel.weight + ' kg' : '—')}
+      ${chip('體脂率', sel.fatPct != null ? sel.fatPct + '%' : '—')}
+      ${chip('肌肉量', sel.muscle != null ? sel.muscle + ' kg' : '—')}
+      ${chip('BMI', fmt(sel.bmi))}
+      ${chip('內臟脂肪', fmt(sel.visceral))}
+      ${chip('基礎代謝', sel.bmr ? sel.bmr + ' kcal' : '—')}
+    </div>
+    ${hasSeg ? `<div class="ibd-radar-label">部位肌肉分析</div><div class="ibd-radar-wrap"><canvas id="ibd-radar-canvas" style="display:block;width:100%"></canvas></div>` : `<div class="ibd-empty-charts" style="margin-top:12px">此筆無部位肌肉資料</div>`}`
+    : `<div class="ibd-empty-charts">尚無完整紀錄</div>`;
+
+  const historyHtml = records.length ? records.map(rec => `
+    <div class="ibd-hist-row${rec.id === (sel && sel.id) ? ' active' : ''}" onclick="_ibdSelect('${rec.id}')">
+      <span class="ibd-hist-date">${rec.date}</span>
+      <span class="ibd-hist-nums tnum">${fmt(rec.weight)}kg · 體脂${fmt(rec.fatPct)}% · 肌肉${fmt(rec.muscle)}kg</span>
+    </div>`).join('') : `<div class="ibd-empty-charts">尚無紀錄</div>`;
+
+  container.innerHTML = `
+    <div class="ibd">
+      <div class="ibd-snapshot">
+        <div class="ibd-hero">
+          <div class="ibd-hero-label">最新體重</div>
+          <div class="ibd-hero-num"><b class="tnum">${latest && latest.weight != null ? latest.weight : '—'}</b> <span class="ibd-hero-unit">kg</span> ${deltaHtml}</div>
+          <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
+        </div>
+        <div class="ibd-quickw">
+          <div class="ibd-quickw-label">${icon('activity', 13)} 今日體重</div>
+          <div class="ibd-quickw-row">
+            <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
+            <span class="qw-unit">kg</span>
+            <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
+          </div>
+        </div>
+        <div class="ibd-stats">${statChips}</div>
+        <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>
+      </div>
+
+      <div class="ibd-main">
+        <div class="ibd-charts">${chartsHtml}</div>
+        <div class="ibd-detail">
+          <div class="ibd-detail-card">${detailHtml}</div>
+          <div class="ibd-history-card">
+            <div class="ibd-history-title">歷史紀錄 <span>${records.length} 筆</span></div>
+            <div class="ibd-history-list">${historyHtml}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  if (allRecords.length >= 2) {
+    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true);
+    drawSingleTrendChart('trend-fat',    allRecords, 'fatPct', '%',  '#D98866', false);
+    drawSingleTrendChart('trend-muscle', allRecords, 'muscle', 'kg', '#4A7FA5', false);
+  }
+  if (hasSeg) drawBodyMap(sel, 'ibd-radar-canvas');
 }
 
 // Set up a canvas for crisp HiDPI drawing. Returns CSS-pixel dims + a scaled ctx,

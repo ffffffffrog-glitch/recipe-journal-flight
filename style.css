@@ -3776,3 +3776,56 @@ body.storage-error .page { padding-top: 44px; }
 @media (min-width: 1024px) {
   .quests-desktop-action { display: inline-flex; }
 }
+
+/* ════════════ 體組成：體態儀表板（master-detail, 方案A）════════════ */
+@media (min-width: 1024px) {
+  #page-inbody .inbody-page { max-width: none; margin: 0; padding: 0; }
+  .ibd { padding: 6px 30px 44px; }
+
+  /* 頂部快照列 */
+  .ibd-snapshot {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px 22px; margin-bottom: 16px;
+  }
+  .ibd-hero-label { font-size: 11px; color: var(--text-3); font-weight: 600; }
+  .ibd-hero-num { font-size: 15px; color: var(--text-3); margin-top: 2px; }
+  .ibd-hero-num b { font-size: 34px; font-weight: 800; color: var(--text); letter-spacing: -.02em; }
+  .ibd-hero-unit { font-size: 14px; }
+  .ibd-delta { font-size: 13px; font-weight: 700; margin-left: 6px; }
+  .ibd-delta.down { color: var(--sage); }
+  .ibd-delta.up { color: var(--coral); }
+  .ibd-hero-date { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+  .ibd-quickw { padding-left: 20px; border-left: 1px solid var(--border); }
+  .ibd-quickw-label { font-size: 11px; color: var(--text-2); margin-bottom: 6px; }
+  .ibd-quickw-row { display: flex; align-items: center; gap: 6px; }
+  .ibd-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+  .ibd-chip { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; text-align: center; min-width: 66px; }
+  .ibd-chip b { font-size: 15px; font-weight: 800; display: block; }
+  .ibd-chip span { font-size: 10px; color: var(--text-3); }
+  .ibd-add-btn { padding: 9px 15px; border-radius: 9px; background: var(--sage); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .ibd-add-btn:hover { background: #3d5644; }
+
+  /* 主區 2 欄 */
+  .ibd-main { display: grid; grid-template-columns: 1fr 400px; gap: 16px; align-items: start; }
+  .ibd-charts { display: flex; flex-direction: column; gap: 14px; }
+  .ibd-charts .trend-card { margin: 0; }
+  .ibd-detail { display: flex; flex-direction: column; gap: 14px; }
+  .ibd-detail-card, .ibd-history-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .ibd-detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .ibd-detail-date { font-size: 13px; font-weight: 700; }
+  .ibd-detail-edit { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); color: var(--text-2); display: flex; align-items: center; justify-content: center; background: none; }
+  .ibd-detail-edit:hover { color: var(--sage); border-color: var(--sage); }
+  .ibd-detail-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .ibd-radar-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .ibd-radar-wrap { max-width: 360px; margin: 0 auto; }
+  .ibd-history-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .ibd-history-title span { font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .ibd-history-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
+  .ibd-hist-row { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border-radius: 9px; cursor: pointer; border: 1px solid transparent; }
+  .ibd-hist-row:hover { background: var(--sage-faint); }
+  .ibd-hist-row.active { background: var(--sage-pale); border-color: var(--sage-muted); }
+  .ibd-hist-date { font-size: 12px; font-weight: 700; color: var(--text); }
+  .ibd-hist-nums { font-size: 11px; color: var(--text-2); }
+  .ibd-empty-charts { font-size: 12.5px; color: var(--text-3); padding: 20px; text-align: center; }
+}
