@@ -711,30 +711,7 @@ function updateDesktopRightPanel(pageId) {
     rp.className = 'desktop-rp'; // 日誌已有頁內營養右欄，隱藏全域右欄避免重複
 
   } else if (pageId === 'workout') {
-    const all  = getData('workoutLog', []);
-    const now  = new Date();
-    const wsD  = new Date(now); wsD.setDate(now.getDate() - now.getDay());
-    const wsStr = `${wsD.getFullYear()}-${String(wsD.getMonth()+1).padStart(2,'0')}-${String(wsD.getDate()).padStart(2,'0')}`;
-    const week  = all.filter(w => w.date >= wsStr);
-    const cardio   = week.filter(w => w.type === 'cardio');
-    const strength = week.filter(w => w.type === 'strength');
-    const totalMin = cardio.reduce((s, w) => s + (w.duration || 0), 0);
-    const msStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    const monthCount = all.filter(w => w.date >= msStr).length;
-    rp.className = 'desktop-rp rp-on';
-    rp.innerHTML = `
-      <div class="rp-title">本週統計</div>
-      <div>
-        <div class="rp-big">${week.length} <span class="rp-big-unit">次</span></div>
-        <div class="rp-sub">本週運動次數</div>
-      </div>
-      <div class="rp-divider"></div>
-      <div>
-        ${stat('有氧場次', cardio.length)}
-        ${stat('重訓場次', strength.length)}
-        ${stat('有氧總時長', totalMin ? totalMin + ' 分' : '—')}
-        ${stat('本月累計', monthCount + ' 次')}
-      </div>`;
+    rp.className = 'desktop-rp'; // 運動頁改用頁內統計卡，隱藏全域右欄
 
   } else if (pageId === 'inbody') {
     rp.className = 'desktop-rp'; // 體組成頁已為滿版，隱藏右欄避免重複
@@ -748,8 +725,11 @@ function updateDesktopRightPanel(pageId) {
 }
 
 function updateNavBar(pageId) {
-  // For sub-pages, highlight the parent tab instead
-  const navPage = SUB_PAGE_PARENT[pageId] || pageId;
+  // 桌機側欄若有該頁的專屬入口（食材庫/成就館/設定）就直接高亮它；
+  // 手機底部列沒有這些入口，才退回高亮父分頁。
+  const desktop = window.innerWidth >= 1024;
+  const hasDirect = desktop && document.querySelector(`.nav-btn[data-page="${pageId}"]`);
+  const navPage = hasDirect ? pageId : (SUB_PAGE_PARENT[pageId] || pageId);
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === navPage);
   });
@@ -4281,9 +4261,42 @@ let _workoutBlocks     = [];
 
 const STRENGTH_PRESETS = ['深蹲','臥推','硬舉','划船','肩推','引體向上','二頭彎舉','三頭伸展','腿推','腿彎舉','臀推'];
 
+function _renderWorkoutStats() {
+  const el = document.getElementById('workout-stats');
+  if (!el) return;
+  const all = getData('workoutLog', []);
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const wsStr = dateStr(weekStart);
+  const week = all.filter(w => w.date >= wsStr);
+  const cardio = week.filter(w => w.type === 'cardio');
+  const strength = week.filter(w => w.type === 'strength');
+  const cardioMin = cardio.reduce((s, w) => s + (w.duration || 0), 0);
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const monthCount = all.filter(w => w.date >= monthStr).length;
+  const dayOrder = [1, 2, 3, 4, 5, 6, 0], dayLbl = ['一', '二', '三', '四', '五', '六', '日'];
+  const dayCount = {}; week.forEach(w => { const dd = new Date(w.date + 'T00:00:00'); dayCount[dd.getDay()] = (dayCount[dd.getDay()] || 0) + 1; });
+  const maxDay = Math.max(1, ...Object.values(dayCount));
+  const bars = dayOrder.map((dn, i) => { const c = dayCount[dn] || 0; const h = c ? Math.max(15, Math.round(c / maxDay * 100)) : 6; return `<div><div class="dash-wkbar ${c ? 'on' : ''}" style="height:${h}%"></div><div class="d">${dayLbl[i]}</div></div>`; }).join('');
+  const row = (l, v) => `<div class="wstat-row"><span>${l}</span><b class="tnum">${v}</b></div>`;
+  el.innerHTML = `
+    <div class="wstat-card">
+      <div class="eyebrow">本週統計</div>
+      <div class="dash-stat" style="margin:10px 0 2px"><b class="tnum">${week.length}</b><span>次 · 本週運動</span></div>
+      <div class="dash-wkbars">${bars}</div>
+      <div class="wstat-rows">
+        ${row('有氧場次', cardio.length)}
+        ${row('重訓場次', strength.length)}
+        ${row('有氧總時長', cardioMin ? cardioMin + ' 分' : '—')}
+        ${row('本月累計', monthCount + ' 次')}
+      </div>
+    </div>`;
+}
+
 function renderWorkout() {
   const chat = document.getElementById('workout-chat');
   if (!chat) return;
+  if (window.innerWidth >= 1024) _renderWorkoutStats();
   const log = getData('workoutLog', []);
   if (!log.length) {
     chat.innerHTML = `
@@ -7552,21 +7565,25 @@ function renderAchievements() {
       </div>`;
   }).join('');
 
-  const titlesHtml = `
-    <div class="ach-titles-section">
-      <div class="section-heading">目前已取得稱號</div>
-      <div class="title-chips-wrap" style="margin-top:10px">
-        ${(gd.titles || ['旅人']).map(t => `
-          <button class="title-chip ${t === gd.activeTitle ? 'active' : ''}" onclick="setActiveTitle('${t}')">${t}</button>
-        `).join('')}
+  const ovPct = total ? Math.round(unlocked.size / total * 100) : 0;
+  const overviewHtml = `
+    <div class="ach-overview">
+      <div class="ach-ov-ring" style="--p:${ovPct}">
+        <div class="ach-ov-ring-in"><b class="tnum">${unlocked.size}</b><span>/ ${total}</span></div>
+      </div>
+      <div class="ach-ov-info">
+        <div class="ach-ov-headline">已解鎖 ${unlocked.size} 個成就 · ${ovPct}%</div>
+        <div class="ach-ov-sublabel">目前已取得稱號</div>
+        <div class="title-chips-wrap">
+          ${(gd.titles || ['旅人']).map(t => `
+            <button class="title-chip ${t === gd.activeTitle ? 'active' : ''}" onclick="setActiveTitle('${t}')">${t}</button>
+          `).join('')}
+        </div>
       </div>
     </div>`;
 
   document.getElementById('achievements-content').innerHTML = `
-    <div class="ach-summary-bar">
-      ${icon('trophy', 15)} 已解鎖 ${unlocked.size} / ${total}
-    </div>
-    ${titlesHtml}
+    ${overviewHtml}
     ${gridHtml}
     <div style="height:30px"></div>`;
 }

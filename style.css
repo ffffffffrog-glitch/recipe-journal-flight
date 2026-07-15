@@ -2720,6 +2720,10 @@ body.storage-error .page { padding-top: 44px; }
 .sidebar-player { display: none; }
 .recipe-detail-pane { display: none; }
 .diary-cal-rail { display: none; }
+.nav-group-label { display: none; }
+.nav-desktop-only { display: none; }
+.nav-label .nl-f { display: none; }
+.workout-stats-rail { display: none; }
 .tnum { font-variant-numeric: tabular-nums; }
 
 /* Desktop-only elements — hidden by default on mobile */
@@ -3517,7 +3521,6 @@ body.storage-error .page { padding-top: 44px; }
 /* ════════════ 超寬螢幕：任務/成就內容置中不過度拉伸（日誌與體組成改走流體） ════════════ */
 @media (min-width: 1800px) {
   #page-quests #quest-content { max-width: 1040px; }
-  #achievements-content { max-width: 1120px; }
 }
 
 /* ════════════ 桌機標題列改版：拿掉白底橫條，改大標題 + 副標（寬橫向思考） ════════════ */
@@ -3559,3 +3562,123 @@ body.storage-error .page { padding-top: 44px; }
   #page-workout .desktop-add-btn { order: 3; margin-left: 0; }
 }
 
+
+/* ════════════ 側欄分組導覽（拉出食材庫/成就館/設定） ════════════ */
+@media (min-width: 1024px) {
+  .nav-group-label {
+    display: block; order: 0;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    color: var(--text-3); padding: 14px 11px 5px;
+  }
+  .nav-group-label[data-grp="overview"] { padding-top: 8px; }
+  .nav-desktop-only { display: flex; }
+  .nav-label .nl-s { display: none; }
+  .nav-label .nl-f { display: inline; }
+
+  .bottom-nav .desktop-nav-header { order: 0; }
+  .nav-group-label[data-grp="overview"] { order: 1; }
+  .nav-btn[data-page="profile"]      { order: 2; }
+  .nav-btn[data-page="diary"]        { order: 3; }
+  .nav-btn[data-page="quests"]       { order: 4; }
+  .nav-group-label[data-grp="cook"]  { order: 5; }
+  .nav-btn[data-page="recipes"]      { order: 6; }
+  .nav-btn[data-page="fooddb"]       { order: 7; }
+  .nav-group-label[data-grp="body"]  { order: 8; }
+  .nav-btn[data-page="workout"]      { order: 9; }
+  .nav-btn[data-page="habits"]       { order: 10; }
+  .nav-btn[data-page="achievements"] { order: 11; }
+  .nav-group-label[data-grp="tools"] { order: 12; }
+  .nav-btn[data-page="settings"]     { order: 13; }
+  .sidebar-player { order: 14; }
+}
+
+/* ════════════ 每個標題下的副標（寬橫向、跳脫手機） ════════════ */
+@media (min-width: 1024px) {
+  .page-header .page-title::after {
+    display: block; margin-top: 4px;
+    font-size: 12.5px; font-weight: 500; color: var(--text-2);
+    letter-spacing: 0;
+  }
+  #page-recipes .page-title::after      { content: "翻閱你的私房食譜收藏"; }
+  #page-fooddb .page-title::after       { content: "管理常用食材與營養資料"; }
+  #page-quests .page-title::after       { content: "來自「地球 Online」的今日委託"; }
+  #page-workout .page-title::after      { content: "有氧與重訓的冒險軌跡"; }
+  #page-habits .page-title::after       { content: "每天累積，養成好習慣"; }
+  #page-achievements .page-title::after { content: "記錄你的每一個里程碑"; }
+  #page-inbody .page-title::after       { content: "追蹤體重與體態的變化"; }
+  #page-settings .page-title::after     { content: "外觀、資料備份與帳號同步"; }
+
+  /* 飲食日誌：拿掉白底 date-nav 橫條，改大標題 + 副標 */
+  #page-diary .date-nav {
+    background: transparent; border-bottom: none;
+    padding: 24px 30px 12px; gap: 10px; align-items: center;
+  }
+  .diary-title-desktop {
+    font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-right: 12px;
+  }
+  .diary-title-desktop::after {
+    content: "記錄每一餐，累積冒險經驗值";
+    display: block; margin-top: 4px;
+    font-size: 12.5px; font-weight: 500; color: var(--text-2);
+  }
+}
+
+/* ════════════ 成就總覽圓餅卡（提案樣式）+ 搜尋對齊 + 月曆點點微調 ════════════ */
+.ach-overview {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px 20px; margin-bottom: 16px;
+}
+.ach-ov-ring {
+  --p: 0; width: 88px; height: 88px; border-radius: 50%; flex-shrink: 0; position: relative;
+  background: conic-gradient(var(--sage) calc(var(--p) * 1%), var(--sage-faint) 0);
+  display: flex; align-items: center; justify-content: center;
+}
+.ach-ov-ring::after { content: ""; position: absolute; inset: 9px; background: var(--white); border-radius: 50%; }
+.ach-ov-ring-in { position: relative; z-index: 1; text-align: center; }
+.ach-ov-ring-in b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.ach-ov-ring-in span { font-size: 11px; color: var(--text-3); display: block; }
+.ach-ov-info { flex: 1; min-width: 200px; }
+.ach-ov-headline { font-size: 15px; font-weight: 700; color: var(--text); }
+.ach-ov-sublabel { font-size: 12px; color: var(--text-3); margin: 8px 0 8px; }
+
+@media (min-width: 1024px) {
+  /* 成就頁：搜尋框與下方內容同寬對齊 */
+  #page-achievements .ach-search-bar { max-width: 1080px; margin: 0 auto; padding: 0 24px; width: 100%; }
+  #achievements-content { max-width: 1080px; margin: 0 auto; padding: 10px 24px 44px; }
+  .ach-ov-ring { width: 96px; height: 96px; }
+  .ach-ov-ring::after { inset: 10px; }
+  .ach-ov-ring-in b { font-size: 24px; }
+
+  /* 月曆點點：稍大、上移更靠近數字 */
+  .dcal-cell.has::after { width: 5px; height: 5px; bottom: 5px; }
+}
+
+/* ════════════ 運動：2 欄（時間軸 + 統計卡）════════════ */
+@media (min-width: 1024px) {
+  #page-workout.active {
+    display: grid;
+    grid-template-columns: 1fr 304px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "header header" "chat stats";
+    height: 100%; overflow: hidden; padding: 0;
+  }
+  #page-workout .page-header { grid-area: header; }
+  #page-workout .workout-chat { grid-area: chat; }
+  #workout-stats {
+    grid-area: stats; display: block; overflow-y: auto;
+    border-left: 1px solid var(--border); background: var(--white); padding: 20px 18px;
+  }
+  .wstat-card .dash-wkbars { margin: 12px 0 6px; }
+  .wstat-rows { border-top: 1px solid var(--border); margin-top: 10px; }
+  .wstat-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; color: var(--text-2); }
+  .wstat-row:last-child { border-bottom: none; }
+  .wstat-row b { color: var(--text); font-weight: 700; }
+}
+
+/* 成就頁：以整頁 padding 置中同一個欄寬，搜尋框與內容左右完全對齊 */
+@media (min-width: 1024px) {
+  #page-achievements.active { padding-left: max(24px, calc((100% - 1080px) / 2)); padding-right: max(24px, calc((100% - 1080px) / 2)); }
+  #page-achievements .ach-search-bar { max-width: none; width: auto; margin: 0; padding: 0; }
+  #page-achievements #achievements-content { max-width: none; width: auto; margin: 0; padding: 6px 0 44px; overflow: visible !important; }
+}
