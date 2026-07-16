@@ -4308,6 +4308,15 @@ function _renderWorkoutStats() {
   const maxDay = Math.max(1, ...Object.values(dayCount));
   const bars = dayOrder.map((dn, i) => { const c = dayCount[dn] || 0; const h = c ? Math.max(15, Math.round(c / maxDay * 100)) : 6; return `<div><div class="dash-wkbar ${c ? 'on' : ''}" style="height:${h}%"></div><div class="d">${dayLbl[i]}</div></div>`; }).join('');
   const row = (l, v) => `<div class="wstat-row"><span>${l}</span><b class="tnum">${v}</b></div>`;
+  // 本月出席熱力圖
+  const y = now.getFullYear(), mo = now.getMonth();
+  const daysInMonth = new Date(y, mo + 1, 0).getDate();
+  const woDays = new Set(all.filter(w => { const d = new Date(w.date + 'T00:00:00'); return d.getFullYear() === y && d.getMonth() === mo; }).map(w => w.date));
+  let heat = '';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dstr = `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    heat += `<i class="${woDays.has(dstr) ? 'on' : ''}" title="${mo + 1}/${d}"></i>`;
+  }
   el.innerHTML = `
     <div class="wstat-card">
       <div class="eyebrow">本週統計</div>
@@ -4319,6 +4328,8 @@ function _renderWorkoutStats() {
         ${row('有氧總時長', cardioMin ? cardioMin + ' 分' : '—')}
         ${row('本月累計', monthCount + ' 次')}
       </div>
+      <div class="wstat-heat-label">本月出席</div>
+      <div class="wstat-heat">${heat}</div>
     </div>`;
 }
 
@@ -4682,7 +4693,18 @@ function renderHabitsDesktop() {
     return;
   }
 
-  container.innerHTML = `<div class="hdk-grid">${active.map(h => _buildHabitDesktopCard(h)).join('')}</div>`;
+  const log = getData('habitLog', {});
+  const todayDs = todayStr();
+  const doneToday = active.filter(h => (log[todayDs] || {})[h.id] === 'done').length;
+  const bestCur = active.reduce((mx, h) => Math.max(mx, calcHabitStreak(h.id)), 0);
+  const summary = `
+    <div class="hdk-summary">
+      <div class="hdk-sum"><b class="tnum">${doneToday}/${active.length}</b><span>今日完成</span></div>
+      <div class="hdk-sum"><b class="tnum">🔥 ${bestCur}</b><span>目前最長連續</span></div>
+      <div class="hdk-sum"><b class="tnum">${active.length}</b><span>進行中習慣</span></div>
+    </div>`;
+
+  container.innerHTML = summary + `<div class="hdk-grid">${active.map(h => _buildHabitDesktopCard(h)).join('')}</div>`;
 
   setTimeout(() => {
     active.forEach(h => {
@@ -5597,51 +5619,74 @@ function setInbodyTrendRange(range) {
 
 // ===== 體組成桌機版：體態儀表板（master-detail）=====
 let _ibdSelectedId = null;
+let _ibdChartMetric = 'weight';
+const IBD_METRICS = {
+  weight: { label: '體重', unit: 'kg', color: '#4D6A55', inc: true },
+  fatPct: { label: '體脂率', unit: '%', color: '#D98866', inc: false },
+  muscle: { label: '肌肉量', unit: 'kg', color: '#4A7FA5', inc: false },
+  bmi:    { label: 'BMI',   unit: '',   color: '#8A6520', inc: false },
+};
 
 function _ibdSelect(id) { _ibdSelectedId = id; renderInbody(); }
+function _ibdChart(m) { _ibdChartMetric = m; renderInbody(); }
 
 function _renderInbodyDesktop(allRecords, records, container) {
   const fmt = v => (v != null && v !== '') ? v : '—';
-  const hasData = records.length > 0;
-
-  // 選中的紀錄（預設最新）
   let sel = records.find(r => r.id === _ibdSelectedId) || records[0] || null;
 
-  // 今日快速體重
   const todayW = getData('weightLog', {})[todayStr()];
   const wInput = todayW != null ? todayW : '';
 
-  // 最新體重 + 與前一筆差值
-  const latest = records[0];
-  const prev   = records[1];
+  const latest = records[0], prev = records[1];
   let deltaHtml = '';
   if (latest && prev && latest.weight != null && prev.weight != null) {
     const d = r(latest.weight - prev.weight, 1);
     if (d !== 0) deltaHtml = `<span class="ibd-delta ${d < 0 ? 'down' : 'up'}">${d < 0 ? '↓' : '↑'} ${Math.abs(d)}</span>`;
   }
-
   const chip = (label, val) => `<div class="ibd-chip"><b class="tnum">${val}</b><span>${label}</span></div>`;
-  const statChips = latest ? `
-    ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
-    ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
-    ${chip('BMI', fmt(latest.bmi))}
-    ${chip('內臟脂肪', fmt(latest.visceral))}
-    ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : '';
 
-  const toggle = `
+  // 大趨勢圖（指標分頁 + 時間範圍）
+  const m = IBD_METRICS[_ibdChartMetric] || IBD_METRICS.weight;
+  const tabs = Object.entries(IBD_METRICS).map(([k, v]) =>
+    `<button class="ibd-mtab${k === _ibdChartMetric ? ' active' : ''}" onclick="_ibdChart('${k}')">${v.label}</button>`).join('');
+  const rangeToggle = `
     <div class="trend-toggle">
       <button class="trend-toggle-btn${_inbodyTrendRange==='3m'?' active':''}" onclick="setInbodyTrendRange('3m')">近3月</button>
       <button class="trend-toggle-btn${_inbodyTrendRange==='6m'?' active':''}" onclick="setInbodyTrendRange('6m')">近6月</button>
       <button class="trend-toggle-btn${_inbodyTrendRange==='all'?' active':''}" onclick="setInbodyTrendRange('all')">全部</button>
     </div>`;
-
-  const chartsHtml = allRecords.length >= 2 ? `
-    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">體重趨勢 (kg)</span>${toggle}</div><canvas id="trend-weight" class="trend-canvas" height="70" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas></div>
-    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">體脂率趨勢 (%)</span></div><canvas id="trend-fat" class="trend-canvas" height="70" onclick="openTrendDetail('fatPct','%','#D98866',false,'體脂率趨勢')"></canvas></div>
-    <div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">肌肉量趨勢 (kg)</span></div><canvas id="trend-muscle" class="trend-canvas" height="70" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas></div>`
+  const chartCard = allRecords.length >= 2
+    ? `<div class="ibd-chart-tabs">${tabs}</div>
+       <div class="ibd-chart-head"><span class="ibd-chart-title">${m.label}趨勢${m.unit ? ' (' + m.unit + ')' : ''}</span>${rangeToggle}</div>
+       <canvas id="ibd-big-chart" class="ibd-big-canvas" height="240" onclick="openTrendDetail('${_ibdChartMetric}','${m.unit}','${m.color}',${m.inc},'${m.label}趨勢')"></canvas>`
     : `<div class="ibd-empty-charts">至少 2 筆完整紀錄才會顯示趨勢圖</div>`;
 
-  // 選中紀錄的雷達 + 數據
+  // 最新快照卡（右）
+  const snapHtml = `
+    <div class="ibd-snap-hero">
+      <div class="ibd-hero-label">最新體重</div>
+      <div class="ibd-hero-num"><b class="tnum">${latest && latest.weight != null ? latest.weight : '—'}</b> <span class="ibd-hero-unit">kg</span> ${deltaHtml}</div>
+      <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
+    </div>
+    <div class="ibd-quickw">
+      <div class="ibd-quickw-label">${icon('activity', 13)} 今日體重</div>
+      <div class="ibd-quickw-row">
+        <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
+        <span class="qw-unit">kg</span>
+        <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
+      </div>
+    </div>
+    <div class="ibd-snap-grid">
+      ${latest ? `
+        ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
+        ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
+        ${chip('BMI', fmt(latest.bmi))}
+        ${chip('內臟脂肪', fmt(latest.visceral))}
+        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : '<div class="ibd-empty-charts">尚無完整紀錄</div>'}
+    </div>
+    <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>`;
+
+  // 底部：選中紀錄雷達 + 歷史清單
   const hasSeg = sel && (sel.leftArm || sel.rightArm || sel.trunk || sel.leftLeg || sel.rightLeg);
   const detailHtml = sel ? `
     <div class="ibd-detail-head">
@@ -5666,42 +5711,21 @@ function _renderInbodyDesktop(allRecords, records, container) {
     </div>`).join('') : `<div class="ibd-empty-charts">尚無紀錄</div>`;
 
   container.innerHTML = `
-    <div class="ibd">
-      <div class="ibd-snapshot">
-        <div class="ibd-hero">
-          <div class="ibd-hero-label">最新體重</div>
-          <div class="ibd-hero-num"><b class="tnum">${latest && latest.weight != null ? latest.weight : '—'}</b> <span class="ibd-hero-unit">kg</span> ${deltaHtml}</div>
-          <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
-        </div>
-        <div class="ibd-quickw">
-          <div class="ibd-quickw-label">${icon('activity', 13)} 今日體重</div>
-          <div class="ibd-quickw-row">
-            <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
-            <span class="qw-unit">kg</span>
-            <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
-          </div>
-        </div>
-        <div class="ibd-stats">${statChips}</div>
-        <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>
+    <div class="ibd ibd-a">
+      <div class="ibd-top2">
+        <div class="ibd-chart-card">${chartCard}</div>
+        <div class="ibd-snap-card">${snapHtml}</div>
       </div>
-
-      <div class="ibd-main">
-        <div class="ibd-charts">${chartsHtml}</div>
-        <div class="ibd-detail">
-          <div class="ibd-detail-card">${detailHtml}</div>
-          <div class="ibd-history-card">
-            <div class="ibd-history-title">歷史紀錄 <span>${records.length} 筆</span></div>
-            <div class="ibd-history-list">${historyHtml}</div>
-          </div>
+      <div class="ibd-bottom2">
+        <div class="ibd-detail-card">${detailHtml}</div>
+        <div class="ibd-history-card">
+          <div class="ibd-history-title">歷史紀錄 <span>${records.length} 筆</span></div>
+          <div class="ibd-history-list">${historyHtml}</div>
         </div>
       </div>
     </div>`;
 
-  if (allRecords.length >= 2) {
-    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true);
-    drawSingleTrendChart('trend-fat',    allRecords, 'fatPct', '%',  '#D98866', false);
-    drawSingleTrendChart('trend-muscle', allRecords, 'muscle', 'kg', '#4A7FA5', false);
-  }
+  if (allRecords.length >= 2) drawSingleTrendChart('ibd-big-chart', allRecords, _ibdChartMetric, m.unit, m.color, m.inc, 240);
   if (hasSeg) drawBodyMap(sel, 'ibd-radar-canvas');
 }
 
@@ -6028,13 +6052,13 @@ function _trendSeries(allRecords, field, includeWeightLog, range) {
 }
 
 // ===== SINGLE-METRIC TREND CHART =====
-function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeWeightLog) {
+function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeWeightLog, height = 65) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
   const series = _trendSeries(allRecords, field, includeWeightLog, _inbodyTrendRange);
 
-  const { ctx, W, H } = _crispCanvas(canvas, 65);
+  const { ctx, W, H } = _crispCanvas(canvas, height);
 
   if (series.length < 2) {
     ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
@@ -6892,18 +6916,25 @@ async function renderQuests() {
     const sideDone = td.side.filter(Boolean).length;
     const allMainDone = tasks.main.length > 0 && mainDone === tasks.main.length;
     const allDone = allMainDone && (tasks.side.length === 0 || sideDone === tasks.side.length);
+    const customDoneN = ctasks.filter(t => customDone[t.id]).length;
+    const totalN = tasks.main.length + tasks.side.length + ctasks.length;
+    const doneN  = mainDone + sideDone + customDoneN;
+    const pctN   = totalN ? Math.round(doneN / totalN * 100) : 0;
+    const remainN = totalN - doneN;
 
     dailyHtml = `
       ${isStale && !usingArchiveFallback ? `<div class="quest-stale-banner">${icon('info', 13)} 顯示 ${tasks.date} 的任務，今日任務更新中</div>` : ''}
       ${usingArchiveFallback ? `<div class="quest-stale-banner" style="background:#e8f2ff;border-left-color:#4a7fc0;color:#1a5ea0">${icon('info', 13)} 無法取得最新任務，以下為任務庫隨機任務</div>` : ''}
       <div class="quest-header-card ${allDone ? 'all-done' : ''}">
-        <div class="qhc-title">地球Online · 每日任務 <a href="https://www.threads.net/@earthonlinequest" target="_blank" rel="noopener" class="qhc-credit">• @earthonlinequest</a></div>
-        <div class="qhc-date">${tasks.date}</div>
-        <div class="qhc-progress">
-          主線 ${mainDone}/${tasks.main.length}
-          ${tasks.side.length ? ` · 支線 ${sideDone}/${tasks.side.length}` : ''}
-          ${allDone ? ' · ✦ 全部完成！' : ''}
+        <div class="qhc-ring" style="--p:${pctN}"><b class="tnum">${doneN}/${totalN}</b></div>
+        <div class="qhc-body">
+          <div class="qhc-title">地球Online · 每日任務 <a href="https://www.threads.net/@earthonlinequest" target="_blank" rel="noopener" class="qhc-credit">• @earthonlinequest</a></div>
+          <div class="qhc-date">${tasks.date}</div>
+          <div class="qhc-progress">
+            主線 ${mainDone}/${tasks.main.length}${tasks.side.length ? ` · 支線 ${sideDone}/${tasks.side.length}` : ''}${ctasks.length ? ` · 自訂 ${customDoneN}/${ctasks.length}` : ''}
+          </div>
         </div>
+        <div class="qhc-hint">${allDone ? '✦ 全部完成！' : (remainN > 0 ? `再完成 ${remainN} 項${allMainDone ? '' : '，主線全清 +30 XP'}` : '')}</div>
       </div>
       <div class="quest-section">
         <div class="quest-section-label">${icon('zap', 13)} 主線任務</div>
