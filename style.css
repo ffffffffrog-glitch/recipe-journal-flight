@@ -3930,3 +3930,53 @@ body.storage-error .page { padding-top: 44px; }
   #page-settings .settings-content { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; align-items: start; max-width: 1120px; }
   #page-settings .settings-version { grid-column: 1 / -1; }
 }
+
+/* ════════════ 第 7 輪修正 ════════════ */
+/* 成就總覽：手機無圓餅、卡片對齊搜尋框；桌機才有環 */
+#ach-overview-slot { padding: 0 14px; }
+.ach-ov-ring { display: none; }
+.ach-overview { margin-bottom: 12px; }
+@media (min-width: 1024px) {
+  #ach-overview-slot { padding: 0 30px; }
+  .ach-ov-ring { display: flex; }
+
+  /* 飲食日誌右側統計：浮起卡片、右側留白（不再貼邊）*/
+  #page-diary #daily-summary {
+    border-left: none; border: 1px solid var(--border); border-radius: 14px;
+    background: var(--white); margin: 4px 16px 16px 4px; padding: 18px;
+  }
+
+  /* 習慣：滿版靠左（拿掉置中），總覽列與卡片同寬對齊 */
+  .hdk-grid { max-width: none; margin: 0; }
+}
+
+/* ════════════ 體組成：全部圖表一次看到（滿版）════════════ */
+@media (min-width: 1024px) {
+  .ibd-b { max-width: none; padding: 8px 30px 44px; }
+  .ibd-b .ibd-snapshot {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px 22px; margin-bottom: 16px;
+  }
+  .ibd-charts-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 2px 10px; }
+  .ibd-charts-title { font-size: 14px; font-weight: 700; }
+  .ibd-charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .ibd-charts-row .trend-card { margin: 0; background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+}
+
+/* ════════════ 每日任務：改雙欄（任務填滿左側 + 右側進度欄）不再擠左空右 ════════════ */
+@media (min-width: 1024px) {
+  #page-quests #quest-content {
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px;
+    align-items: start; max-width: none; margin: 0; padding: 16px 30px 40px;
+  }
+  #quest-content > .quest-header-card {
+    grid-column: 2; grid-row: 1; flex-direction: column; text-align: center;
+    gap: 10px; position: sticky; top: 12px;
+  }
+  #quest-content > .quest-header-card .qhc-hint { text-align: center; max-width: none; }
+  #quest-content > .quest-header-card .qhc-body { text-align: center; }
+  #quest-content > .quest-section { grid-column: 1; margin: 0 0 14px; }
+  #quest-content > .quest-stale-banner,
+  #quest-content > .quest-loading { grid-column: 1 / -1; }
+}

@@ -5645,25 +5645,9 @@ function _renderInbodyDesktop(allRecords, records, container) {
   }
   const chip = (label, val) => `<div class="ibd-chip"><b class="tnum">${val}</b><span>${label}</span></div>`;
 
-  // 大趨勢圖（指標分頁 + 時間範圍）
-  const m = IBD_METRICS[_ibdChartMetric] || IBD_METRICS.weight;
-  const tabs = Object.entries(IBD_METRICS).map(([k, v]) =>
-    `<button class="ibd-mtab${k === _ibdChartMetric ? ' active' : ''}" onclick="_ibdChart('${k}')">${v.label}</button>`).join('');
-  const rangeToggle = `
-    <div class="trend-toggle">
-      <button class="trend-toggle-btn${_inbodyTrendRange==='3m'?' active':''}" onclick="setInbodyTrendRange('3m')">近3月</button>
-      <button class="trend-toggle-btn${_inbodyTrendRange==='6m'?' active':''}" onclick="setInbodyTrendRange('6m')">近6月</button>
-      <button class="trend-toggle-btn${_inbodyTrendRange==='all'?' active':''}" onclick="setInbodyTrendRange('all')">全部</button>
-    </div>`;
-  const chartCard = allRecords.length >= 2
-    ? `<div class="ibd-chart-tabs">${tabs}</div>
-       <div class="ibd-chart-head"><span class="ibd-chart-title">${m.label}趨勢${m.unit ? ' (' + m.unit + ')' : ''}</span>${rangeToggle}</div>
-       <canvas id="ibd-big-chart" class="ibd-big-canvas" height="240" onclick="openTrendDetail('${_ibdChartMetric}','${m.unit}','${m.color}',${m.inc},'${m.label}趨勢')"></canvas>`
-    : `<div class="ibd-empty-charts">至少 2 筆完整紀錄才會顯示趨勢圖</div>`;
-
-  // 最新快照卡（右）
+  // 快照列（橫向滿版）
   const snapHtml = `
-    <div class="ibd-snap-hero">
+    <div class="ibd-hero">
       <div class="ibd-hero-label">最新體重</div>
       <div class="ibd-hero-num"><b class="tnum">${latest && latest.weight != null ? latest.weight : '—'}</b> <span class="ibd-hero-unit">kg</span> ${deltaHtml}</div>
       <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
@@ -5676,15 +5660,32 @@ function _renderInbodyDesktop(allRecords, records, container) {
         <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
       </div>
     </div>
-    <div class="ibd-snap-grid">
+    <div class="ibd-stats">
       ${latest ? `
         ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
         ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
         ${chip('BMI', fmt(latest.bmi))}
         ${chip('內臟脂肪', fmt(latest.visceral))}
-        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : '<div class="ibd-empty-charts">尚無完整紀錄</div>'}
+        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : ''}
     </div>
     <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>`;
+
+  // 全部趨勢圖：一次看到（體重/體脂/肌肉/BMI）
+  const rangeToggle = `
+    <div class="trend-toggle">
+      <button class="trend-toggle-btn${_inbodyTrendRange==='3m'?' active':''}" onclick="setInbodyTrendRange('3m')">近3月</button>
+      <button class="trend-toggle-btn${_inbodyTrendRange==='6m'?' active':''}" onclick="setInbodyTrendRange('6m')">近6月</button>
+      <button class="trend-toggle-btn${_inbodyTrendRange==='all'?' active':''}" onclick="setInbodyTrendRange('all')">全部</button>
+    </div>`;
+  const CHARTS = [
+    ['trend-weight', 'weight', 'kg', '#4D6A55', true,  '體重'],
+    ['trend-fat',    'fatPct', '%',  '#D98866', false, '體脂率'],
+    ['trend-muscle', 'muscle', 'kg', '#4A7FA5', false, '肌肉量'],
+    ['trend-bmi',    'bmi',    '',   '#8A6520', false, 'BMI'],
+  ];
+  const chartsHtml = allRecords.length >= 2
+    ? CHARTS.map(c => `<div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">${c[5]}趨勢${c[2] ? ' (' + c[2] + ')' : ''}</span></div><canvas id="${c[0]}" class="trend-canvas" height="120" onclick="openTrendDetail('${c[1]}','${c[2]}','${c[3]}',${c[4]},'${c[5]}趨勢')"></canvas></div>`).join('')
+    : `<div class="ibd-empty-charts">至少 2 筆完整紀錄才會顯示趨勢圖</div>`;
 
   // 底部：選中紀錄雷達 + 歷史清單
   const hasSeg = sel && (sel.leftArm || sel.rightArm || sel.trunk || sel.leftLeg || sel.rightLeg);
@@ -5711,11 +5712,10 @@ function _renderInbodyDesktop(allRecords, records, container) {
     </div>`).join('') : `<div class="ibd-empty-charts">尚無紀錄</div>`;
 
   container.innerHTML = `
-    <div class="ibd ibd-a">
-      <div class="ibd-top2">
-        <div class="ibd-chart-card">${chartCard}</div>
-        <div class="ibd-snap-card">${snapHtml}</div>
-      </div>
+    <div class="ibd ibd-b">
+      <div class="ibd-snapshot">${snapHtml}</div>
+      <div class="ibd-charts-head"><span class="ibd-charts-title">體態趨勢</span>${allRecords.length >= 2 ? rangeToggle : ''}</div>
+      <div class="ibd-charts-row">${chartsHtml}</div>
       <div class="ibd-bottom2">
         <div class="ibd-detail-card">${detailHtml}</div>
         <div class="ibd-history-card">
@@ -5725,7 +5725,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
       </div>
     </div>`;
 
-  if (allRecords.length >= 2) drawSingleTrendChart('ibd-big-chart', allRecords, _ibdChartMetric, m.unit, m.color, m.inc, 240);
+  if (allRecords.length >= 2) CHARTS.forEach(c => drawSingleTrendChart(c[0], allRecords, c[1], c[2], c[3], c[4], 120));
   if (hasSeg) drawBodyMap(sel, 'ibd-radar-canvas');
 }
 
@@ -7727,7 +7727,7 @@ function renderAchievements() {
         <div class="ach-ov-ring" style="--p:${ovPct}">
           <div class="ach-ov-ring-in"><b class="tnum">${unlocked.size}</b><span>/ ${total}</span></div>
         </div>
-        <div class="ach-ov-headline">已解鎖 ${unlocked.size} 個成就 · ${ovPct}%</div>
+        <div class="ach-ov-headline">已解鎖 ${unlocked.size} / ${total} · ${ovPct}%</div>
       </div>
       <div class="ach-ov-titles">
         <div class="ach-ov-sublabel">目前已取得稱號</div>
