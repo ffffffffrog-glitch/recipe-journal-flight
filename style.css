@@ -3964,19 +3964,55 @@ body.storage-error .page { padding-top: 44px; }
   .ibd-charts-row .trend-card { margin: 0; background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
 }
 
-/* ════════════ 每日任務：改雙欄（任務填滿左側 + 右側進度欄）不再擠左空右 ════════════ */
-@media (min-width: 1024px) {
-  #page-quests #quest-content {
-    display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px;
-    align-items: start; max-width: none; margin: 0; padding: 16px 30px 40px;
-  }
-  #quest-content > .quest-header-card {
-    grid-column: 2; grid-row: 1; flex-direction: column; text-align: center;
-    gap: 10px; position: sticky; top: 12px;
-  }
-  #quest-content > .quest-header-card .qhc-hint { text-align: center; max-width: none; }
-  #quest-content > .quest-header-card .qhc-body { text-align: center; }
-  #quest-content > .quest-section { grid-column: 1; margin: 0 0 14px; }
-  #quest-content > .quest-stale-banner,
-  #quest-content > .quest-loading { grid-column: 1 / -1; }
+/* （每日任務雙欄版已還原為前一版的聚焦式單欄任務板，見上方 ① 區塊）*/
+
+/* ════════════ 第 8 輪修正 ════════════ */
+/* 習慣 1024–1960：壓縮總覽/網格寬度，別把卡片拉長 */
+@media (min-width: 1024px) and (max-width: 1959px) {
+  .hdk-grid, .hdk-summary { max-width: 1040px; }
 }
+
+/* 問候區稱號徽章 */
+.dash-greet-title {
+  margin-left: 10px; padding: 3px 11px; border-radius: 99px;
+  background: var(--sage-pale); color: var(--sage); font-size: 12px; font-weight: 700;
+  border: none; cursor: pointer; vertical-align: middle;
+}
+.dash-greet-title:hover { background: var(--sage); color: #fff; }
+/* 首頁習慣格：星期標籤 + 標出今天 */
+.dash-hs-head { margin-bottom: 2px; }
+.dash-hs-head .dash-hs-streak { font-size: 10px; color: var(--text-3); font-weight: 600; }
+.dash-hs-week.labels i { flex: 1; height: auto; background: none !important; font-size: 9.5px; color: var(--text-3); text-align: center; }
+.dash-hs-week.labels i.today { color: var(--sage); font-weight: 800; }
+.dash-hs-week i.today { outline: 1.5px solid var(--sage-mid); outline-offset: 1px; }
+
+/* 飲食日誌：日期切換獨立成一列（跨中欄+右欄），統計右欄頂端與餐卡對齊 */
+.diary-dateswitch-slot { display: none; }
+@media (min-width: 1024px) {
+  #page-diary.active {
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "datenav datenav datenav"
+      "cal     dsw     dsw"
+      "cal     entries summary";
+  }
+  #page-diary #diary-cal { grid-area: cal; }
+  #diary-dateswitch { grid-area: dsw; display: flex; align-items: center; gap: 10px; padding: 14px 16px 4px; }
+  #page-diary #diary-entries { grid-area: entries; }
+  #page-diary #daily-summary { grid-area: summary; margin: 16px 16px 16px 0; }
+}
+
+/* 體組成：趨勢圖上下堆疊（左欄）+ 右欄快照/雷達/歷史 */
+@media (min-width: 1024px) {
+  .ibd-c { max-width: none; padding: 8px 30px 44px; }
+  .ibd-2col { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+  .ibd-charts-col { display: flex; flex-direction: column; gap: 14px; }
+  .ibd-charts-col .trend-card { margin: 0; background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .ibd-charts-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 2px; }
+  .ibd-side-col { display: flex; flex-direction: column; gap: 14px; }
+  .ibd-snap-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .ibd-snap-card .ibd-quickw { padding: 0; border: none; margin: 12px 0; }
+}
+
+/* 成就內容不自帶捲軸（整頁一起捲，統計不冷凍）*/
+#achievements-content { overflow: visible !important; }

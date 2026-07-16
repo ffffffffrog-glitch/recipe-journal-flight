@@ -1873,14 +1873,13 @@ function renderDiary() {
     document.getElementById('daily-summary').innerHTML = _diarySummaryRail(tot, goals);
     _renderDiaryCalendar(ds);
     const atToday = ds >= todayStr();
-    const dsw = `
-      <div class="diary-dateswitch">
-        <button class="date-arrow" onclick="changeDiaryDate(-1)">‹</button>
-        <div class="diary-dsw-date" onclick="openDatePicker()">${formatDisplayDate(ds)}</div>
-        <button class="date-arrow" onclick="changeDiaryDate(1)"${atToday ? ' disabled' : ''}>›</button>
-      </div>`;
+    const dswEl = document.getElementById('diary-dateswitch');
+    if (dswEl) dswEl.innerHTML = `
+      <button class="date-arrow" onclick="changeDiaryDate(-1)">‹</button>
+      <div class="diary-dsw-date" onclick="openDatePicker()">${formatDisplayDate(ds)}</div>
+      <button class="date-arrow" onclick="changeDiaryDate(1)"${atToday ? ' disabled' : ''}>›</button>`;
     document.getElementById('diary-entries').innerHTML =
-      dsw + `<div class="diary-meals-grid">${MEALS.map(meal => _diaryMealCard(meal, grouped[meal], ds)).join('')}</div>`;
+      `<div class="diary-meals-grid">${MEALS.map(meal => _diaryMealCard(meal, grouped[meal], ds)).join('')}</div>`;
     return;
   }
 
@@ -2689,10 +2688,14 @@ function _buildDashboard() {
   // habits
   const habits = getData('habits', []).filter(h => !h.archived);
   const habitLog = getData('habitLog', {});
+  const _wkCh = ['日', '一', '二', '三', '四', '五', '六'];
+  let _wkLabels = '';
+  for (let i = 6; i >= 0; i--) { const dd = new Date(); dd.setDate(dd.getDate() - i); _wkLabels += `<i class="${i === 0 ? 'today' : ''}">${_wkCh[dd.getDay()]}</i>`; }
+  const habitHeader = habits.length ? `<div class="dash-hs dash-hs-head"><span class="dash-hs-dot" style="visibility:hidden"></span><span class="dash-hs-name"></span><div class="dash-hs-week labels">${_wkLabels}</div><span class="dash-hs-streak">連續</span></div>` : '';
   const habitRows = habits.map(h => {
     const streak = calcHabitStreak(h);
     let dots = '';
-    for (let i = 6; i >= 0; i--) { const dd = new Date(); dd.setDate(dd.getDate() - i); const ds = dateStr(dd); const on = (habitLog[ds] || {})[h.id] === 'done'; dots += `<i class="${on ? 'on' : ''}"></i>`; }
+    for (let i = 6; i >= 0; i--) { const dd = new Date(); dd.setDate(dd.getDate() - i); const ds = dateStr(dd); const on = (habitLog[ds] || {})[h.id] === 'done'; dots += `<i class="${on ? 'on' : ''}${i === 0 ? ' today' : ''}"></i>`; }
     return `<div class="dash-hs"><span class="dash-hs-dot" style="background:${h.color || 'var(--sage)'}"></span><span class="dash-hs-name">${h.name}</span><div class="dash-hs-week">${dots}</div><span class="dash-hs-streak tnum">🔥 ${streak}</span></div>`;
   }).join('');
 
@@ -2726,7 +2729,7 @@ function _buildDashboard() {
   <div class="dash">
     <div class="dash-greet">
       <div class="dash-greet-text">
-        <div class="dash-greet-h">${greet}，${profile.name || '冒險者'}</div>
+        <div class="dash-greet-h">${greet}，${profile.name || '冒險者'}<button class="dash-greet-title" onclick="navigateTo('achievements')" title="更換稱號">${gd.activeTitle || '旅人'}</button></div>
         <div class="dash-greet-sub">${_dashTodayLabel()}</div>
       </div>
       <div class="dash-greet-actions">
@@ -2781,7 +2784,7 @@ function _buildDashboard() {
 
       <div class="card dash-card b-habits" onclick="navigateTo('habits')" style="cursor:pointer">
         <div class="dash-card-h">習慣連續 <span class="dash-link">習慣 →</span></div>
-        ${habitRows ? `<div class="dash-habits">${habitRows}</div>` : '<div class="dash-empty">還沒有習慣，去新增一個吧</div>'}
+        ${habitRows ? `<div class="dash-habits">${habitHeader}${habitRows}</div>` : '<div class="dash-empty">還沒有習慣，去新增一個吧</div>'}
       </div>
 
       <div class="card dash-card b-quests" onclick="navigateTo('quests')" style="cursor:pointer">
@@ -5645,7 +5648,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
   }
   const chip = (label, val) => `<div class="ibd-chip"><b class="tnum">${val}</b><span>${label}</span></div>`;
 
-  // 快照列（橫向滿版）
+  // 最新快照卡（右欄直式）
   const snapHtml = `
     <div class="ibd-hero">
       <div class="ibd-hero-label">最新體重</div>
@@ -5660,7 +5663,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
         <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
       </div>
     </div>
-    <div class="ibd-stats">
+    <div class="ibd-snap-grid">
       ${latest ? `
         ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
         ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
@@ -5712,15 +5715,19 @@ function _renderInbodyDesktop(allRecords, records, container) {
     </div>`).join('') : `<div class="ibd-empty-charts">尚無紀錄</div>`;
 
   container.innerHTML = `
-    <div class="ibd ibd-b">
-      <div class="ibd-snapshot">${snapHtml}</div>
-      <div class="ibd-charts-head"><span class="ibd-charts-title">體態趨勢</span>${allRecords.length >= 2 ? rangeToggle : ''}</div>
-      <div class="ibd-charts-row">${chartsHtml}</div>
-      <div class="ibd-bottom2">
-        <div class="ibd-detail-card">${detailHtml}</div>
-        <div class="ibd-history-card">
-          <div class="ibd-history-title">歷史紀錄 <span>${records.length} 筆</span></div>
-          <div class="ibd-history-list">${historyHtml}</div>
+    <div class="ibd ibd-c">
+      <div class="ibd-2col">
+        <div class="ibd-charts-col">
+          <div class="ibd-charts-head"><span class="ibd-charts-title">體態趨勢</span>${allRecords.length >= 2 ? rangeToggle : ''}</div>
+          ${chartsHtml}
+        </div>
+        <div class="ibd-side-col">
+          <div class="ibd-snap-card">${snapHtml}</div>
+          <div class="ibd-detail-card">${detailHtml}</div>
+          <div class="ibd-history-card">
+            <div class="ibd-history-title">歷史紀錄 <span>${records.length} 筆</span></div>
+            <div class="ibd-history-list">${historyHtml}</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -7739,9 +7746,23 @@ function renderAchievements() {
       </div>
     </div>`;
 
+  const titleChips = (gd.titles || ['旅人']).map(t =>
+    `<button class="title-chip ${t === gd.activeTitle ? 'active' : ''}" onclick="setActiveTitle('${t}')">${t}</button>`).join('');
+  const mobileHead = `
+    <div class="ach-summary-bar">${icon('trophy', 15)} 已解鎖 ${unlocked.size} / ${total}</div>
+    <div class="ach-titles-section"><div class="section-heading">目前已取得稱號</div><div class="title-chips-wrap" style="margin-top:10px">${titleChips}</div></div>`;
+
   const slot = document.getElementById('ach-overview-slot');
-  if (slot) slot.innerHTML = overviewHtml;
-  document.getElementById('achievements-content').innerHTML = `${gridHtml}<div style="height:30px"></div>`;
+  const content = document.getElementById('achievements-content');
+  if (window.innerWidth >= 1024) {
+    // 桌機：圓餅總覽在搜尋框上方
+    if (slot) slot.innerHTML = overviewHtml;
+    content.innerHTML = `${gridHtml}<div style="height:30px"></div>`;
+  } else {
+    // 手機：搜尋 → 已解鎖 → 稱號 → 成就，全部一起捲動（無圓餅、不冷凍）
+    if (slot) slot.innerHTML = '';
+    content.innerHTML = `${mobileHead}${gridHtml}<div style="height:30px"></div>`;
+  }
 }
 
 // ===== ACHIEVEMENT MANAGEMENT (recompute / remove) =====
