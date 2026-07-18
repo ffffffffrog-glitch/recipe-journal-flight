@@ -408,7 +408,10 @@ function initStorage() {
   }
   if (!getData('recipes', null)) setData('recipes', []);
   if (!getData('diary', null)) setData('diary', {});
-  if (!getData('profile', null)) setData('profile', { name:'冒險者', goals: defaultGoals() });
+  // 用 raw 寫入、不經 setData → 不蓋同步時間戳。否則新裝置第一次開時的「預設 profile」
+  // 會拿到『現在』的時間戳，反而比雲端使用者真實 profile（較舊）更新，first-sync 時把
+  // 使用者的姓名／營養目標整包蓋成預設。不記時間戳，雲端真資料在 first-sync 就會勝出。
+  if (!getData('profile', null)) localStorage.setItem('profile', JSON.stringify({ name:'冒險者', goals: defaultGoals() }));
   if (!getData('gamification', null)) setData('gamification', {
     xp: 0, level: 1, achievements: [], titles: ['旅人'], activeTitle: '旅人', gold: 0,
   });
