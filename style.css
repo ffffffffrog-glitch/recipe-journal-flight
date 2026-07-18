@@ -3388,16 +3388,18 @@ body.storage-error .page { padding-top: 44px; }
   }
   .dcal-cell.blank { pointer-events: none; }
   .dcal-cell:hover:not(.blank) { background: var(--sage-faint); }
-  .dcal-cell.has::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--sage); }
-  .dcal-cell.has.over::after { background: var(--coral); }
+  /* 達標/超標圓點固定紅綠兩色，不跟隨主題色：熱量以內綠、超過紅 */
+  .dcal-cell.has::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: #4d9a5f; }
+  .dcal-cell.has.over::after { background: #d9534f; }
   .dcal-cell.today { font-weight: 700; color: var(--sage); }
   .dcal-cell.sel { background: var(--sage); color: #fff; font-weight: 700; }
-  .dcal-cell.sel.has::after { background: #fff; }
+  .dcal-cell.sel.has::after { background: #fff; }                 /* 選取日(綠點)在深底上改白點以求對比 */
+  .dcal-cell.sel.has.over::after { background: #d9534f; }         /* 但超標仍維持紅點 */
   /* legend */
   .dcal-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 10.5px; color: var(--text-3); }
   .dcal-legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-  .dcal-legend .lg-ok { background: var(--sage); }
-  .dcal-legend .lg-over { background: var(--coral); }
+  .dcal-legend .lg-ok { background: #4d9a5f; }
+  .dcal-legend .lg-over { background: #d9534f; }
   .dcal-info { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-2); }
   .dcal-info b { color: var(--sage); }
 
