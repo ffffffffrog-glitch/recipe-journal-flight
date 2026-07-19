@@ -2757,10 +2757,9 @@ function _buildDashboard() {
     </div>
 
     <div class="dash-links">
-      <button class="dash-link-btn" onclick="navigateTo('inbody')">${icon('activity', 15)} 體組成記錄</button>
-      <button class="dash-link-btn" onclick="navigateTo('achievements')">${icon('trophy', 15)} 成就館</button>
+      <button class="dash-link-btn" onclick="openProfileEdit()">${icon('user', 15)} 個人資料</button>
+      <button class="dash-link-btn" onclick="openGoalsWizard()">${icon('calculator', 15)} 飲食目標</button>
       <button class="dash-link-btn" onclick="openQASheet()">${icon('book-open', 15)} 知識庫</button>
-      <button class="dash-link-btn" onclick="navigateTo('settings')">${icon('settings', 15)} 設定</button>
     </div>
 
     <div class="dash-bento">
@@ -2837,7 +2836,6 @@ function _buildProfileEditForm() {
         <div class="profile-setup-item"><label>身高 (cm)</label><input type="number" id="body-height" value="${body.height || ''}" placeholder="170"></div>
         <div class="profile-setup-item"><label>體重 (kg)</label><input type="number" id="body-weight" value="${body.weight || lastInbody?.weight || ''}" placeholder="65" step="0.1"></div>
         <div class="profile-setup-item"><label>性別</label><select id="body-gender"><option value="male" ${body.gender === 'male' ? 'selected' : ''}>男</option><option value="female" ${body.gender === 'female' ? 'selected' : ''}>女</option></select></div>
-        <div class="profile-setup-item" style="grid-column:1/-1"><label>活動量</label><select id="body-activity"><option value="1.2" ${body.activity === '1.2' ? 'selected' : ''}>久坐（幾乎不運動）</option><option value="1.375" ${body.activity === '1.375' ? 'selected' : ''}>輕度（週1-3天）</option><option value="1.55" ${body.activity === '1.55' ? 'selected' : ''}>中度（週3-5天）</option><option value="1.725" ${body.activity === '1.725' ? 'selected' : ''}>高度（週6-7天）</option><option value="1.9" ${body.activity === '1.9' ? 'selected' : ''}>極高（每天高強度）</option></select></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn-ghost" style="flex:1" onclick="cancelProfileEdit()">取消</button>
@@ -3033,16 +3031,6 @@ function _buildPdtSettings() {
               <option value="female" ${body.gender === 'female' ? 'selected' : ''}>女</option>
             </select>
           </div>
-          <div class="profile-setup-item" style="grid-column:1/-1">
-            <label>活動量</label>
-            <select id="body-activity">
-              <option value="1.2"   ${body.activity === '1.2'   ? 'selected' : ''}>久坐（幾乎不運動）</option>
-              <option value="1.375" ${body.activity === '1.375' ? 'selected' : ''}>輕度（週1-3天）</option>
-              <option value="1.55"  ${body.activity === '1.55'  ? 'selected' : ''}>中度（週3-5天）</option>
-              <option value="1.725" ${body.activity === '1.725' ? 'selected' : ''}>高度（週6-7天）</option>
-              <option value="1.9"   ${body.activity === '1.9'   ? 'selected' : ''}>極高（每天高強度）</option>
-            </select>
-          </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:14px">
           <button class="btn-ghost" style="flex:1" onclick="cancelProfileEdit()">取消</button>
@@ -3164,16 +3152,6 @@ function renderProfile() {
           <select id="body-gender">
             <option value="male"   ${body.gender==='male'  ?'selected':''}>男</option>
             <option value="female" ${body.gender==='female'?'selected':''}>女</option>
-          </select>
-        </div>
-        <div class="profile-setup-item" style="grid-column:1/-1">
-          <label>活動量</label>
-          <select id="body-activity">
-            <option value="1.2"   ${body.activity==='1.2'   ?'selected':''}>久坐（幾乎不運動）</option>
-            <option value="1.375" ${body.activity==='1.375' ?'selected':''}>輕度（週1-3天）</option>
-            <option value="1.55"  ${body.activity==='1.55'  ?'selected':''}>中度（週3-5天）</option>
-            <option value="1.725" ${body.activity==='1.725' ?'selected':''}>高度（週6-7天）</option>
-            <option value="1.9"   ${body.activity==='1.9'  ?'selected':''}>極高（每天高強度）</option>
           </select>
         </div>
       </div>
@@ -3511,7 +3489,7 @@ function saveProfileSetup() {
     age:      parseFloat(document.getElementById('body-age')?.value)    || null,
     height:   parseFloat(document.getElementById('body-height')?.value) || null,
     weight:   parseFloat(document.getElementById('body-weight')?.value) || null,
-    activity: document.getElementById('body-activity')?.value         || '1.55',
+    activity: document.getElementById('body-activity')?.value || (profile.body || {}).activity || '1.55',   // 活動量已移至飲食目標精靈；表單無此欄時沿用既有值
   };
   setData('profile', profile);
   _profileEditMode = false;
@@ -3577,6 +3555,7 @@ function wizardStep1HTML() {
 function wizardStep2HTML() {
   const fatMass = r(_wizardWeight * _wizardFatPct / 100, 1);
   const leanMass = r(_wizardWeight - fatMass, 1);
+  const act = (getData('profile', {}).body || {}).activity || '1.55';
   return `
     <div class="wizard-step-content">
       <div class="wizard-step-title">確認你的體型數據</div>
@@ -3589,6 +3568,16 @@ function wizardStep2HTML() {
           <label>體脂率 (%)</label>
           <input type="number" id="wz-fat-pct" class="form-input" value="${_wizardFatPct}" step="0.5" min="5" max="60" oninput="updateWizardBodyCalc()">
         </div>
+      </div>
+      <div class="profile-setup-item" style="margin-top:12px">
+        <label>活動量（用來計算 TDEE）</label>
+        <select id="wz-activity" class="form-input">
+          <option value="1.2"   ${act==='1.2'  ?'selected':''}>久坐（幾乎不運動）</option>
+          <option value="1.375" ${act==='1.375'?'selected':''}>輕度（週1-3天）</option>
+          <option value="1.55"  ${act==='1.55' ?'selected':''}>中度（週3-5天）</option>
+          <option value="1.725" ${act==='1.725'?'selected':''}>高度（週6-7天）</option>
+          <option value="1.9"   ${act==='1.9'  ?'selected':''}>極高（每天高強度）</option>
+        </select>
       </div>
       <div id="wz-body-calc" style="font-size:.8rem;color:var(--text-3);margin-top:8px;padding:8px 12px;background:var(--bg);border-radius:var(--r-sm)">
         肌肉量約 ${leanMass} kg，脂肪量約 ${fatMass} kg
@@ -3700,6 +3689,14 @@ function goWizardStep(step) {
   if (step === 3) {
     _wizardWeight = parseFloat(document.getElementById('wz-weight')?.value) || _wizardWeight;
     _wizardFatPct = parseFloat(document.getElementById('wz-fat-pct')?.value) || _wizardFatPct;
+    // 活動量在精靈裡設定，寫回 body.activity 供 calcTDEE 使用
+    const av = document.getElementById('wz-activity')?.value;
+    if (av) {
+      const prof = getData('profile', {});
+      prof.body = prof.body || {};
+      prof.body.activity = av;
+      setData('profile', prof);
+    }
   }
   _wizardStep = step;
   renderWizard();
