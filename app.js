@@ -403,7 +403,9 @@ function initStorage() {
         return;
       }
       if (seen.has(keyOf(def))) return;
-      fdb.push(def);
+      // 標記 updatedAt=now：讓新併入的預設食材勝過任何殘留墓碑（例如還原備份留下的），
+      // 並可靠地跨裝置補上；只針對「新增的」預設，不影響使用者既有食材。
+      fdb.push({ ...def, updatedAt: Date.now() });
     });
     setData('foodDB', fdb);
     setData('foodDBDefaultsVersion', FOOD_DEFAULTS_VERSION);

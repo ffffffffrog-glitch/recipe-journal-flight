@@ -123,7 +123,7 @@ const DEFAULT_FOOD_DB = [
 
 // 每次擴充 DEFAULT_FOOD_DB 就 +1；initStorage 會把新的預設併入既有使用者的食物庫
 // （同名者略過，以使用者手動新增的為準）。
-const FOOD_DEFAULTS_VERSION = 7;
+const FOOD_DEFAULTS_VERSION = 8;
 
 // 升級時「只」對這幾筆預設強制同步分類（修正曾經分錯類的品項）；
 // 其餘一律保留使用者自己的分類編輯，不覆蓋。
