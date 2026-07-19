@@ -53,9 +53,9 @@ const DEFAULT_FOOD_DB = [
   { id:'f045', name:'切達起司', state:'加工品', category:'乳製品', per100g:{ calories:402, protein:24.9, fat:33.1, carbs:1.3, fiber:0 } },
   { id:'f046', name:'奶油（無鹽）', state:'加工品', category:'乳製品', per100g:{ calories:717, protein:0.9, fat:81.1, carbs:0.1, fiber:0 } },
   // === 油脂調味 ===
-  { id:'f047', name:'橄欖油', state:'加工品', category:'油脂', per100g:{ calories:884, protein:0, fat:100, carbs:0, fiber:0 } },
+  { id:'f047', name:'橄欖油', state:'加工品', category:'油脂', per100g:{ calories:884, protein:0, fat:100, carbs:0, fiber:0 }, servings:[{unit:'茶匙',grams:4.5},{unit:'大匙',grams:14}] },
   { id:'f048', name:'芝麻油', state:'加工品', category:'油脂', per100g:{ calories:884, protein:0, fat:100, carbs:0, fiber:0 } },
-  { id:'f049', name:'醬油', state:'加工品', category:'油脂', per100g:{ calories:53, protein:8.1, fat:0.1, carbs:4.9, fiber:0.8 } },
+  { id:'f049', name:'醬油', state:'加工品', category:'油脂', per100g:{ calories:53, protein:8.1, fat:0.1, carbs:4.9, fiber:0.8 }, servings:[{unit:'茶匙',grams:6},{unit:'大匙',grams:18}] },
   // === 水果 ===
   { id:'f050', name:'香蕉', state:'生食', category:'水果', per100g:{ calories:89, protein:1.1, fat:0.3, carbs:22.8, fiber:2.6 } },
   { id:'f051', name:'蘋果', state:'生食', category:'水果', per100g:{ calories:52, protein:0.3, fat:0.2, carbs:13.8, fiber:2.4 } },
@@ -111,11 +111,19 @@ const DEFAULT_FOOD_DB = [
   { id:'f096', name:'紅辣椒', state:'生食', category:'調味料', per100g:{ calories:40, protein:2.0, fat:0.6, carbs:8.0, fiber:4.0 }, serving:{ unit:'條', calories:2, protein:0.1, fat:0.03, carbs:0.4, fiber:0.2 }, note:'1 條約大拇指長度，切片後約裝滿 1/3 個中式湯匙（約 5g）' },
   { id:'f097', name:'黑胡椒粒', state:'加工品', category:'調味料', per100g:{ calories:250, protein:10.0, fat:3.5, carbs:65.0, fiber:25.0 }, serving:{ unit:'茶匙', calories:5, protein:0.2, fat:0.07, carbs:1.3, fiber:0.5 }, note:'1 茶匙約 2g ≈ 速食店胡椒包 2 包，或研磨罐轉 8～10 下' },
   { id:'f098', name:'九層塔', state:'生食', category:'調味料', per100g:{ calories:26, protein:3.0, fat:0.6, carbs:4.0, fiber:3.4 }, serving:{ unit:'把', calories:1.3, protein:0.15, fat:0.03, carbs:0.2, fiber:0.17 }, note:'1 把約 10 片生葉（約 5g），單手輕抓一小把；炒熟後嚴重縮水約剩 1 湯匙' },
+  { id:'f099', name:'鹽巴',   state:'加工品', category:'調味料', per100g:{ calories:0,   protein:0,   fat:0,   carbs:0,   fiber:0  }, servings:[{unit:'茶匙',grams:6},{unit:'大匙',grams:18}], note:'1 茶匙≈6g、1 大匙≈18g' },
+  { id:'f100', name:'砂糖',   state:'加工品', category:'調味料', per100g:{ calories:400, protein:0,   fat:0,   carbs:100, fiber:0  }, servings:[{unit:'茶匙',grams:4},{unit:'大匙',grams:12}], note:'1 茶匙≈4g、1 大匙≈12g' },
+  { id:'f101', name:'醬油膏', state:'加工品', category:'調味料', per100g:{ calories:100, protein:5,   fat:0,   carbs:18,  fiber:0  }, servings:[{unit:'茶匙',grams:6},{unit:'大匙',grams:18}], note:'比醬油濃稠帶甜；1 茶匙≈6g、1 大匙≈18g' },
+  { id:'f102', name:'味霖',   state:'加工品', category:'調味料', per100g:{ calories:230, protein:0.2, fat:0,   carbs:43,  fiber:0  }, servings:[{unit:'茶匙',grams:6},{unit:'大匙',grams:18}], note:'含糖與酒精，熱量高於三大營養素加總；1 茶匙≈6g、1 大匙≈18g' },
+  { id:'f103', name:'米酒',   state:'加工品', category:'調味料', per100g:{ calories:130, protein:0.5, fat:0,   carbs:0,   fiber:0  }, servings:[{unit:'茶匙',grams:5},{unit:'大匙',grams:15}], note:'台灣紅標/料理米酒為蒸餾酒，熱量全來自酒精；1 茶匙≈5g、1 大匙≈15g' },
+  { id:'f104', name:'白醋',   state:'加工品', category:'調味料', per100g:{ calories:20,  protein:0,   fat:0,   carbs:0.9, fiber:0  }, servings:[{unit:'茶匙',grams:5},{unit:'大匙',grams:15}], note:'1 茶匙≈5g、1 大匙≈15g' },
+  { id:'f105', name:'太白粉', state:'加工品', category:'調味料', per100g:{ calories:330, protein:0.1, fat:0.1, carbs:82,  fiber:0  }, servings:[{unit:'茶匙',grams:3},{unit:'大匙',grams:9}],  note:'勾芡用；1 茶匙≈3g、1 大匙≈9g' },
+  { id:'f106', name:'白胡椒', state:'加工品', category:'調味料', per100g:{ calories:296, protein:10,  fat:2,   carbs:69,  fiber:26 }, servings:[{unit:'茶匙',grams:2.3},{unit:'大匙',grams:7}], note:'總碳水含膳食纖維；1 茶匙≈2.3g、1 大匙≈7g' },
 ];
 
 // 每次擴充 DEFAULT_FOOD_DB 就 +1；initStorage 會把新的預設併入既有使用者的食物庫
 // （同名者略過，以使用者手動新增的為準）。
-const FOOD_DEFAULTS_VERSION = 6;
+const FOOD_DEFAULTS_VERSION = 7;
 
 // 升級時「只」對這幾筆預設強制同步分類（修正曾經分錯類的品項）；
 // 其餘一律保留使用者自己的分類編輯，不覆蓋。

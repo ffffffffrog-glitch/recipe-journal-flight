@@ -398,6 +398,8 @@ function initStorage() {
         if (fixIds.includes(def.id) && byId[def.id].category !== def.category) {
           byId[def.id].category = def.category;
         }
+        // 補上新版預設的份量換算表（茶匙/大匙），不覆蓋使用者既有的
+        if (def.servings && !byId[def.id].servings) byId[def.id].servings = def.servings;
         return;
       }
       if (seen.has(keyOf(def))) return;
@@ -463,6 +465,35 @@ function calcNutrition(food, grams) {
     carbs:    r(food.per100g.carbs    * m),
     fiber:    r(food.per100g.fiber    * m),
   };
+}
+
+// 依「單位 × 數量」算營養（中央邏輯）：
+// g/ml → per100g；新版 servings 陣列(克重) → per100g × 克重換算；舊版單一 serving(每份營養) → 相容
+function _unitNutrition(food, unit, amount) {
+  const a = amount || 0;
+  const zero = { calories:0, protein:0, fat:0, carbs:0, fiber:0 };
+  if (!food || !food.per100g) return zero;
+  if (unit === 'g' || unit === 'ml' || !unit) return calcNutrition(food, a);
+  const sv = (food.servings || []).find(s => s.unit === unit);
+  if (sv) return calcNutrition(food, (sv.grams || 0) * a);
+  if (food.serving && food.serving.unit === unit) {
+    return {
+      calories: r(food.serving.calories * a),
+      protein:  r(food.serving.protein  * a),
+      fat:      r(food.serving.fat      * a),
+      carbs:    r(food.serving.carbs    * a),
+      fiber:    r((food.serving.fiber || 0) * a),
+    };
+  }
+  return zero;
+}
+
+// 這個食材可選的單位清單（g + 各 servings 單位 + 舊 serving 單位）
+function _foodUnits(food) {
+  const units = ['g'];
+  (food && food.servings || []).forEach(s => { if (s.unit && !units.includes(s.unit)) units.push(s.unit); });
+  if (food && food.serving && food.serving.unit && !units.includes(food.serving.unit)) units.push(food.serving.unit);
+  return units;
 }
 
 function getDailyTotals(ds) {
@@ -1372,15 +1403,8 @@ function updateIngredientNutrition(gramsInput) {
   if (!foodId || !amount) { if (kcalEl) kcalEl.textContent = '—'; recalcRecipeTotals(); return; }
   const food = getData('foodDB', []).find(f => f.id === foodId);
   if (!food) { recalcRecipeTotals(); return; }
-  let kcal;
-  if (unit === 'g') {
-    kcal = r(food.per100g.calories * amount / 100);
-  } else if (food.serving && unit === food.serving.unit) {
-    kcal = r(food.serving.calories * amount);
-  } else {
-    if (kcalEl) kcalEl.textContent = '—'; recalcRecipeTotals(); return;
-  }
-  if (kcalEl) kcalEl.textContent = `${kcal}kcal`;
+  const n = _unitNutrition(food, unit, amount);
+  if (kcalEl) kcalEl.textContent = n.calories ? `${n.calories}kcal` : '—';
   recalcRecipeTotals();
 }
 
@@ -1398,20 +1422,12 @@ function recalcRecipeTotals() {
     if (!foodId || !amount) return;
     const food = foods.find(f => f.id === foodId);
     if (!food) return;
-    if (unit === 'g') {
-      const m = amount / 100;
-      tot.calories += food.per100g.calories * m;
-      tot.protein  += food.per100g.protein  * m;
-      tot.fat      += food.per100g.fat      * m;
-      tot.carbs    += food.per100g.carbs    * m;
-      tot.fiber    += food.per100g.fiber    * m;
-    } else if (food.serving && unit === food.serving.unit) {
-      tot.calories += food.serving.calories * amount;
-      tot.protein  += food.serving.protein  * amount;
-      tot.fat      += food.serving.fat      * amount;
-      tot.carbs    += food.serving.carbs    * amount;
-      tot.fiber    += food.serving.fiber    * amount;
-    }
+    const n = _unitNutrition(food, unit, amount);
+    tot.calories += n.calories;
+    tot.protein  += n.protein;
+    tot.fat      += n.fat;
+    tot.carbs    += n.carbs;
+    tot.fiber    += n.fiber;
   });
   const el = id => document.getElementById(id);
   if (el('tot-kcal'))    el('tot-kcal').textContent    = r(tot.calories);
@@ -1461,20 +1477,7 @@ function saveRecipeForm() {
     const unit = row.querySelector('.unit-select')?.value || 'g';
     const food = foods.find(f => f.id === foodId);
     const grams = unit === 'g' ? amount : 0;
-    let nutrition;
-    if (food && unit === 'g' && grams) {
-      nutrition = calcNutrition(food, grams);
-    } else if (food?.serving && unit === food.serving.unit && amount) {
-      nutrition = {
-        calories: r(food.serving.calories * amount),
-        protein:  r(food.serving.protein  * amount),
-        fat:      r(food.serving.fat      * amount),
-        carbs:    r(food.serving.carbs    * amount),
-        fiber:    r(food.serving.fiber    * amount),
-      };
-    } else {
-      nutrition = { calories:0, protein:0, fat:0, carbs:0, fiber:0 };
-    }
+    const nutrition = food ? _unitNutrition(food, unit, amount) : { calories:0, protein:0, fat:0, carbs:0, fiber:0 };
     ingredients.push({ foodId, name: ingName, amount, unit, grams, nutrition, group: row.dataset.group || 'main' });
   });
 
@@ -1608,7 +1611,7 @@ function _foodDBTable(foods) {
     const d = disp(f);
     const basis = (f.serving && f.serving.unit) ? `每${f.serving.unit}` : '每100g';
     return `<tr class="fd-row" onclick="openEditFoodForm('${f.id}')">
-      <td class="l fd-name">${f.name || '(未命名)'}</td>
+      <td class="l fd-name">${f.name || '(未命名)'}${(f.servings && f.servings.length) ? `<span class="fd-srv-hint">${f.servings.map(s => `${s.unit}≈${s.grams}g`).join('・')}</span>` : ''}</td>
       <td class="l"><span class="fd-cat">${f.category || '其他'}</span></td>
       <td class="l"><span class="fd-state">${f.state || '一般'}</span></td>
       <td class="l fd-basis">${basis}</td>
@@ -2413,18 +2416,25 @@ function selectFoodForDiary(foodId) {
   const f = state.selectedFoodForDiary;
   document.getElementById('dfdb-selected-info').textContent = `${f.name}（${f.state}）— 每100g ${f.per100g.calories}kcal`;
   const unitSel = document.getElementById('dfdb-unit-select');
+  const units = _foodUnits(f);          // ['g', '茶匙', '大匙', …] 或只有 ['g']
+  const hasServing = units.length > 1;
+  const defUnit = hasServing ? units[1] : 'g';
   if (unitSel) {
-    if (f.serving?.unit) {
-      unitSel.innerHTML = `<option value="g">公克 (g)</option><option value="${f.serving.unit}" selected>${f.serving.unit}（${f.serving.calories}kcal）</option>`;
-      unitSel.value = f.serving.unit;
+    if (hasServing) {
+      unitSel.innerHTML = units.map(u => {
+        const label = u === 'g' ? '公克 (g)' : `${u}（約 ${_unitNutrition(f, u, 1).calories}kcal）`;
+        return `<option value="${u}"${u === defUnit ? ' selected' : ''}>${label}</option>`;
+      }).join('');
+      unitSel.value = defUnit;
       unitSel.style.display = '';
     } else {
+      unitSel.innerHTML = `<option value="g">公克 (g)</option>`;
       unitSel.style.display = 'none';
     }
   }
   const lbl = document.getElementById('dfdb-amount-label');
-  if (lbl) lbl.textContent = f.serving?.unit || 'g / ml';
-  document.getElementById('dfdb-amount').value = f.serving?.unit ? '1' : '100';
+  if (lbl) lbl.textContent = hasServing ? defUnit : 'g / ml';
+  document.getElementById('dfdb-amount').value = hasServing ? '1' : '100';
   document.getElementById('dfdb-amount-section').style.display = 'block';
   updateFoodDBPreview();
 }
@@ -2434,9 +2444,7 @@ function updateFoodDBPreview() {
   if (!f) return;
   const unit = document.getElementById('dfdb-unit-select')?.value || 'g';
   const amt  = parseFloat(document.getElementById('dfdb-amount').value) || 0;
-  const n = (unit !== 'g' && f.serving)
-    ? { calories: r(f.serving.calories * amt), protein: r(f.serving.protein * amt), fat: r(f.serving.fat * amt), carbs: r(f.serving.carbs * amt) }
-    : calcNutrition(f, amt);
+  const n = _unitNutrition(f, unit, amt);
   document.getElementById('prev-kcal').textContent    = n.calories;
   document.getElementById('prev-protein').textContent = n.protein;
   document.getElementById('prev-fat').textContent     = n.fat;
@@ -2449,10 +2457,8 @@ function saveFoodDBDiaryEntry() {
   const unit = document.getElementById('dfdb-unit-select')?.value || 'g';
   const amt  = parseFloat(document.getElementById('dfdb-amount').value);
   if (!amt || amt <= 0) { showToast('請輸入有效的份量'); return; }
-  const useServing = unit !== 'g' && !!f.serving;
-  const nutrition  = useServing
-    ? { calories: r(f.serving.calories * amt), protein: r(f.serving.protein * amt), fat: r(f.serving.fat * amt), carbs: r(f.serving.carbs * amt), fiber: r((f.serving.fiber||0) * amt) }
-    : calcNutrition(f, amt);
+  const useServing = unit !== 'g' && unit !== 'ml';
+  const nutrition  = _unitNutrition(f, unit, amt);
   if (state.editingDiaryEntry) {
     const { date, id } = state.editingDiaryEntry;
     const diary = getData('diary', {});
