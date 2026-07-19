@@ -2740,7 +2740,7 @@ function _buildDashboard() {
     : `<div class="dash-empty">完成行動即可解鎖成就</div>`;
 
   const hour = now.getHours();
-  const greet = hour < 5 ? '夜深了' : hour < 11 ? '早安' : hour < 14 ? '午安' : hour < 18 ? '午後好' : '晚安';
+  const greet = hour < 5 ? '夜深了' : hour < 11 ? '早安' : hour < 18 ? '午安' : '晚安';
 
   return `
   <div class="dash">
@@ -4770,14 +4770,14 @@ function _drawHabitGrid(canvas, habitId, color) {
   const log = getData('habitLog', {});
   const W = 26, H = 7;
   const dpr = window.devicePixelRatio || 1;
-  // 桌機卡片有空間，方塊放大一點（提案樣式）
   const gap = 3;
-  const cellSize = 14;
-  const gridW = W * (cellSize + gap) - gap;
-  const gridH = H * (cellSize + gap) - gap;
-  canvas.style.width  = gridW + 'px';
+  // 讓方格填滿卡片寬度，使格線右緣與上方＋按鈕（卡片右緣）對齊
+  canvas.style.width = '100%';
+  const availW = canvas.clientWidth || (W * (14 + gap) - gap);
+  const cellSize = Math.max(10, (availW - (W - 1) * gap) / W);
+  const gridH = H * cellSize + (H - 1) * gap;
   canvas.style.height = gridH + 'px';
-  canvas.width  = Math.round(gridW * dpr);
+  canvas.width  = Math.round(availW * dpr);
   canvas.height = Math.round(gridH * dpr);
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
