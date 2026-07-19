@@ -1329,7 +1329,7 @@ function saveQuickCreateIngredientModal() {
   const unit = document.getElementById('qcf-modal-unit').value;
 
   const food = {
-    id: generateId('f'), name, state: '一般',
+    id: generateId('f'), name, state: '一般', category: '其他',
     per100g: { calories: cal, protein: pro, fat, carbs: carb, fiber: 0 },
     createdAt: new Date().toISOString().slice(0, 10),
   };

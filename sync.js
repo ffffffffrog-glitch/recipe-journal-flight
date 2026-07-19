@@ -23,12 +23,19 @@ const DATE_MAPS = ['diary', 'habitLog', 'weightLog'];
 // 合併單一鍵：集合做聯集、日期表做鍵聯集，其餘沿用「較新者勝」。
 function _mergeValue(key, localVal, remoteVal, remoteNewer) {
   if (ID_COLLECTIONS.includes(key) && Array.isArray(localVal) && Array.isArray(remoteVal)) {
-    const primary   = remoteNewer ? remoteVal : localVal;   // 較新一方的版本為準
-    const secondary = remoteNewer ? localVal : remoteVal;   // 另一方僅補進「對方沒有的 id」
-    const ids = new Set(primary.map(x => x && x.id).filter(Boolean));
-    const merged = primary.slice();
-    secondary.forEach(x => { if (x && x.id && !ids.has(x.id)) { merged.push(x); ids.add(x.id); } });
-    return merged;
+    // 以 id 聯集；同一 id 兩邊都有時，用「該筆的 updatedAt」較新者為準（不是用整包時間戳），
+    // 避免「A 裝置整包較新」就把 B 裝置對某一筆的較新編輯蓋掉。平手（含都沒 updatedAt）時保留 primary。
+    const primary   = remoteNewer ? remoteVal : localVal;
+    const secondary = remoteNewer ? localVal : remoteVal;
+    const byId = new Map();
+    primary.forEach(x => { if (x && x.id != null) byId.set(x.id, x); });
+    secondary.forEach(x => {
+      if (!x || x.id == null) return;
+      const cur = byId.get(x.id);
+      if (!cur) { byId.set(x.id, x); return; }
+      if ((x.updatedAt || 0) > (cur.updatedAt || 0)) byId.set(x.id, x);   // 逐筆較新者勝
+    });
+    return [...byId.values()];
   }
   if (DATE_MAPS.includes(key) && localVal && remoteVal
       && typeof localVal === 'object' && typeof remoteVal === 'object'
