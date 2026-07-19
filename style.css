@@ -584,8 +584,13 @@ img { max-width: 100%; display: block; }
 .add-row-btn {
   font-size: .8rem; color: var(--sage); border: 1px solid var(--sage-light);
   border-radius: 20px; padding: 4px 12px; background: var(--sage-pale);
-  font-family: var(--font); font-weight: 600; transition: all .15s;
+  font-family: var(--font); font-weight: 600; transition: all .15s; cursor: pointer;
 }
+.add-row-btn.full-width {
+  display: block; width: 100%; margin-top: 2px; padding: 9px; border-radius: var(--r-sm);
+  border-style: dashed; background: transparent;
+}
+.add-row-btn.full-width:hover { background: var(--sage-pale); }
 
 .ingredient-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; position: relative; }
 .ingredient-name-wrap { flex: 1; min-width: 0; position: relative; }

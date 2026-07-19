@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link rel="stylesheet" href="style.css?v=65">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -438,16 +438,11 @@
         <label class="form-label">食譜名稱</label>
         <input type="text" id="recipe-name" class="form-input" placeholder="例：番茄炒蛋">
       </div>
-      <div class="form-row">
-        <div class="form-section">
-          <label class="form-label">烹飪時間</label>
-          <div class="input-with-unit">
-            <input type="number" id="recipe-time" class="form-input" placeholder="30" min="0">
-            <span class="unit">分鐘</span>
-          </div>
-        </div>
-        <div class="form-section" style="display:flex;align-items:flex-end">
-          <div id="recipe-quick-kcal" style="font-size:0.78rem;color:var(--sage);font-weight:600;padding-bottom:10px;width:100%;text-align:center"></div>
+      <div class="form-section">
+        <label class="form-label">烹飪時間</label>
+        <div class="input-with-unit">
+          <input type="number" id="recipe-time" class="form-input" placeholder="30" min="0">
+          <span class="unit">分鐘</span>
         </div>
       </div>
       <!-- Ingredients -->
@@ -455,19 +450,16 @@
         <div class="section-header">
           <label class="form-label">食材</label>
           <div class="step-controls">
-            <button type="button" class="step-ctrl-btn" onclick="removeIngredientRowLast()">－</button>
-            <button type="button" class="step-ctrl-btn" onclick="addIngredientRow('main')">＋</button>
             <button type="button" class="new-food-btn" onclick="openQuickCreateIngredientModal()">新建食材</button>
           </div>
         </div>
         <div id="ingredient-rows"></div>
+        <button type="button" class="add-row-btn full-width" onclick="addIngredientRow('main')">＋ 新增食材</button>
         <div class="section-header" style="margin-top:14px">
           <label class="form-label">調味料</label>
-          <div class="step-controls">
-            <button type="button" class="step-ctrl-btn" onclick="addIngredientRow('seasoning')">＋</button>
-          </div>
         </div>
         <div id="seasoning-rows"></div>
+        <button type="button" class="add-row-btn full-width" onclick="addIngredientRow('seasoning')">＋ 新增調味料</button>
       </div>
       <!-- Nutrition auto summary -->
       <div class="nutrition-auto-card" id="nutrition-auto-card">
