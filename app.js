@@ -1882,16 +1882,24 @@ function deleteFoodConfirm(id) {
 // 並清掉這些內建 id 的墓碑，讓它們能跨裝置留存。使用者自訂食材不受影響。
 function restoreDefaultFoods() {
   if (typeof DEFAULT_FOOD_DB === 'undefined') return;
-  const have0 = new Set(getData('foodDB', []).map(f => f.id));
-  const missing = DEFAULT_FOOD_DB.filter(def => !have0.has(def.id));
+  const _fkey = f => (f.name || '') + '|' + (f.state || '');
+  const fdb0 = getData('foodDB', []);
+  const haveIds0 = new Set(fdb0.map(f => f.id));
+  const haveKeys0 = new Set(fdb0.map(_fkey));
+  // 只補「id 沒有、且名稱+狀態也沒有」的預設，避免和使用者已有的同名食材重複（比照 migration 去重）
+  const missing = DEFAULT_FOOD_DB.filter(def => !haveIds0.has(def.id) && !haveKeys0.has(_fkey(def)));
   if (!missing.length) { showToast('App 內建食材都在，無需補回'); return; }
   showConfirm(
     `將補回 <strong>${missing.length}</strong> 項 App 內建食材（含預設調味料）。你自訂的食材不受影響。`,
     () => {
       const fdb = getData('foodDB', []);
-      const have = new Set(fdb.map(f => f.id));
+      const ids = new Set(fdb.map(f => f.id));
+      const keys = new Set(fdb.map(_fkey));
       let n = 0;
-      DEFAULT_FOOD_DB.forEach(def => { if (!have.has(def.id)) { fdb.push({ ...def, updatedAt: Date.now() }); n++; } });
+      DEFAULT_FOOD_DB.forEach(def => {
+        if (ids.has(def.id) || keys.has(_fkey(def))) return;
+        fdb.push({ ...def, updatedAt: Date.now() }); ids.add(def.id); keys.add(_fkey(def)); n++;
+      });
       setData('foodDB', fdb);
       const t = getData('deletions', {});
       if (t.foodDB) { let ch = false; DEFAULT_FOOD_DB.forEach(def => { if (t.foodDB[def.id]) { delete t.foodDB[def.id]; ch = true; } }); if (ch) setData('deletions', t); }
