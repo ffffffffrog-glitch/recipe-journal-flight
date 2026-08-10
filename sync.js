@@ -10,7 +10,7 @@ const SYNC_KEYS = [
   'diary', 'foodDB', 'recipes', 'workoutLog', 'weightLog',
   'habits', 'habitLog', 'inbody', 'gamification', 'profile',
   'dailyQuestsDone', 'appTheme', 'askWeightDaily', 'avatarData',
-  'deletions',
+  'deletions', 'waistLog',
 ];
 // 墓碑保留天數：超過此天數的刪除記錄會被回收（假設所有裝置都在此期間內同步過一次）
 const TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
@@ -18,7 +18,7 @@ const TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 // 以 id 為主鍵的「集合」：合併時做「聯集」而非整包覆蓋，避免任一裝置的新增品項被另一裝置蓋掉。
 const ID_COLLECTIONS = ['foodDB', 'recipes', 'inbody', 'workoutLog', 'habits'];
 // 以日期為 key 的「對照表」：合併日期鍵的聯集（同一天以較新一方為準）。
-const DATE_MAPS = ['diary', 'habitLog', 'weightLog'];
+const DATE_MAPS = ['diary', 'habitLog', 'weightLog', 'waistLog'];
 
 // 合併單一鍵：集合做聯集、日期表做鍵聯集，其餘沿用「較新者勝」。
 function _mergeValue(key, localVal, remoteVal, remoteNewer) {

@@ -5586,6 +5586,8 @@ function renderInbody() {
   const todayWLog = getData('weightLog', {});
   const todayW = todayWLog[todayStr()];
   const wInput = todayW != null ? todayW : '';
+  const todayWaist = getData('waistLog', {})[todayStr()];
+  const waistInput = todayWaist != null ? todayWaist : '';
   let html = `
     <div class="inbody-top">
     <div class="quick-weight-card">
@@ -5600,6 +5602,14 @@ function renderInbody() {
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
     </div>
+    </div>
+    <div class="quick-weight-card" style="margin-top:10px">
+      <div class="qw-label">${icon('activity', 14)} <select id="waist-day" class="qw-day" onchange="onWaistDateChange()">${_wlogDayOptions()}</select> 腰圍</div>
+      <div class="qw-row">
+        <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistInput}">
+        <span class="qw-unit">cm</span>
+        <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
+      </div>
     </div>`;
 
   // Last record time — plain centered text, no box
@@ -5708,6 +5718,8 @@ function _renderInbodyDesktop(allRecords, records, container) {
 
   const todayW = getData('weightLog', {})[todayStr()];
   const wInput = todayW != null ? todayW : '';
+  const todayWaistD = getData('waistLog', {})[todayStr()];
+  const waistInputD = todayWaistD != null ? todayWaistD : '';
 
   const latest = records[0], prev = records[1];
   let deltaHtml = '';
@@ -5732,14 +5744,21 @@ function _renderInbodyDesktop(allRecords, records, container) {
         <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
       </div>
     </div>
+    <div class="ibd-quickw">
+      <div class="ibd-quickw-label">${icon('activity', 13)} <select id="waist-day" class="qw-day" onchange="onWaistDateChange()">${_wlogDayOptions()}</select> 腰圍</div>
+      <div class="ibd-quickw-row">
+        <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistInputD}">
+        <span class="qw-unit">cm</span>
+        <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
+      </div>
+    </div>
     <div class="ibd-snap-grid">
       ${latest ? `
         ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
         ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
         ${chip('BMI', fmt(latest.bmi))}
         ${chip('內臟脂肪', fmt(latest.visceral))}
-        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}
-        ${chip('腰圍', latest.waist != null ? latest.waist + ' cm' : '—')}` : ''}
+        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : ''}
     </div>
     <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>`;
 
@@ -5755,7 +5774,6 @@ function _renderInbodyDesktop(allRecords, records, container) {
     ['trend-fat',    'fatPct', '%',  '#D98866', false, '體脂率'],
     ['trend-muscle', 'muscle', 'kg', '#4A7FA5', false, '肌肉量'],
     ['trend-bmi',    'bmi',    '',   '#8A6520', false, 'BMI'],
-    ['trend-waist',  'waist',  'cm', '#7c5fb0', false, '腰圍'],
   ];
   const chartsHtml = allRecords.length >= 2
     ? CHARTS.map(c => `<div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">${c[5]}趨勢${c[2] ? ' (' + c[2] + ')' : ''}</span></div><canvas id="${c[0]}" class="trend-canvas" height="120" onclick="openTrendDetail('${c[1]}','${c[2]}','${c[3]}',${c[4]},'${c[5]}趨勢')"></canvas></div>`).join('')
@@ -5775,7 +5793,6 @@ function _renderInbodyDesktop(allRecords, records, container) {
       ${chip('BMI', fmt(sel.bmi))}
       ${chip('內臟脂肪', fmt(sel.visceral))}
       ${chip('基礎代謝', sel.bmr ? sel.bmr + ' kcal' : '—')}
-      ${chip('腰圍', sel.waist != null ? sel.waist + ' cm' : '—')}
     </div>
     ${hasSeg ? `<div class="ibd-radar-label">部位肌肉分析</div><div class="ibd-radar-wrap"><canvas id="ibd-radar-canvas" style="display:block;width:100%"></canvas></div>` : `<div class="ibd-empty-charts" style="margin-top:12px">此筆無部位肌肉資料</div>`}`
     : `<div class="ibd-empty-charts">尚無完整紀錄</div>`;
@@ -6082,6 +6099,26 @@ function onWlogDateChange() {
   const d = document.getElementById('wlog-day')?.value || todayStr();
   const w = getData('weightLog', {})[d];
   const inp = document.getElementById('wlog-input');
+  if (inp) inp.value = (w != null ? w : '');
+}
+
+// 腰圍記錄（獨立於 InBody 完整記錄；用 waistLog 日期表，跟體重同一套下拉補記）
+function saveWaistLog() {
+  const val = parseFloat(document.getElementById('waistlog-input')?.value);
+  if (!val || val <= 0) { showToast('請輸入有效腰圍'); return; }
+  let date = document.getElementById('waist-day')?.value || todayStr();
+  if (date > todayStr()) date = todayStr();
+  const log = getData('waistLog', {});
+  log[date] = val;
+  setData('waistLog', log);
+  showToast(`已記錄 ${date === todayStr() ? '今日' : date} 腰圍 ${val} cm`);
+  if (document.getElementById('inbody-content')) renderInbody();
+  if (document.getElementById('profile-content')) renderProfile();
+}
+function onWaistDateChange() {
+  const d = document.getElementById('waist-day')?.value || todayStr();
+  const w = getData('waistLog', {})[d];
+  const inp = document.getElementById('waistlog-input');
   if (inp) inp.value = (w != null ? w : '');
 }
 
@@ -6435,10 +6472,6 @@ function buildInbodyCard(rec) {
           <span class="inbody-metric-val">${fmt(rec.bmr)}<span class="inbody-metric-unit" style="font-size:.75rem">kcal</span></span>
           <span class="inbody-metric-lbl">基礎代謝</span>
         </div>
-        <div class="inbody-metric">
-          <span class="inbody-metric-val">${fmt(rec.waist)}<span class="inbody-metric-unit">cm</span></span>
-          <span class="inbody-metric-lbl">腰圍</span>
-        </div>
       </div>
       ${hasSeg ? `
       <div class="inbody-bodymap-wrap" style="margin-top:10px">
@@ -6726,7 +6759,7 @@ function openAddInbodySheet() {
   document.getElementById('inbody-record-id').value = '';
   document.getElementById('inbody-date').value = todayStr();
   document.getElementById('inbody-delete-row').style.display = 'none';
-  ['inbody-weight','inbody-fat-pct','inbody-muscle','inbody-bmi','inbody-visceral','inbody-bmr','inbody-waist']
+  ['inbody-weight','inbody-fat-pct','inbody-muscle','inbody-bmi','inbody-visceral','inbody-bmr']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   clearInbodySegFields();
   openBottomSheet('sheet-inbody-form');
@@ -6745,7 +6778,6 @@ function openEditInbodySheet(recordId) {
   document.getElementById('inbody-bmi').value      = rec.bmi      ?? '';
   document.getElementById('inbody-visceral').value = rec.visceral ?? '';
   document.getElementById('inbody-bmr').value      = rec.bmr      ?? '';
-  document.getElementById('inbody-waist').value    = rec.waist    ?? '';
   fillInbodySegFields(rec);
   document.getElementById('inbody-delete-row').style.display = 'block';
   openBottomSheet('sheet-inbody-form');
@@ -6763,10 +6795,9 @@ function saveInbodyRecord() {
     bmi:      parseFloatOrNull('inbody-bmi'),
     visceral: parseFloatOrNull('inbody-visceral'),
     bmr:      parseFloatOrNull('inbody-bmr'),
-    waist:    parseFloatOrNull('inbody-waist'),
     ...seg,
   };
-  if (!rec.weight && !rec.fatPct && !rec.muscle && !rec.waist) { showToast('請至少填寫一項數據'); return; }
+  if (!rec.weight && !rec.fatPct && !rec.muscle) { showToast('請至少填寫一項數據'); return; }
   rec.updatedAt = Date.now();
   const records = getData('inbody', []);
   const idx = records.findIndex(r => r.id === id);
