@@ -1912,10 +1912,10 @@ body.storage-error .page { padding-top: 44px; }
 }
 .qw-input:focus { outline: none; border-color: var(--sage); }
 .qw-unit { font-size: .8rem; color: var(--text-3); }
-.qw-date {
-  margin-left: 4px; padding: 3px 6px; border-radius: 6px;
+.qw-day {
+  padding: 2px 4px; border-radius: 6px;
   border: 1.5px solid var(--border); background: var(--bg);
-  color: var(--text-2); font-size: .78rem; font-family: var(--font);
+  color: var(--text-1); font-size: .82rem; font-weight: 600; font-family: var(--font); cursor: pointer;
 }
 .qw-btn {
   padding: 7px 14px; border-radius: 8px;

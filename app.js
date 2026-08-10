@@ -5589,7 +5589,7 @@ function renderInbody() {
   let html = `
     <div class="inbody-top">
     <div class="quick-weight-card">
-      <div class="qw-label">${icon('activity', 14)} 記錄體重 <input type="date" id="wlog-date" class="qw-date" value="${todayStr()}" max="${todayStr()}" onchange="onWlogDateChange()"></div>
+      <div class="qw-label">${icon('activity', 14)} <select id="wlog-day" class="qw-day" onchange="onWlogDateChange()">${_wlogDayOptions()}</select> 體重</div>
       <div class="qw-row">
         <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
         <span class="qw-unit">kg</span>
@@ -5725,7 +5725,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
       <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
     </div>
     <div class="ibd-quickw">
-      <div class="ibd-quickw-label">${icon('activity', 13)} 記錄體重 <input type="date" id="wlog-date" class="qw-date" value="${todayStr()}" max="${todayStr()}" onchange="onWlogDateChange()"></div>
+      <div class="ibd-quickw-label">${icon('activity', 13)} <select id="wlog-day" class="qw-day" onchange="onWlogDateChange()">${_wlogDayOptions()}</select> 體重</div>
       <div class="ibd-quickw-row">
         <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
         <span class="qw-unit">kg</span>
@@ -6054,7 +6054,7 @@ function scrollCarouselTo(idx) {
 function saveWeightLog() {
   const val = parseFloat(document.getElementById('wlog-input')?.value);
   if (!val || val <= 0) { showToast('請輸入有效體重'); return; }
-  let date = document.getElementById('wlog-date')?.value || todayStr();
+  let date = document.getElementById('wlog-day')?.value || todayStr();
   if (date > todayStr()) date = todayStr();   // 不允許記錄未來日期
   const log = getData('weightLog', {});
   log[date] = val;
@@ -6064,9 +6064,21 @@ function saveWeightLog() {
   if (document.getElementById('inbody-content')) renderInbody();
 }
 
+// 體重記錄日期下拉：今天/昨天/前天/N天前（近 8 天）
+function _wlogDayOptions() {
+  const labels = ['今天', '昨天', '前天'];
+  let out = '';
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = dateStr(d);
+    out += `<option value="${ds}"${i === 0 ? ' selected' : ''}>${labels[i] || i + '天前'}</option>`;
+  }
+  return out;
+}
+
 // 補記體重：切換日期時，把該日已存在的體重帶入輸入框
 function onWlogDateChange() {
-  const d = document.getElementById('wlog-date')?.value || todayStr();
+  const d = document.getElementById('wlog-day')?.value || todayStr();
   const w = getData('weightLog', {})[d];
   const inp = document.getElementById('wlog-input');
   if (inp) inp.value = (w != null ? w : '');
@@ -6074,6 +6086,7 @@ function onWlogDateChange() {
 
 function checkDailyWeightPrompt() {
   if (getData('askWeightDaily', true) === false) return;   // 使用者可在設定關閉
+  if (new Date().getHours() < 4) return;                   // 凌晨 4 點前不打擾（量體重多在起床後，剛換日不該跳）
   const today = todayStr();
   const wLog = getData('weightLog', {});
   if (wLog[today] != null) return;
