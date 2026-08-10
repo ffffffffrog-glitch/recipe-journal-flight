@@ -6071,7 +6071,8 @@ function _wlogDayOptions() {
   for (let i = 0; i < 8; i++) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const ds = dateStr(d);
-    out += `<option value="${ds}"${i === 0 ? ' selected' : ''}>${labels[i] || i + '天前'}</option>`;
+    const label = labels[i] || `${d.getMonth() + 1}/${d.getDate()}`;   // 前天之前直接顯示日期，比「N天前」好讀
+    out += `<option value="${ds}"${i === 0 ? ' selected' : ''}>${label}</option>`;
   }
   return out;
 }
