@@ -48,11 +48,33 @@ function renderSettings() {
   }
   const wt = document.getElementById('ask-weight-toggle');
   if (wt) wt.checked = getData('askWeightDaily', true) !== false;
+  const sw = document.getElementById('show-waist-toggle');
+  if (sw) sw.checked = getData('showWaist', true) !== false;
+  const ss = document.getElementById('show-sleep-toggle');
+  const sleepOn = getData('showSleep', true) !== false;
+  if (ss) ss.checked = sleepOn;
+  const sp = document.getElementById('sleep-prompt-toggle');
+  if (sp) { sp.checked = getData('sleepMorningPrompt', false) === true; sp.disabled = !sleepOn; }
+  const spRow = document.getElementById('sleep-prompt-row');
+  if (spRow) spRow.style.opacity = sleepOn ? '' : '.45';
 }
 
 function toggleAskWeight(on) {
   setData('askWeightDaily', !!on);
   showToast(on ? '已開啟每日體重提醒' : '已關閉每日體重提醒');
+}
+function toggleShowWaist(on) {
+  setData('showWaist', !!on);
+  if (document.getElementById('inbody-content')) renderInbody();
+}
+function toggleShowSleep(on) {
+  setData('showSleep', !!on);
+  renderSettings();   // 更新子項（彈窗）的可用狀態
+  if (document.getElementById('inbody-content')) renderInbody();
+}
+function toggleSleepPrompt(on) {
+  setData('sleepMorningPrompt', !!on);
+  showToast(on ? '已開啟睡眠早上提醒' : '已關閉睡眠早上提醒');
 }
 
 function renderThemePicker() {
@@ -5582,34 +5604,12 @@ function renderInbody() {
 
   if (window.innerWidth >= 1024) { _renderInbodyDesktop(allRecords, records, container); return; }
 
-  // Today's quick weight card
-  const todayWLog = getData('weightLog', {});
-  const todayW = todayWLog[todayStr()];
-  const wInput = todayW != null ? todayW : '';
-  const todayWaist = getData('waistLog', {})[todayStr()];
-  const waistInput = todayWaist != null ? todayWaist : '';
+  // 記錄區：體重／睡眠／腰圍 合併一個 block（放最上面），圖表擺下方
   let html = `
-    <div class="inbody-top">
-    <div class="quick-weight-card">
-      <div class="qw-label">${icon('activity', 14)} <select id="wlog-day" class="qw-day" onchange="onWlogDateChange()">${_wlogDayOptions()}</select> 體重</div>
-      <div class="qw-row">
-        <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
-        <span class="qw-unit">kg</span>
-        <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
-      </div>
-    </div>
-    <div class="weight-7d-card">
+    ${_healthRecordBlock()}
+    <div class="weight-7d-card" style="margin-top:12px">
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
-    </div>
-    </div>
-    <div class="quick-weight-card" style="margin-top:10px">
-      <div class="qw-label">${icon('activity', 14)} <select id="waist-day" class="qw-day" onchange="onWaistDateChange()">${_wlogDayOptions()}</select> 腰圍</div>
-      <div class="qw-row">
-        <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistInput}">
-        <span class="qw-unit">cm</span>
-        <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
-      </div>
     </div>`;
 
   // Last record time — plain centered text, no box
@@ -5736,22 +5736,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
       <div class="ibd-hero-num"><b class="tnum">${latest && latest.weight != null ? latest.weight : '—'}</b> <span class="ibd-hero-unit">kg</span> ${deltaHtml}</div>
       <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
     </div>
-    <div class="ibd-quickw">
-      <div class="ibd-quickw-label">${icon('activity', 13)} <select id="wlog-day" class="qw-day" onchange="onWlogDateChange()">${_wlogDayOptions()}</select> 體重</div>
-      <div class="ibd-quickw-row">
-        <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
-        <span class="qw-unit">kg</span>
-        <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
-      </div>
-    </div>
-    <div class="ibd-quickw">
-      <div class="ibd-quickw-label">${icon('activity', 13)} <select id="waist-day" class="qw-day" onchange="onWaistDateChange()">${_wlogDayOptions()}</select> 腰圍</div>
-      <div class="ibd-quickw-row">
-        <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistInputD}">
-        <span class="qw-unit">cm</span>
-        <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
-      </div>
-    </div>
+    ${_healthRecordBlock()}
     <div class="ibd-snap-grid">
       ${latest ? `
         ${chip('體脂率', latest.fatPct != null ? latest.fatPct + '%' : '—')}
@@ -6122,6 +6107,87 @@ function onWaistDateChange() {
   if (inp) inp.value = (w != null ? w : '');
 }
 
+// ===== 睡眠記錄 =====
+// sleepLog[date] = [{s:'HH:MM', e:'HH:MM'}, …]（一天可多段，含午覺）
+function _sleepMin(iv) {
+  if (!iv || !iv.s || !iv.e) return 0;
+  const [sh, sm] = iv.s.split(':').map(Number);
+  const [eh, em] = iv.e.split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins <= 0) mins += 1440;   // 跨午夜
+  return mins;
+}
+function _sleepDayTotal(date) { return (getData('sleepLog', {})[date] || []).reduce((a, iv) => a + _sleepMin(iv), 0); }
+function _sleepWeekAvg() {   // 近 7 天、以「有記錄的天數」平均
+  let tot = 0, days = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = _sleepDayTotal(dateStr(d)); if (t > 0) { tot += t; days++; } }
+  return days ? Math.round(tot / days) : 0;
+}
+function _fmtMin(m) { m = Math.round(m); return `${Math.floor(m / 60)} 時 ${m % 60} 分`; }
+
+function saveSleepInterval() {
+  const s = document.getElementById('sleep-start')?.value;
+  const e = document.getElementById('sleep-end')?.value;
+  if (!s || !e) { showToast('請填就寢與起床時間'); return; }
+  const log = getData('sleepLog', {});
+  const t = todayStr();
+  if (!log[t]) log[t] = [];
+  log[t].push({ s, e });
+  setData('sleepLog', log);
+  showToast(`已記錄睡眠 ${_fmtMin(_sleepMin({ s, e }))}`);
+  if (document.getElementById('inbody-content')) renderInbody();
+}
+function removeSleepInterval(date, idx) {
+  const log = getData('sleepLog', {});
+  if (log[date]) { log[date].splice(idx, 1); if (!log[date].length) delete log[date]; setData('sleepLog', log); }
+  if (document.getElementById('inbody-content')) renderInbody();
+}
+function _sleepTodayList() {
+  const arr = getData('sleepLog', {})[todayStr()] || [];
+  const avg = _sleepWeekAvg();
+  const avgLine = `<div class="hrec-sleep-total">本週平均睡眠 <b>${avg ? _fmtMin(avg) : '—'}</b></div>`;
+  if (!arr.length) return `<div class="hrec-sleep-list"><span class="hrec-sleep-empty">今天還沒記錄</span>${avgLine}</div>`;
+  const total = arr.reduce((a, iv) => a + _sleepMin(iv), 0);
+  const items = arr.map((iv, i) => `<span class="hrec-sleep-chip">${iv.s}–${iv.e}（${_fmtMin(_sleepMin(iv))}）<button class="hrec-sleep-x" onclick="removeSleepInterval('${todayStr()}',${i})">✕</button></span>`).join('');
+  return `<div class="hrec-sleep-list">${items}<div class="hrec-sleep-total">今日共 <b>${_fmtMin(total)}</b>・本週平均 <b>${avg ? _fmtMin(avg) : '—'}</b></div></div>`;
+}
+
+// 健康記錄區（體重／睡眠／腰圍 合併一個 block，只記今天；睡眠/腰圍依設定顯示）
+function _healthRecordBlock() {
+  const wToday = getData('weightLog', {})[todayStr()];
+  const waistToday = getData('waistLog', {})[todayStr()];
+  const showWaist = getData('showWaist', true) !== false;
+  const showSleep = getData('showSleep', true) !== false;
+  let rows = `
+    <div class="hrec-row">
+      <span class="hrec-label">今日體重</span>
+      <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wToday != null ? wToday : ''}">
+      <span class="qw-unit">kg</span>
+      <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
+    </div>`;
+  if (showSleep) {
+    rows += `
+    <div class="hrec-row hrec-sleep-row">
+      <span class="hrec-label">今日睡眠</span>
+      <input type="time" id="sleep-start" class="hrec-time" title="就寢">
+      <span class="hrec-arrow">→</span>
+      <input type="time" id="sleep-end" class="hrec-time" title="起床">
+      <button class="qw-btn" onclick="saveSleepInterval()">＋段</button>
+    </div>
+    ${_sleepTodayList()}`;
+  }
+  if (showWaist) {
+    rows += `
+    <div class="hrec-row">
+      <span class="hrec-label">今日腰圍</span>
+      <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistToday != null ? waistToday : ''}">
+      <span class="qw-unit">cm</span>
+      <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
+    </div>`;
+  }
+  return `<div class="health-record-block">${rows}</div>`;
+}
+
 function checkDailyWeightPrompt() {
   if (getData('askWeightDaily', true) === false) return;   // 使用者可在設定關閉
   if (new Date().getHours() < 4) return;                   // 凌晨 4 點前不打擾（量體重多在起床後，剛換日不該跳）
@@ -6168,6 +6234,52 @@ function saveWeightFromPrompt() {
   document.getElementById('weight-prompt-overlay')?.remove();
   document.body.style.overflow = '';
   showToast(`已記錄 ${val} kg ✓`);
+}
+
+// 睡眠早上彈窗（僅在「顯示睡眠」且「彈窗提醒」開啟時；同樣 4 點 gate、每日去重）
+function checkDailySleepPrompt() {
+  if (getData('showSleep', true) === false) return;
+  if (getData('sleepMorningPrompt', false) !== true) return;   // 預設關
+  if (new Date().getHours() < 4) return;
+  const today = todayStr();
+  if ((getData('sleepLog', {})[today] || []).length) return;    // 今天已記過
+  if (getData('lastSleepPromptDate', '') === today) return;
+  setData('lastSleepPromptDate', today);
+  setTimeout(_showSleepPrompt, 1200);
+}
+function _showSleepPrompt() {
+  if (document.getElementById('sleep-prompt-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'sleep-prompt-overlay';
+  overlay.className = 'bottom-sheet-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="bottom-sheet" style="max-width:380px;padding:28px 24px">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;text-align:center">🌙 昨晚睡眠</div>
+      <div style="font-size:.85rem;color:var(--text-2);margin-bottom:20px;text-align:center">記錄昨晚的就寢與起床時間</div>
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:20px">
+        <input type="time" id="sp-start" class="form-input" style="flex:1">
+        <span style="color:var(--text-3)">→</span>
+        <input type="time" id="sp-end" class="form-input" style="flex:1">
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-ghost" style="flex:1" onclick="document.getElementById('sleep-prompt-overlay').remove();document.body.style.overflow=''">跳過</button>
+        <button class="btn-primary" style="flex:2" onclick="saveSleepFromPrompt()">記錄</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+}
+function saveSleepFromPrompt() {
+  const s = document.getElementById('sp-start')?.value, e = document.getElementById('sp-end')?.value;
+  if (!s || !e) { showToast('請填就寢與起床時間'); return; }
+  const log = getData('sleepLog', {}); const t = todayStr();
+  if (!log[t]) log[t] = [];
+  log[t].push({ s, e });
+  setData('sleepLog', log);
+  document.getElementById('sleep-prompt-overlay')?.remove();
+  document.body.style.overflow = '';
+  showToast(`已記錄睡眠 ${_fmtMin(_sleepMin({ s, e }))} ✓`);
 }
 
 // Build a sorted [{date, v}] series for a metric, honoring the active range.
@@ -8262,10 +8374,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderProfile();
   updateNavBar('profile');
   checkDailyWeightPrompt();
+  checkDailySleepPrompt();
   // PWA 從背景恢復時不會重跑 DOMContentLoaded，所以每次回到前景再檢查一次
-  // （checkDailyWeightPrompt 內部用日期去重，同一天不會重複跳）
+  // （內部用日期去重，同一天不會重複跳）
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') checkDailyWeightPrompt();
+    if (document.visibilityState === 'visible') { checkDailyWeightPrompt(); checkDailySleepPrompt(); }
   });
   // Diary swipe — touch + mouse, attached to document so scroll containers don't block it
   document.addEventListener('touchstart', e => { _diarySX = e.touches[0].clientX; _diarySY = e.touches[0].clientY; }, { passive: true });

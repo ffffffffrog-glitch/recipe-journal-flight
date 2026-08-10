@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=67">
+  <link rel="stylesheet" href="style.css?v=68">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -186,15 +186,56 @@
           </div>
         </div>
         <div class="settings-section">
-          <div class="settings-section-label">偏好</div>
+          <div class="settings-section-label">顯示項目</div>
           <div class="settings-card">
+            <div class="settings-row settings-row-static">
+              <div class="settings-row-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+              </div>
+              <div class="settings-row-body">
+                <div class="settings-row-label">顯示腰圍</div>
+                <div class="settings-row-desc">在體組成頁顯示腰圍記錄</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="show-waist-toggle" onchange="toggleShowWaist(this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row-divider"></div>
+            <div class="settings-row settings-row-static">
+              <div class="settings-row-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+              </div>
+              <div class="settings-row-body">
+                <div class="settings-row-label">顯示睡眠記錄</div>
+                <div class="settings-row-desc">在體組成頁顯示睡眠記錄與統計</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="show-sleep-toggle" onchange="toggleShowSleep(this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row settings-row-static" id="sleep-prompt-row" style="padding-left:24px">
+              <div class="settings-row-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              </div>
+              <div class="settings-row-body">
+                <div class="settings-row-label">睡眠早上彈窗提醒</div>
+                <div class="settings-row-desc">隔天早上提醒填寫昨晚睡眠（需先開啟睡眠記錄）</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="sleep-prompt-toggle" onchange="toggleSleepPrompt(this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row-divider"></div>
             <div class="settings-row settings-row-static">
               <div class="settings-row-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4z"/><path d="M6 7h12l2 12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
               </div>
               <div class="settings-row-body">
                 <div class="settings-row-label">每日詢問體重</div>
-                <div class="settings-row-desc">每天開啟 App 時提醒你記錄體重</div>
+                <div class="settings-row-desc">每天開啟 App 時提醒你記錄體重（凌晨 4 點後）</div>
               </div>
               <label class="switch">
                 <input type="checkbox" id="ask-weight-toggle" onchange="toggleAskWeight(this.checked)">
@@ -976,9 +1017,9 @@
 <div id="toast" class="toast"></div>
 
 <script src="data.js?v=36"></script>
-<script src="app.js?v=82"></script>
+<script src="app.js?v=84"></script>
 <script src="vendor/supabase.js?v=1"></script>
-<script src="sync.js?v=6"></script>
+<script src="sync.js?v=7"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

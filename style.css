@@ -1917,6 +1917,20 @@ body.storage-error .page { padding-top: 44px; }
   border: 1.5px solid var(--border); background: var(--bg);
   color: var(--text-1); font-size: .82rem; font-weight: 600; font-family: var(--font); cursor: pointer;
 }
+/* 健康記錄合併 block（體重／睡眠／腰圍） */
+.health-record-block { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 6px 16px; }
+.hrec-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; flex-wrap: wrap; }
+.hrec-row + .hrec-row, .hrec-sleep-list + .hrec-row { border-top: 1px solid var(--border); }
+.hrec-label { font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; width: 4.5em; flex-shrink: 0; }
+.hrec-time { padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; }
+.hrec-arrow { color: var(--text-3); }
+.hrec-sleep-row .qw-btn { margin-left: auto; }
+.hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px 4.5em; }
+.hrec-sleep-chip { font-size: .78rem; background: var(--sage-pale); color: var(--sage); border-radius: 12px; padding: 3px 4px 3px 10px; }
+.hrec-sleep-x { border: none; background: none; color: var(--sage); cursor: pointer; font-size: .72rem; padding: 0 4px; }
+.hrec-sleep-empty { font-size: .78rem; color: var(--text-3); }
+.hrec-sleep-total { font-size: .78rem; color: var(--text-2); width: 100%; }
+.health-record-block .qw-input { width: 5.5em; }
 .qw-btn {
   padding: 7px 14px; border-radius: 8px;
   background: var(--sage); color: #fff;
