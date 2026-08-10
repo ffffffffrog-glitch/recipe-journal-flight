@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=65">
+  <link rel="stylesheet" href="style.css?v=66">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -712,6 +712,10 @@
         <label class="form-label">基礎代謝 (kcal)</label>
         <input type="number" id="inbody-bmr" class="form-input" step="1" min="0" placeholder="例：1520">
       </div>
+      <div class="form-section">
+        <label class="form-label">腰圍 (cm)</label>
+        <input type="number" id="inbody-waist" class="form-input" step="0.1" min="0" placeholder="例：80.0">
+      </div>
     </div>
 
     <div class="form-section" style="margin-top:4px">
@@ -976,7 +980,7 @@
 <div id="toast" class="toast"></div>
 
 <script src="data.js?v=36"></script>
-<script src="app.js?v=78"></script>
+<script src="app.js?v=79"></script>
 <script src="vendor/supabase.js?v=1"></script>
 <script src="sync.js?v=5"></script>
 <script>

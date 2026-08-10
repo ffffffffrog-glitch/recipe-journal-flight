@@ -5589,7 +5589,7 @@ function renderInbody() {
   let html = `
     <div class="inbody-top">
     <div class="quick-weight-card">
-      <div class="qw-label">${icon('activity', 14)} 今日體重</div>
+      <div class="qw-label">${icon('activity', 14)} 記錄體重 <input type="date" id="wlog-date" class="qw-date" value="${todayStr()}" max="${todayStr()}" onchange="onWlogDateChange()"></div>
       <div class="qw-row">
         <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
         <span class="qw-unit">kg</span>
@@ -5725,7 +5725,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
       <div class="ibd-hero-date">${latest ? latest.date : '尚無紀錄'}</div>
     </div>
     <div class="ibd-quickw">
-      <div class="ibd-quickw-label">${icon('activity', 13)} 今日體重</div>
+      <div class="ibd-quickw-label">${icon('activity', 13)} 記錄體重 <input type="date" id="wlog-date" class="qw-date" value="${todayStr()}" max="${todayStr()}" onchange="onWlogDateChange()"></div>
       <div class="ibd-quickw-row">
         <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wInput}">
         <span class="qw-unit">kg</span>
@@ -5738,7 +5738,8 @@ function _renderInbodyDesktop(allRecords, records, container) {
         ${chip('肌肉量', latest.muscle != null ? latest.muscle + ' kg' : '—')}
         ${chip('BMI', fmt(latest.bmi))}
         ${chip('內臟脂肪', fmt(latest.visceral))}
-        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}` : ''}
+        ${chip('基礎代謝', latest.bmr ? latest.bmr + ' kcal' : '—')}
+        ${chip('腰圍', latest.waist != null ? latest.waist + ' cm' : '—')}` : ''}
     </div>
     <button class="ibd-add-btn" onclick="openAddInbodySheet()">＋ 新增完整測量</button>`;
 
@@ -5754,6 +5755,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
     ['trend-fat',    'fatPct', '%',  '#D98866', false, '體脂率'],
     ['trend-muscle', 'muscle', 'kg', '#4A7FA5', false, '肌肉量'],
     ['trend-bmi',    'bmi',    '',   '#8A6520', false, 'BMI'],
+    ['trend-waist',  'waist',  'cm', '#7c5fb0', false, '腰圍'],
   ];
   const chartsHtml = allRecords.length >= 2
     ? CHARTS.map(c => `<div class="trend-card"><div class="trend-card-header"><span class="trend-card-title">${c[5]}趨勢${c[2] ? ' (' + c[2] + ')' : ''}</span></div><canvas id="${c[0]}" class="trend-canvas" height="120" onclick="openTrendDetail('${c[1]}','${c[2]}','${c[3]}',${c[4]},'${c[5]}趨勢')"></canvas></div>`).join('')
@@ -5773,6 +5775,7 @@ function _renderInbodyDesktop(allRecords, records, container) {
       ${chip('BMI', fmt(sel.bmi))}
       ${chip('內臟脂肪', fmt(sel.visceral))}
       ${chip('基礎代謝', sel.bmr ? sel.bmr + ' kcal' : '—')}
+      ${chip('腰圍', sel.waist != null ? sel.waist + ' cm' : '—')}
     </div>
     ${hasSeg ? `<div class="ibd-radar-label">部位肌肉分析</div><div class="ibd-radar-wrap"><canvas id="ibd-radar-canvas" style="display:block;width:100%"></canvas></div>` : `<div class="ibd-empty-charts" style="margin-top:12px">此筆無部位肌肉資料</div>`}`
     : `<div class="ibd-empty-charts">尚無完整紀錄</div>`;
@@ -6051,12 +6054,22 @@ function scrollCarouselTo(idx) {
 function saveWeightLog() {
   const val = parseFloat(document.getElementById('wlog-input')?.value);
   if (!val || val <= 0) { showToast('請輸入有效體重'); return; }
+  let date = document.getElementById('wlog-date')?.value || todayStr();
+  if (date > todayStr()) date = todayStr();   // 不允許記錄未來日期
   const log = getData('weightLog', {});
-  log[todayStr()] = val;
+  log[date] = val;
   setData('weightLog', log);
-  showToast(`已記錄 ${val} kg`);
+  showToast(`已記錄 ${date === todayStr() ? '今日' : date} ${val} kg`);
   if (document.getElementById('profile-content')) renderProfile();
   if (document.getElementById('inbody-content')) renderInbody();
+}
+
+// 補記體重：切換日期時，把該日已存在的體重帶入輸入框
+function onWlogDateChange() {
+  const d = document.getElementById('wlog-date')?.value || todayStr();
+  const w = getData('weightLog', {})[d];
+  const inp = document.getElementById('wlog-input');
+  if (inp) inp.value = (w != null ? w : '');
 }
 
 function checkDailyWeightPrompt() {
@@ -6408,6 +6421,10 @@ function buildInbodyCard(rec) {
           <span class="inbody-metric-val">${fmt(rec.bmr)}<span class="inbody-metric-unit" style="font-size:.75rem">kcal</span></span>
           <span class="inbody-metric-lbl">基礎代謝</span>
         </div>
+        <div class="inbody-metric">
+          <span class="inbody-metric-val">${fmt(rec.waist)}<span class="inbody-metric-unit">cm</span></span>
+          <span class="inbody-metric-lbl">腰圍</span>
+        </div>
       </div>
       ${hasSeg ? `
       <div class="inbody-bodymap-wrap" style="margin-top:10px">
@@ -6695,7 +6712,7 @@ function openAddInbodySheet() {
   document.getElementById('inbody-record-id').value = '';
   document.getElementById('inbody-date').value = todayStr();
   document.getElementById('inbody-delete-row').style.display = 'none';
-  ['inbody-weight','inbody-fat-pct','inbody-muscle','inbody-bmi','inbody-visceral','inbody-bmr']
+  ['inbody-weight','inbody-fat-pct','inbody-muscle','inbody-bmi','inbody-visceral','inbody-bmr','inbody-waist']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   clearInbodySegFields();
   openBottomSheet('sheet-inbody-form');
@@ -6714,6 +6731,7 @@ function openEditInbodySheet(recordId) {
   document.getElementById('inbody-bmi').value      = rec.bmi      ?? '';
   document.getElementById('inbody-visceral').value = rec.visceral ?? '';
   document.getElementById('inbody-bmr').value      = rec.bmr      ?? '';
+  document.getElementById('inbody-waist').value    = rec.waist    ?? '';
   fillInbodySegFields(rec);
   document.getElementById('inbody-delete-row').style.display = 'block';
   openBottomSheet('sheet-inbody-form');
@@ -6731,9 +6749,10 @@ function saveInbodyRecord() {
     bmi:      parseFloatOrNull('inbody-bmi'),
     visceral: parseFloatOrNull('inbody-visceral'),
     bmr:      parseFloatOrNull('inbody-bmr'),
+    waist:    parseFloatOrNull('inbody-waist'),
     ...seg,
   };
-  if (!rec.weight && !rec.fatPct && !rec.muscle) { showToast('請至少填寫一項數據'); return; }
+  if (!rec.weight && !rec.fatPct && !rec.muscle && !rec.waist) { showToast('請至少填寫一項數據'); return; }
   rec.updatedAt = Date.now();
   const records = getData('inbody', []);
   const idx = records.findIndex(r => r.id === id);
