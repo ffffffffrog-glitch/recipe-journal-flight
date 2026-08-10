@@ -57,6 +57,8 @@ function renderSettings() {
   if (sp) { sp.checked = getData('sleepMorningPrompt', false) === true; sp.disabled = !sleepOn; }
   const spRow = document.getElementById('sleep-prompt-row');
   if (spRow) spRow.style.opacity = sleepOn ? '' : '.45';
+  const wsSeg = document.getElementById('weekstart-seg');
+  if (wsSeg) { const cur = weekStartDow(); wsSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.ws === cur)); }
 }
 
 function toggleAskWeight(on) {
@@ -536,12 +538,31 @@ function getDailyTotals(ds) {
 }
 
 // ===== WEEKLY EXPORT (human-readable, for AI review) =====
-// Default range = the most recent COMPLETE Mon–Sun week (today counts only if Sunday).
+// ===== 一週開始（設定 weekStart：1=週一(預設)、0=週日）=====
+function weekStartDow() { const v = getData('weekStart', 1); return v === 0 ? 0 : 1; }
+// 回傳 date 所在週的「週首」Date（依設定）
+function startOfWeek(date, ws) {
+  ws = (ws == null) ? weekStartDow() : ws;
+  const d = new Date(date); d.setHours(0, 0, 0, 0);
+  const diff = (d.getDay() - ws + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+function setWeekStart(v) {
+  setData('weekStart', v === 0 ? 0 : 1);
+  showToast(v === 0 ? '一週已改為從週日開始' : '一週已改為從週一開始');
+  renderSettings();
+  if (document.getElementById('inbody-content')) renderInbody();
+}
+
+// Default range = the most recent COMPLETE week per the week-start setting (今天只有在剛好是週首前一天=完整週結束時才算).
 function _defaultExportWeek() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const sunday = new Date(today); sunday.setDate(today.getDate() - today.getDay()); // today if Sunday, else last Sunday
-  const monday = new Date(sunday); monday.setDate(sunday.getDate() - 6);
-  return { start: dateStr(monday), end: dateStr(sunday) };
+  const thisWeekStart = startOfWeek(today);
+  // 最近一個「完整」週：上一週的週首 ~ 週尾
+  const end = new Date(thisWeekStart); end.setDate(thisWeekStart.getDate() - 1); // 上週最後一天
+  const start = new Date(end); start.setDate(end.getDate() - 6);
+  return { start: dateStr(start), end: dateStr(end) };
 }
 
 function buildWeeklyExportText(startDs, endDs) {
@@ -685,7 +706,7 @@ function openExportSheet() {
       <div class="amg-title">匯出紀錄</div>
       <button class="td-close" onclick="closeExportSheet()">✕</button>
     </div>
-    <div class="amg-sub">選擇匯出區間（預設為最近一個完整的週一～週日）。內容包含該區間的飲食、運動、體重，整理成純文字方便與 AI 討論每週進度。</div>
+    <div class="amg-sub">選擇匯出區間（預設為最近一個完整的${weekStartDow() === 0 ? '週日～週六' : '週一～週日'}）。內容包含該區間的飲食、運動、體重、睡眠、腰圍，整理成純文字方便與 AI 討論每週進度。</div>
     <div class="exp-range">
       <label>開始<input type="date" id="exp-start" value="${wk.start}" onchange="generateExport()"></label>
       <label>結束<input type="date" id="exp-end" value="${wk.end}" onchange="generateExport()"></label>
@@ -2794,7 +2815,7 @@ function _buildDashboard() {
   // workouts this week
   const workouts = getData('workoutLog', []);
   const now = new Date();
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekStart = startOfWeek(now);
   const wsStr = dateStr(weekStart);
   const week = workouts.filter(w => w.date >= wsStr);
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -4422,7 +4443,7 @@ function _renderWorkoutStats() {
   if (!el) return;
   const all = getData('workoutLog', []);
   const now = new Date();
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekStart = startOfWeek(now);
   const wsStr = dateStr(weekStart);
   const week = all.filter(w => w.date >= wsStr);
   const cardio = week.filter(w => w.type === 'cardio');
@@ -5732,13 +5753,9 @@ function renderInbody() {
   // 睡眠圖表
   if (getData('showSleep', true) !== false) _drawSleepChart('sleep-chart');
 
-  // Draw trend charts
+  // Draw trend charts（腰圍 overlay 暫時拿掉，難閱讀；_waistSeries + drawSingleTrendChart 的 overlay 支援留著備用）
   if (allRecords.length >= 2) {
-    // 腰圍以第二 Y 軸疊加在「原始體重趨勢」（非 7 日均）
-    const showWaist = getData('showWaist', true) !== false;
-    const waistOv = showWaist ? _waistSeries(_inbodyTrendRange) : [];
-    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true, 65,
-      waistOv.length >= 2 ? { overlay: waistOv, overlayColor: '#C08552', overlayUnit: 'cm' } : {});
+    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true);
     drawSingleTrendChart('trend-fat',    allRecords, 'fatPct', '%',  '#D98866', false);
     drawSingleTrendChart('trend-muscle', allRecords, 'muscle', 'kg', '#4A7FA5', false);
   }
@@ -6333,15 +6350,16 @@ function _healthRecordBlock() {
   }
   if (showWaist) {
     const wExp = getData('waistExpanded', false) === true;
-    rows += `
+    if (!wExp) {
+      rows += `
     <div class="hrec-row hrec-waist-head" onclick="toggleWaistExpand()">
       <span class="hrec-label">今日腰圍</span>
-      <span class="hrec-waist-val">${waistToday != null ? waistToday + ' cm' : '未記錄'}</span>
-      <span class="hrec-caret">${wExp ? '▲' : '▼'}</span>
+      <span class="hrec-caret">▾</span>
     </div>`;
-    if (wExp) {
+    } else {
       rows += `
-    <div class="hrec-row hrec-waist-body">
+    <div class="hrec-row">
+      <span class="hrec-waist-toggle" onclick="toggleWaistExpand()">今日腰圍<span class="cx">▴</span></span>
       <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistToday != null ? waistToday : ''}">
       <span class="qw-unit">cm</span>
       <button class="qw-btn" onclick="saveWaistLog()">記錄</button>

@@ -1928,9 +1928,9 @@ body.storage-error .page { padding-top: 44px; }
 .hrec-colon { color: var(--text-2); font-weight: 700; }
 .hrec-arrow { color: var(--text-3); }
 .hrec-waist-head { cursor: pointer; user-select: none; }
-.hrec-waist-val { font-size: .85rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.hrec-caret { margin-left: auto; color: var(--text-3); font-size: .7rem; }
-.hrec-waist-body { padding-top: 0; }
+.hrec-caret { margin-left: auto; color: var(--text-3); font-size: .85rem; }
+.hrec-waist-toggle { display: inline-flex; align-items: center; gap: 3px; font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; cursor: pointer; user-select: none; width: 4.5em; flex-shrink: 0; }
+.hrec-waist-toggle .cx { color: var(--text-3); font-size: .8rem; }
 .hrec-sleep-row .qw-btn { margin-left: auto; }
 .hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px 4.5em; }
 .hrec-sleep-chip { font-size: .78rem; background: var(--sage-pale); color: var(--sage); border-radius: 12px; padding: 3px 4px 3px 10px; }
