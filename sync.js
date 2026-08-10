@@ -12,12 +12,13 @@ const SYNC_KEYS = [
   'dailyQuestsDone', 'appTheme', 'askWeightDaily', 'avatarData',
   'deletions', 'waistLog', 'sleepLog',
   'showWaist', 'showSleep', 'sleepMorningPrompt',
+  'milestones', 'weekStart',
 ];
 // 墓碑保留天數：超過此天數的刪除記錄會被回收（假設所有裝置都在此期間內同步過一次）
 const TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 // 以 id 為主鍵的「集合」：合併時做「聯集」而非整包覆蓋，避免任一裝置的新增品項被另一裝置蓋掉。
-const ID_COLLECTIONS = ['foodDB', 'recipes', 'inbody', 'workoutLog', 'habits'];
+const ID_COLLECTIONS = ['foodDB', 'recipes', 'inbody', 'workoutLog', 'habits', 'milestones'];
 // 以日期為 key 的「對照表」：合併日期鍵的聯集（同一天以較新一方為準）。
 const DATE_MAPS = ['diary', 'habitLog', 'weightLog', 'waistLog', 'sleepLog'];
 

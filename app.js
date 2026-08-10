@@ -3389,6 +3389,7 @@ function renderProfile() {
   // --- Build page ---
   document.getElementById('profile-content').innerHTML = `
     ${headerCard}
+    ${_profileEditMode ? '' : _renderMilestoneCard()}
     ${statsCard}
     ${goalsSection}
     <div class="progress-section">
@@ -3413,6 +3414,211 @@ function renderProfile() {
     drawSingleTrendChart('pm-fat',    allInbody, 'fatPct', '%',  '#D98866', false);
     drawSingleTrendChart('pm-muscle', allInbody, 'muscle', 'kg', '#4A7FA5', false);
   }
+}
+
+// ===================== 階段目標 (Milestones) =====================
+// milestones: [{ id, type:'metric'|'note', metric?, target?, startValue?, title?, done?, doneDate?, createdAt, updatedAt }]
+const MILESTONE_METRICS = {
+  weight7d: { label: '體重（7日均）', unit: 'kg' },
+  fatPct:   { label: '體脂率',        unit: '%'  },
+  muscle:   { label: '肌肉量',        unit: 'kg' },
+  waist:    { label: '腰圍',          unit: 'cm' },
+  bmi:      { label: 'BMI',           unit: ''   },
+};
+
+function _msWeight7d() {
+  const wLog = getData('weightLog', {}), inbody = getData('inbody', []);
+  const byDate = {}; inbody.forEach(r => { if (r.weight != null) byDate[r.date] = r.weight; });
+  const arr = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const ds = dateStr(d); if (wLog[ds] != null) arr.push(wLog[ds]); else if (byDate[ds] != null) arr.push(byDate[ds]); }
+  return arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length * 10) / 10 : null;
+}
+function _msLatestWaist() { const wl = getData('waistLog', {}); const ks = Object.keys(wl).sort(); return ks.length ? wl[ks[ks.length - 1]] : null; }
+function _msLatestInbody() { const ib = getData('inbody', []); return ib.length ? ib[ib.length - 1] : null; }
+function _msBmi() {
+  const p = getData('profile', {}); const h = p.body && p.body.height;
+  const w = _msWeight7d() != null ? _msWeight7d() : (p.body && p.body.weight);
+  if (h && w) return Math.round(w / ((h / 100) ** 2) * 10) / 10;
+  const li = _msLatestInbody(); return li && li.bmi != null ? li.bmi : null;
+}
+function _milestoneCurrent(metric) {
+  switch (metric) {
+    case 'weight7d': return _msWeight7d();
+    case 'fatPct':   return _msLatestInbody()?.fatPct ?? null;
+    case 'muscle':   return _msLatestInbody()?.muscle ?? null;
+    case 'waist':    return _msLatestWaist();
+    case 'bmi':      return _msBmi();
+  }
+  return null;
+}
+function _milestoneProgress(m) {
+  const cur = _milestoneCurrent(m.metric);
+  if (cur == null || m.startValue == null || m.target == null) return { cur, pct: 0, achieved: false };
+  const span = m.target - m.startValue;
+  let pct = span === 0 ? 100 : Math.round((cur - m.startValue) / span * 100);
+  pct = Math.max(0, Math.min(100, pct));
+  const achieved = span < 0 ? cur <= m.target : cur >= m.target;
+  return { cur, pct: achieved ? 100 : pct, achieved };
+}
+function _milestoneActiveList() {
+  return getData('milestones', []).filter(m => m && !m.archived);
+}
+
+// 個人資料頁的階段目標卡
+function _renderMilestoneCard() {
+  const all = _milestoneActiveList();
+  if (!all.length) {
+    return `<div class="ms-card" onclick="openMilestones()">
+      <div class="ms-card-head"><span class="ms-title">🎯 階段目標</span><span class="ms-add">設定 ›</span></div>
+      <div class="ms-empty">設定階段目標，追蹤體重、體脂、腰圍… 的達成進度</div>
+    </div>`;
+  }
+  const rows = all.slice(0, 3).map(m => {
+    if (m.type === 'note') {
+      return `<div class="ms-row">
+        <span class="ms-check ${m.done ? 'done' : ''}" onclick="event.stopPropagation();toggleMilestoneDone('${m.id}')">${m.done ? '✓' : ''}</span>
+        <span class="ms-note ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</span>
+      </div>`;
+    }
+    const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
+    const pr = _milestoneProgress(m);
+    return `<div class="ms-row ms-metric">
+      <div class="ms-metric-top">
+        <span class="ms-note">${_esc(m.title || meta.label)}${pr.achieved ? ' <span class="ms-done-tag">✓ 達成</span>' : ''}</span>
+        <span class="ms-nums">${pr.cur ?? '—'} → <b>${m.target}</b> ${meta.unit}</span>
+      </div>
+      <div class="ms-bar"><div class="ms-bar-fill ${pr.achieved ? 'done' : ''}" style="width:${pr.pct}%"></div></div>
+    </div>`;
+  }).join('');
+  const more = all.length > 3 ? `<div class="ms-more">還有 ${all.length - 3} 個目標 ›</div>` : '';
+  return `<div class="ms-card" onclick="openMilestones()">
+    <div class="ms-card-head"><span class="ms-title">🎯 階段目標</span><span class="ms-add">管理 ›</span></div>
+    ${rows}${more}
+  </div>`;
+}
+function _esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---- 管理浮層 ----
+let _msEditId = null, _msType = 'metric';
+function openMilestones() {
+  if (document.getElementById('ms-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'ms-overlay'; ov.className = 'ach-manage-overlay';
+  ov.innerHTML = _msOverlayHtml();
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+}
+function closeMilestones() { document.getElementById('ms-overlay')?.remove(); document.body.style.overflow = ''; if (document.getElementById('profile-content')) renderProfile(); }
+function _msRefreshOverlay() { const ov = document.getElementById('ms-overlay'); if (ov) ov.innerHTML = _msOverlayHtml(); }
+function _msOverlayHtml() {
+  const list = _milestoneActiveList();
+  const items = list.length ? list.map(_msItemHtml).join('')
+    : `<div class="ms-empty" style="padding:36px 16px;text-align:center">還沒有階段目標，按下方按鈕新增一個。</div>`;
+  return `<div class="amg-header"><div class="amg-title">🎯 階段目標</div><button class="td-close" onclick="closeMilestones()">✕</button></div>
+    <div class="ms-list">${items}</div>
+    <div style="padding:14px 16px"><button class="btn-primary" style="width:100%" onclick="openMilestoneEdit()">＋ 新增目標</button></div>`;
+}
+function _msItemHtml(m) {
+  if (m.type === 'note') {
+    return `<div class="ms-item">
+      <span class="ms-check ${m.done ? 'done' : ''}" onclick="toggleMilestoneDone('${m.id}')">${m.done ? '✓' : ''}</span>
+      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
+      <button class="ms-del" onclick="deleteMilestone('${m.id}')">🗑</button>
+    </div>`;
+  }
+  const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
+  const pr = _milestoneProgress(m);
+  return `<div class="ms-item">
+    <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')">
+      <div class="ms-item-title ${pr.achieved ? 'done' : ''}">${_esc(m.title || meta.label)}${pr.achieved ? ' ✓' : ''}</div>
+      <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）</div>
+      <div class="ms-bar"><div class="ms-bar-fill ${pr.achieved ? 'done' : ''}" style="width:${pr.pct}%"></div></div>
+    </div>
+    <button class="ms-del" onclick="deleteMilestone('${m.id}')">🗑</button>
+  </div>`;
+}
+function openMilestoneEdit(id) {
+  document.getElementById('ms-edit-overlay')?.remove();
+  _msEditId = id || null;
+  const m = id ? getData('milestones', []).find(x => x.id === id) : null;
+  _msType = m ? m.type : 'metric';
+  const metric = (m && m.metric) ? m.metric : 'weight7d';
+  const metricOpts = Object.entries(MILESTONE_METRICS).map(([k, v]) => `<option value="${k}" ${metric === k ? 'selected' : ''}>${v.label}</option>`).join('');
+  const sheet = document.createElement('div');
+  sheet.id = 'ms-edit-overlay'; sheet.className = 'bottom-sheet-overlay'; sheet.style.display = 'flex';
+  sheet.innerHTML = `<div class="bottom-sheet" style="max-width:420px;padding:24px">
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center">${id ? '編輯' : '新增'}階段目標</div>
+    <div class="trend-toggle" style="margin-bottom:16px">
+      <button class="trend-toggle-btn ${_msType === 'metric' ? 'active' : ''}" onclick="_msSetType('metric')">數值追蹤</button>
+      <button class="trend-toggle-btn ${_msType === 'note' ? 'active' : ''}" onclick="_msSetType('note')">自訂目標</button>
+    </div>
+    <div id="ms-metric-fields" style="${_msType === 'note' ? 'display:none' : ''}">
+      <label class="ms-field"><span>追蹤項目</span><select id="ms-metric" onchange="_msMetricChanged()">${metricOpts}</select></label>
+      <label class="ms-field"><span>目標值</span><input type="number" id="ms-target" step="0.1" value="${m && m.target != null ? m.target : ''}" placeholder="例如 65"></label>
+      <div class="ms-cur-hint" id="ms-cur-hint"></div>
+    </div>
+    <label class="ms-field"><span id="ms-label-cap">${_msType === 'note' ? '目標描述' : '標題（選填）'}</span><input type="text" id="ms-label" value="${m ? _esc(m.title || '') : ''}" placeholder="${_msType === 'note' ? '例如：連續 30 天喝水 2000cc' : '給這個目標取個名字'}"></label>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="btn-ghost" style="flex:1" onclick="closeMilestoneEdit()">取消</button>
+      <button class="btn-primary" style="flex:2" onclick="saveMilestone()">儲存</button>
+    </div>
+  </div>`;
+  document.body.appendChild(sheet);
+  _msMetricChanged();
+}
+function closeMilestoneEdit() { document.getElementById('ms-edit-overlay')?.remove(); }
+function _msSetType(t) {
+  _msType = t;
+  document.getElementById('ms-metric-fields').style.display = t === 'note' ? 'none' : '';
+  document.querySelectorAll('#ms-edit-overlay .trend-toggle-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (t === 'metric')));
+  const cap = document.getElementById('ms-label-cap'); if (cap) cap.textContent = t === 'note' ? '目標描述' : '標題（選填）';
+  const lab = document.getElementById('ms-label'); if (lab) lab.placeholder = t === 'note' ? '例如：連續 30 天喝水 2000cc' : '給這個目標取個名字';
+}
+function _msMetricChanged() {
+  const sel = document.getElementById('ms-metric'); if (!sel) return;
+  const cur = _milestoneCurrent(sel.value); const meta = MILESTONE_METRICS[sel.value] || { unit: '' };
+  const hint = document.getElementById('ms-cur-hint');
+  if (hint) hint.textContent = cur != null ? `目前 ${cur} ${meta.unit}（將作為起始值計算進度）` : '目前尚無資料，達成前進度以目標值為基準';
+}
+function saveMilestone() {
+  const list = getData('milestones', []);
+  const label = (document.getElementById('ms-label')?.value || '').trim();
+  const now = Date.now();
+  let m = _msEditId ? list.find(x => x.id === _msEditId) : null;
+  if (_msType === 'metric') {
+    const metric = document.getElementById('ms-metric').value;
+    const target = parseFloat(document.getElementById('ms-target').value);
+    if (isNaN(target)) { showToast('請輸入目標值'); return; }
+    if (!m) { m = { id: 'ms' + now + Math.floor(Math.random() * 1000), type: 'metric', createdAt: now, startValue: _milestoneCurrent(metric) }; list.push(m); }
+    else if (m.type !== 'metric' || m.metric !== metric || m.startValue == null) { m.startValue = _milestoneCurrent(metric); }
+    if (m.startValue == null) m.startValue = target;
+    m.type = 'metric'; m.metric = metric; m.target = target; m.title = label; m.updatedAt = now;
+  } else {
+    if (!label) { showToast('請輸入目標描述'); return; }
+    if (!m) { m = { id: 'ms' + now + Math.floor(Math.random() * 1000), type: 'note', done: false, createdAt: now }; list.push(m); }
+    m.type = 'note'; m.title = label; m.updatedAt = now;
+  }
+  setData('milestones', list);
+  closeMilestoneEdit();
+  _msRefreshOverlay();
+  if (document.getElementById('profile-content')) renderProfile();
+  showToast('已儲存階段目標');
+}
+function toggleMilestoneDone(id) {
+  const list = getData('milestones', []); const m = list.find(x => x.id === id); if (!m) return;
+  m.done = !m.done; m.doneDate = m.done ? todayStr() : null; m.updatedAt = Date.now();
+  setData('milestones', list);
+  _msRefreshOverlay();
+  if (document.getElementById('profile-content')) renderProfile();
+}
+function deleteMilestone(id) {
+  showConfirm('確定刪除這個階段目標？', () => {
+    const list = getData('milestones', []).filter(x => x.id !== id);
+    setData('milestones', list);
+    if (typeof _recordDeletion === 'function') _recordDeletion('milestones', id);
+    _msRefreshOverlay();
+    if (document.getElementById('profile-content')) renderProfile();
+  });
 }
 
 function editProfileInfo() {
