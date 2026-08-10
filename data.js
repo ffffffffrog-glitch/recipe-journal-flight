@@ -130,8 +130,8 @@ const FOOD_DEFAULTS_VERSION = 8;
 const CATEGORY_FIX_IDS = ['f055', 'f056', 'f096', 'f098'];
 
 // 顯示在「設定」最上方的版本 / 最後更新日期（每次部署時一起更新）
-const APP_VERSION = 'v41';
-const APP_UPDATED = '2026/07/18';
+const APP_VERSION = 'v42';
+const APP_UPDATED = '2026/08/10';
 
 // 系統更新公告（顯示在通知中心「系統更新」）。最新的放最前面。
 // 每次要 push 前，把該次更新內容加成一筆新的（version 用日期），使用者打開通知中心就會看到。

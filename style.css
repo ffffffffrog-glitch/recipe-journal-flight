@@ -1923,7 +1923,14 @@ body.storage-error .page { padding-top: 44px; }
 .hrec-row + .hrec-row, .hrec-sleep-list + .hrec-row { border-top: 1px solid var(--border); }
 .hrec-label { font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; width: 4.5em; flex-shrink: 0; }
 .hrec-time { padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; }
+.hrec-tgrp { display: inline-flex; align-items: center; gap: 2px; }
+.hrec-tsel { padding: 6px 6px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.hrec-colon { color: var(--text-2); font-weight: 700; }
 .hrec-arrow { color: var(--text-3); }
+.hrec-waist-head { cursor: pointer; user-select: none; }
+.hrec-waist-val { font-size: .85rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.hrec-caret { margin-left: auto; color: var(--text-3); font-size: .7rem; }
+.hrec-waist-body { padding-top: 0; }
 .hrec-sleep-row .qw-btn { margin-left: auto; }
 .hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px 4.5em; }
 .hrec-sleep-chip { font-size: .78rem; background: var(--sage-pale); color: var(--sage); border-radius: 12px; padding: 3px 4px 3px 10px; }

@@ -65,6 +65,7 @@ function toggleAskWeight(on) {
 }
 function toggleShowWaist(on) {
   setData('showWaist', !!on);
+  if (on) setData('waistExpanded', true);   // 剛開啟顯示腰圍 → 預設展開方便馬上記錄
   if (document.getElementById('inbody-content')) renderInbody();
 }
 function toggleShowSleep(on) {
@@ -548,6 +549,8 @@ function buildWeeklyExportText(startDs, endDs) {
   const diary = getData('diary', {});
   const wLog  = getData('workoutLog', []);
   const weightLog = getData('weightLog', {});
+  const sleepLog = getData('sleepLog', {});
+  const waistLog = getData('waistLog', {});
   const inbodyW = {};
   getData('inbody', []).forEach(r => { if (r.weight != null) inbodyW[r.date] = r.weight; });
 
@@ -577,6 +580,18 @@ function buildWeeklyExportText(startDs, endDs) {
     const first = weights[0].w, last = weights[weights.length - 1].w, diff = r2(last - first);
     out.push(`體重：${first}kg → ${last}kg（${diff >= 0 ? '+' : ''}${diff}kg），平均 ${r2(weights.reduce((s, x) => s + x.w, 0) / weights.length)}kg`);
   } else out.push('體重：本週無紀錄');
+  // 睡眠摘要
+  const sleepDays = dates.map(ds => ({ ds, m: _sleepDayTotal(ds) })).filter(x => x.m > 0);
+  if (sleepDays.length) {
+    const avgM = sleepDays.reduce((s, x) => s + x.m, 0) / sleepDays.length;
+    out.push(`睡眠：${dates.length} 天中 ${sleepDays.length} 天有紀錄，平均每日 ${_fmtMin(avgM)}`);
+  } else out.push('睡眠：本週無紀錄');
+  // 腰圍摘要
+  const waistDays = dates.map(ds => ({ ds, w: waistLog[ds] })).filter(x => x.w != null);
+  if (waistDays.length) {
+    const wf = waistDays[0].w, wl = waistDays[waistDays.length - 1].w;
+    out.push(`腰圍：${wf}cm → ${wl}cm（${r2(wl - wf) >= 0 ? '+' : ''}${r2(wl - wf)}cm）`);
+  }
   out.push('');
 
   // Diary
@@ -632,6 +647,28 @@ function buildWeeklyExportText(startDs, endDs) {
   else {
     weights.forEach(x => out.push(`${label(x.ds)}：${x.w} kg`));
     out.push(`（本週平均 ${r2(weights.reduce((s, x) => s + x.w, 0) / weights.length)} kg）`);
+  }
+  out.push('');
+
+  // Sleep
+  out.push('═══ 睡眠 ═══');
+  if (!sleepDays.length) out.push('本週無睡眠紀錄');
+  else {
+    dates.forEach(ds => {
+      const ivs = sleepLog[ds] || [];
+      if (!ivs.length) return;
+      const detail = ivs.map(iv => `${iv.s}–${iv.e}`).join('、');
+      out.push(`${label(ds)}：共 ${_fmtMin(_sleepDayTotal(ds))}（${detail}）`);
+    });
+    const avgM = sleepDays.reduce((s, x) => s + x.m, 0) / sleepDays.length;
+    out.push(`（本週平均 ${_fmtMin(avgM)}）`);
+  }
+
+  // Waist
+  if (waistDays.length) {
+    out.push('');
+    out.push('═══ 腰圍 ═══');
+    waistDays.forEach(x => out.push(`${label(x.ds)}：${x.w} cm`));
   }
 
   return out.join('\n');
@@ -5595,6 +5632,7 @@ function deleteHabitConfirm(habitId) {
 
 // ===== INBODY =====
 let _inbodyTrendRange = '6m';
+let _sleepChartMode = 'daily';   // 'daily' | 'weekly'
 
 function renderInbody() {
   const allRecords = getData('inbody', []);
@@ -5611,6 +5649,21 @@ function renderInbody() {
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
     </div>`;
+
+  // 睡眠圖表（每日／每週平均切換）— 依設定顯示
+  if (getData('showSleep', true) !== false) {
+    html += `
+    <div class="weight-7d-card" style="margin-top:12px">
+      <div class="trend-card-header">
+        <span class="weight-7d-title" style="margin:0">睡眠時長</span>
+        <div class="trend-toggle">
+          <button class="trend-toggle-btn${_sleepChartMode==='daily'?' active':''}" onclick="setSleepChartMode('daily')">每日</button>
+          <button class="trend-toggle-btn${_sleepChartMode==='weekly'?' active':''}" onclick="setSleepChartMode('weekly')">每週平均</button>
+        </div>
+      </div>
+      <canvas id="sleep-chart" class="weight-7d-canvas"></canvas>
+    </div>`;
+  }
 
   // Last record time — plain centered text, no box
   const lastTimeText = records.length
@@ -5676,9 +5729,16 @@ function renderInbody() {
   // Weekly weight average chart
   _drawWeeklyWeightChart('weight-7d-chart');
 
+  // 睡眠圖表
+  if (getData('showSleep', true) !== false) _drawSleepChart('sleep-chart');
+
   // Draw trend charts
   if (allRecords.length >= 2) {
-    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true);
+    // 腰圍以第二 Y 軸疊加在「原始體重趨勢」（非 7 日均）
+    const showWaist = getData('showWaist', true) !== false;
+    const waistOv = showWaist ? _waistSeries(_inbodyTrendRange) : [];
+    drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true, 65,
+      waistOv.length >= 2 ? { overlay: waistOv, overlayColor: '#C08552', overlayUnit: 'cm' } : {});
     drawSingleTrendChart('trend-fat',    allRecords, 'fatPct', '%',  '#D98866', false);
     drawSingleTrendChart('trend-muscle', allRecords, 'muscle', 'kg', '#4A7FA5', false);
   }
@@ -5957,6 +6017,88 @@ function _drawWeeklyWeightChart(canvasId) {
   ctx.fillText(`${lastS.avg}kg`, lx, ly - 4);
 }
 
+// ===== 睡眠時長長條圖（每日／每週平均）=====
+function setSleepChartMode(m) { _sleepChartMode = m; if (document.getElementById('inbody-content')) renderInbody(); }
+
+function _drawSleepChart(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const { ctx, W, H } = _crispCanvas(canvas, 95);
+  const DAY = 86400000;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+
+  let bars = [];   // {label, mins}
+  if (_sleepChartMode === 'weekly') {
+    for (let w = 7; w >= 0; w--) {
+      let tot = 0, cnt = 0, end = null;
+      for (let d = 0; d < 7; d++) {
+        const dt = new Date(now.getTime() - (w * 7 + d) * DAY);
+        if (d === 0) end = dt;
+        const t = _sleepDayTotal(dateStr(dt));
+        if (t > 0) { tot += t; cnt++; }
+      }
+      bars.push({ label: (end.getMonth() + 1) + '/' + end.getDate(), mins: cnt ? tot / cnt : 0 });
+    }
+  } else {
+    for (let i = 13; i >= 0; i--) {
+      const dt = new Date(now.getTime() - i * DAY);
+      bars.push({ label: (dt.getMonth() + 1) + '/' + dt.getDate(), mins: _sleepDayTotal(dateStr(dt)) });
+    }
+  }
+
+  if (!bars.some(b => b.mins > 0)) {
+    ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('尚無睡眠記錄', W / 2, H / 2);
+    return;
+  }
+
+  const color = '#6A7FA5';
+  const PAD = { t: 12, r: 12, b: 16, l: 30 };
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const maxMin = Math.max(...bars.map(b => b.mins), 480);
+  const hiH = Math.ceil(maxMin / 60);
+  const hi = hiH * 60;
+  const yOf = v => PAD.t + ch - (v / hi) * ch;
+
+  // 網格 + y 標籤（小時）
+  const steps = hiH <= 6 ? hiH : (hiH <= 12 ? Math.ceil(hiH / 2) : 4);
+  ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
+  for (let i = 0; i <= steps; i++) {
+    const v = (hi / steps) * i, y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+    ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(v / 60) + 'h', PAD.l - 4, y);
+  }
+
+  // 長條
+  const n = bars.length, slot = cw / n, bw = Math.min(slot * 0.62, 18);
+  const base = PAD.t + ch;
+  bars.forEach((b, i) => {
+    if (b.mins <= 0) return;
+    const x = PAD.l + slot * i + slot / 2, y = yOf(b.mins);
+    ctx.fillStyle = color;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - bw / 2, y, bw, base - y, 3); ctx.fill(); }
+    else ctx.fillRect(x - bw / 2, y, bw, base - y);
+  });
+
+  // x 標籤（首／尾）
+  ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif'; ctx.textBaseline = 'top';
+  ctx.textAlign = 'left'; ctx.fillText(bars[0].label, PAD.l, H - 11);
+  ctx.textAlign = 'right'; ctx.fillText(bars[n - 1].label, W - PAD.r, H - 11);
+
+  // 平均虛線 + 標籤
+  const avgVals = bars.filter(b => b.mins > 0).map(b => b.mins);
+  const avg = avgVals.reduce((a, c) => a + c, 0) / avgVals.length;
+  const ay = yOf(avg);
+  ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = '#C08552'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(PAD.l, ay); ctx.lineTo(W - PAD.r, ay); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#C08552'; ctx.font = 'bold 9px DM Sans, sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('平均 ' + _fmtMin(avg), W - PAD.r, ay - 2);
+}
+
 // Carousel state (JS-transform based — avoids overflow-x:hidden on .page)
 let _carIdx   = 0;   // current slide index
 let _carTotal = 0;   // total slides
@@ -6106,6 +6248,10 @@ function onWaistDateChange() {
   const inp = document.getElementById('waistlog-input');
   if (inp) inp.value = (w != null ? w : '');
 }
+function toggleWaistExpand() {
+  setData('waistExpanded', getData('waistExpanded', false) !== true);
+  if (document.getElementById('inbody-content')) renderInbody();
+}
 
 // ===== 睡眠記錄 =====
 // sleepLog[date] = [{s:'HH:MM', e:'HH:MM'}, …]（一天可多段，含午覺）
@@ -6123,12 +6269,21 @@ function _sleepWeekAvg() {   // 近 7 天、以「有記錄的天數」平均
   for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); const t = _sleepDayTotal(dateStr(d)); if (t > 0) { tot += t; days++; } }
   return days ? Math.round(tot / days) : 0;
 }
-function _fmtMin(m) { m = Math.round(m); return `${Math.floor(m / 60)} 時 ${m % 60} 分`; }
+function _fmtMin(m) { m = Math.round(m / 5) * 5; const h = Math.floor(m / 60), mm = m % 60; return mm ? `${h} 時 ${mm} 分` : `${h} 時`; }
+// 24 小時制時間選擇器（分鐘 5 分為刻度）
+function _hhmmSelect(id, dh, dm) {
+  let hopt = '', mopt = '';
+  for (let i = 0; i < 24; i++) { const v = String(i).padStart(2, '0'); hopt += `<option value="${v}"${i === dh ? ' selected' : ''}>${v}</option>`; }
+  for (let i = 0; i < 60; i += 5) { const v = String(i).padStart(2, '0'); mopt += `<option value="${v}"${i === dm ? ' selected' : ''}>${v}</option>`; }
+  return `<select id="${id}-h" class="hrec-tsel">${hopt}</select><span class="hrec-colon">:</span><select id="${id}-m" class="hrec-tsel">${mopt}</select>`;
+}
 
 function saveSleepInterval() {
-  const s = document.getElementById('sleep-start')?.value;
-  const e = document.getElementById('sleep-end')?.value;
-  if (!s || !e) { showToast('請填就寢與起床時間'); return; }
+  const sh = document.getElementById('sleep-start-h')?.value, sm = document.getElementById('sleep-start-m')?.value;
+  const eh = document.getElementById('sleep-end-h')?.value, em = document.getElementById('sleep-end-m')?.value;
+  if (sh == null || sm == null || eh == null || em == null) { showToast('請填就寢與起床時間'); return; }
+  const s = `${sh}:${sm}`, e = `${eh}:${em}`;
+  if (s === e) { showToast('就寢與起床時間相同'); return; }
   const log = getData('sleepLog', {});
   const t = todayStr();
   if (!log[t]) log[t] = [];
@@ -6169,21 +6324,29 @@ function _healthRecordBlock() {
     rows += `
     <div class="hrec-row hrec-sleep-row">
       <span class="hrec-label">今日睡眠</span>
-      <input type="time" id="sleep-start" class="hrec-time" title="就寢">
+      <span class="hrec-tgrp" title="就寢">${_hhmmSelect('sleep-start', 23, 0)}</span>
       <span class="hrec-arrow">→</span>
-      <input type="time" id="sleep-end" class="hrec-time" title="起床">
+      <span class="hrec-tgrp" title="起床">${_hhmmSelect('sleep-end', 7, 0)}</span>
       <button class="qw-btn" onclick="saveSleepInterval()">＋段</button>
     </div>
     ${_sleepTodayList()}`;
   }
   if (showWaist) {
+    const wExp = getData('waistExpanded', false) === true;
     rows += `
-    <div class="hrec-row">
+    <div class="hrec-row hrec-waist-head" onclick="toggleWaistExpand()">
       <span class="hrec-label">今日腰圍</span>
+      <span class="hrec-waist-val">${waistToday != null ? waistToday + ' cm' : '未記錄'}</span>
+      <span class="hrec-caret">${wExp ? '▲' : '▼'}</span>
+    </div>`;
+    if (wExp) {
+      rows += `
+    <div class="hrec-row hrec-waist-body">
       <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistToday != null ? waistToday : ''}">
       <span class="qw-unit">cm</span>
       <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
     </div>`;
+    }
   }
   return `<div class="health-record-block">${rows}</div>`;
 }
@@ -6257,10 +6420,10 @@ function _showSleepPrompt() {
     <div class="bottom-sheet" style="max-width:380px;padding:28px 24px">
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;text-align:center">🌙 昨晚睡眠</div>
       <div style="font-size:.85rem;color:var(--text-2);margin-bottom:20px;text-align:center">記錄昨晚的就寢與起床時間</div>
-      <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:20px">
-        <input type="time" id="sp-start" class="form-input" style="flex:1">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:20px" class="hrec-sleep-row">
+        <span class="hrec-tgrp">${_hhmmSelect('sp-start', 23, 0)}</span>
         <span style="color:var(--text-3)">→</span>
-        <input type="time" id="sp-end" class="form-input" style="flex:1">
+        <span class="hrec-tgrp">${_hhmmSelect('sp-end', 7, 0)}</span>
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn-ghost" style="flex:1" onclick="document.getElementById('sleep-prompt-overlay').remove();document.body.style.overflow=''">跳過</button>
@@ -6271,8 +6434,11 @@ function _showSleepPrompt() {
   document.body.style.overflow = 'hidden';
 }
 function saveSleepFromPrompt() {
-  const s = document.getElementById('sp-start')?.value, e = document.getElementById('sp-end')?.value;
-  if (!s || !e) { showToast('請填就寢與起床時間'); return; }
+  const sh = document.getElementById('sp-start-h')?.value, sm = document.getElementById('sp-start-m')?.value;
+  const eh = document.getElementById('sp-end-h')?.value, em = document.getElementById('sp-end-m')?.value;
+  if (sh == null || sm == null || eh == null || em == null) { showToast('請填就寢與起床時間'); return; }
+  const s = `${sh}:${sm}`, e = `${eh}:${em}`;
+  if (s === e) { showToast('就寢與起床時間相同'); return; }
   const log = getData('sleepLog', {}); const t = todayStr();
   if (!log[t]) log[t] = [];
   log[t].push({ s, e });
@@ -6303,12 +6469,28 @@ function _trendSeries(allRecords, field, includeWeightLog, range) {
   return series;
 }
 
+// 腰圍序列（自 waistLog），與 _trendSeries 相同的時間範圍規則
+function _waistSeries(range) {
+  let cutoff = null;
+  if (range === '3m' || range === '6m') {
+    const c = new Date(); c.setMonth(c.getMonth() - (range === '3m' ? 3 : 6));
+    cutoff = dateStr(c);
+  }
+  const s = Object.entries(getData('waistLog', {}))
+    .filter(([date, v]) => v != null && (!cutoff || date >= cutoff))
+    .map(([date, v]) => ({ date, v }));
+  s.sort((a, b) => a.date.localeCompare(b.date));
+  return s;
+}
+
 // ===== SINGLE-METRIC TREND CHART =====
-function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeWeightLog, height = 65) {
+function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeWeightLog, height = 65, opts = {}) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
   const series = _trendSeries(allRecords, field, includeWeightLog, _inbodyTrendRange);
+  const ov = (opts.overlay && opts.overlay.length >= 2) ? opts.overlay : null;
+  const ovColor = opts.overlayColor || '#C08552', ovUnit = opts.overlayUnit || '';
 
   const { ctx, W, H } = _crispCanvas(canvas, height);
 
@@ -6320,7 +6502,7 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
   }
 
   const small = H < 90;
-  const PAD = { t: small ? 6 : 14, r: 16, b: small ? 16 : 26, l: 38 };
+  const PAD = { t: small ? 6 : 14, r: ov ? 34 : 16, b: small ? 16 : 26, l: 38 };
   const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
   const vals = series.map(d => d.v);
   const minV = Math.min(...vals), maxV = Math.max(...vals);
@@ -6328,10 +6510,20 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
   const lo = minV - pad, hi = maxV + pad;
 
   const dToMs = ds => new Date(ds).getTime();
-  const firstMs = dToMs(series[0].date), lastMs = dToMs(series[series.length - 1].date);
+  const allMs = series.map(d => dToMs(d.date)).concat(ov ? ov.map(d => dToMs(d.date)) : []);
+  const firstMs = Math.min(...allMs), lastMs = Math.max(...allMs);
   const spanMs = Math.max(1, lastMs - firstMs);
   const xS = d => PAD.l + ((dToMs(d) - firstMs) / spanMs) * cW;
   const yS = v => PAD.t + cH - ((v - lo) / (hi - lo)) * cH;
+
+  // 腰圍 overlay 的第二 Y 軸（右側）
+  let yS2 = null, oLo, oHi;
+  if (ov) {
+    const ovals = ov.map(d => d.v);
+    oLo = Math.min(...ovals); oHi = Math.max(...ovals);
+    const opad = (oHi - oLo) * 0.18 || 1; oLo -= opad; oHi += opad;
+    yS2 = v => PAD.t + cH - ((v - oLo) / (oHi - oLo)) * cH;
+  }
 
   // Grid — always 3 ticks (lo / mid / hi)
   ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
@@ -6389,6 +6581,31 @@ function drawSingleTrendChart(canvasId, allRecords, field, unit, color, includeW
     ctx.fillStyle = color; ctx.font = 'bold 11px DM Sans, sans-serif';
     ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     ctx.fillText(`${last.v}${unit}`, lastX - 4, lastY - 4);
+  }
+
+  // ===== 腰圍 overlay（第二 Y 軸，虛線）=====
+  if (ov) {
+    // 右側刻度（lo / hi）
+    ctx.fillStyle = ovColor; ctx.font = '9px DM Sans, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(oHi * 10) / 10, W - PAD.r + 4, yS2(oHi));
+    ctx.fillText(Math.round(oLo * 10) / 10, W - PAD.r + 4, yS2(oLo));
+    // 虛線
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ov.forEach((pt, i) => { i === 0 ? ctx.moveTo(xS(pt.date), yS2(pt.v)) : ctx.lineTo(xS(pt.date), yS2(pt.v)); });
+    ctx.strokeStyle = ovColor; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.restore();
+    // 點
+    ov.forEach(pt => {
+      ctx.beginPath(); ctx.arc(xS(pt.date), yS2(pt.v), 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = ovColor; ctx.fill();
+    });
+    // 圖例
+    ctx.font = '9px DM Sans, sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillStyle = color; ctx.fillText('● 體重', PAD.l + 2, PAD.t - (small ? 4 : 2));
+    ctx.fillStyle = ovColor; ctx.fillText('▪ 腰圍', PAD.l + 42, PAD.t - (small ? 4 : 2));
   }
 }
 
