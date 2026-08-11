@@ -1870,6 +1870,57 @@ function renderWorkoutSearch() {
     : '');
 }
 
+// ===== 飲食日誌搜尋（比照運動搜尋）=====
+let _diarySearchLimit = 10;
+function openDiarySearch() {
+  _diarySearchLimit = 10;
+  const ov = document.createElement('div');
+  ov.id = 'diary-search-overlay';
+  ov.className = 'ach-manage-overlay';
+  ov.innerHTML = `
+    <div class="amg-header">
+      <div class="amg-title">搜尋飲食紀錄</div>
+      <button class="td-close" onclick="closeDiarySearch()">✕</button>
+    </div>
+    <div class="amg-sub">輸入食物名稱（如「雞胸」「拿鐵」），列出過往吃過的紀錄與熱量。</div>
+    <input type="text" id="diary-search-input" class="search-input" placeholder="輸入食物名稱…" oninput="renderDiarySearch()" style="margin-top:12px">
+    <div class="wo-search-results" id="diary-search-results"></div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('diary-search-input')?.focus(), 150);
+  renderDiarySearch();
+}
+function closeDiarySearch() {
+  document.getElementById('diary-search-overlay')?.remove();
+  document.body.style.overflow = '';
+}
+function _diaryShowMore() { _diarySearchLimit += 10; renderDiarySearch(); }
+function renderDiarySearch() {
+  const el = document.getElementById('diary-search-results'); if (!el) return;
+  const q = (document.getElementById('diary-search-input')?.value || '').trim().toLowerCase();
+  if (!q) { el.innerHTML = `<div class="wo-search-hint">輸入名稱開始搜尋</div>`; return; }
+  const diary = getData('diary', {});
+  const rows = [];
+  Object.keys(diary).sort().reverse().forEach(date => {
+    (diary[date] || []).forEach(e => { if ((e.name || '').toLowerCase().includes(q)) rows.push({ date, e }); });
+  });
+  if (!rows.length) { el.innerHTML = `<div class="wo-search-hint">找不到「${q}」的紀錄</div>`; return; }
+  const DOW = ['日', '一', '二', '三', '四', '五', '六'];
+  const shown = rows.slice(0, _diarySearchLimit);
+  el.innerHTML = shown.map(({ date, e }) => {
+    const dow = DOW[new Date(date + 'T00:00:00').getDay()];
+    const n = e.nutrition || {};
+    const meal = e.meal || '點心';
+    return `<div class="wo-res-card">
+      <div class="wo-res-date">${date}（${dow}）· ${meal}</div>
+      <div class="wo-res-title">${e.name}${e.amount ? ` <span style="font-weight:400;color:var(--text-3)">${e.amount}</span>` : ''}</div>
+      <div class="wo-res-line">${Math.round(n.calories || 0)} kcal・蛋白 ${Math.round(n.protein || 0)}g・脂肪 ${Math.round(n.fat || 0)}g・碳水 ${Math.round(n.carbs || 0)}g</div>
+    </div>`;
+  }).join('') + (rows.length > _diarySearchLimit
+    ? `<button class="wo-more-btn" onclick="_diaryShowMore()">顯示更多（還有 ${rows.length - _diarySearchLimit} 筆）</button>`
+    : '');
+}
+
 function filterFoodByCategory(cat, btn) {
   state.currentFoodCategory = cat;
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
@@ -2362,6 +2413,7 @@ function openAddDiaryEntrySheet(presetMeal) {
   switchDiaryTab('manual');
   ['dm-name','dm-amount','dm-calories','dm-protein','dm-fat','dm-carbs','dm-fiber']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const tl = document.getElementById('dm-tolib-btn'); if (tl) tl.style.display = 'none';   // 新增時不顯示「加入食物庫」
   renderFrequentFoods();
   openBottomSheet('sheet-diary-add');
 }
@@ -2516,7 +2568,49 @@ function editDiaryEntry(ds, entryId) {
   document.getElementById('dm-fiber').value    = entry.nutrition?.fiber    ?? '';
   const btn = document.querySelector('#add-panel-manual button.btn-primary');
   if (btn) btn.textContent = '更新記錄';
+  const tl = document.getElementById('dm-tolib-btn'); if (tl) tl.style.display = 'flex';   // 手動輸入才顯示「加入食物庫」
   openBottomSheet('sheet-diary-add');
+}
+
+// 把目前手動輸入的飲食內容加進食物庫（自動帶入名稱與營養：g→每100g、包/份→每份）
+function addManualToFoodLib() {
+  const name = (document.getElementById('dm-name').value || '').trim();
+  const amount = (document.getElementById('dm-amount').value || '').trim();
+  const nut = {
+    calories: parseFloat(document.getElementById('dm-calories').value) || 0,
+    protein:  parseFloat(document.getElementById('dm-protein').value)  || 0,
+    fat:      parseFloat(document.getElementById('dm-fat').value)      || 0,
+    carbs:    parseFloat(document.getElementById('dm-carbs').value)    || 0,
+    fiber:    parseFloat(document.getElementById('dm-fiber').value)    || 0,
+  };
+  const r1 = v => Math.round(v * 10) / 10;
+  openAddFoodForm();                        // 開啟食物庫新增表單（會先清空）
+  document.getElementById('food-name').value = name;
+  const gramMatch = amount.match(/([\d.]+)\s*(g|克|公克|ｇ|G)/i);
+  if (gramMatch && parseFloat(gramMatch[1]) > 0) {
+    // 以 g 撰寫 → 換算每 100g
+    const f = 100 / parseFloat(gramMatch[1]);
+    document.getElementById('food-calories').value = r1(nut.calories * f);
+    document.getElementById('food-protein').value  = r1(nut.protein  * f);
+    document.getElementById('food-fat').value      = r1(nut.fat      * f);
+    document.getElementById('food-carbs').value    = r1(nut.carbs    * f);
+    document.getElementById('food-fiber').value    = r1(nut.fiber    * f);
+    showToast('已換算為每 100g，補齊分類後即可儲存');
+  } else {
+    // 以「包／份／盒…」撰寫 → 帶入自訂每份
+    const numMatch = amount.match(/([\d.]+)/);
+    const count = numMatch ? parseFloat(numMatch[1]) : 1;
+    const per = count > 0 ? 1 / count : 1;
+    const unit = amount.replace(/[\d.]+/, '').trim() || '份';
+    document.getElementById('food-serving-unit').value = unit;
+    document.getElementById('food-sv-calories').value = r1(nut.calories * per);
+    document.getElementById('food-sv-protein').value  = r1(nut.protein  * per);
+    document.getElementById('food-sv-fat').value      = r1(nut.fat      * per);
+    document.getElementById('food-sv-carbs').value    = r1(nut.carbs    * per);
+    document.getElementById('food-sv-fiber').value    = r1(nut.fiber    * per);
+    showToast(`已帶入每 1 ${unit} 的營養，補齊每 100g 與分類後即可儲存`);
+  }
+  setTimeout(() => document.getElementById('food-name')?.focus(), 150);
 }
 
 function openFromFoodDB() {

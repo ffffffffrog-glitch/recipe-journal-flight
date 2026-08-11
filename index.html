@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=73">
+  <link rel="stylesheet" href="style.css?v=74">
 </head>
 <body>
 <div id="storage-full-banner">
@@ -78,7 +78,10 @@
 
     <!-- ========== PAGE: 飲食日誌 ========== -->
     <section id="page-diary" class="page">
-      <div class="page-header">
+      <div class="page-header" style="position:relative">
+        <button class="workout-search-btn" onclick="openDiarySearch()" title="搜尋飲食紀錄">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
         <h1 class="page-title">飲食日誌</h1>
       </div>
       <div class="date-nav">
@@ -702,7 +705,10 @@
         <div class="form-section"><label class="form-label">碳水 (g)</label><input type="number" id="dm-carbs" class="form-input" min="0" step="0.1"></div>
         <div class="form-section"><label class="form-label">纖維 (g)</label><input type="number" id="dm-fiber" class="form-input" min="0" step="0.1"></div>
       </div>
-      <button type="button" class="btn-primary full-width" onclick="saveManualDiaryEntry()">新增記錄</button>
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <button type="button" class="btn-primary full-width" onclick="saveManualDiaryEntry()">新增記錄</button>
+        <button type="button" id="dm-tolib-btn" class="dm-tolib-btn" onclick="addManualToFoodLib()" title="加入食物庫" style="display:none">＋ 食物庫</button>
+      </div>
     </div>
 
     <!-- Panel 2: 資料庫搜尋 -->
@@ -1048,8 +1054,8 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<script src="data.js?v=39"></script>
-<script src="app.js?v=90"></script>
+<script src="data.js?v=40"></script>
+<script src="app.js?v=92"></script>
 <script src="vendor/supabase.js?v=1"></script>
 <script src="sync.js?v=9"></script>
 <script>

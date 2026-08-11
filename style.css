@@ -1002,7 +1002,7 @@ img { max-width: 100%; display: block; }
 
 /* Workout search button in header */
 .workout-search-btn {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
   border: none; background: none; color: var(--text-2); cursor: pointer; border-radius: 50%;
 }
@@ -1949,6 +1949,8 @@ body.storage-error .page { padding-top: 44px; }
 .bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
 .bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
 .bc-empty { font-size: .82rem; color: var(--text-3); }
+.dm-tolib-btn { flex-shrink: 0; padding: 0 14px; border: 1.5px solid var(--sage); background: var(--sage-pale); color: var(--sage); border-radius: 10px; font-weight: 600; font-size: .85rem; white-space: nowrap; cursor: pointer; align-items: center; justify-content: center; }
+.dm-tolib-btn:active { background: var(--sage); color: #fff; }
 .bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .bc-detail-body .record-carousel-wrap { overflow: hidden; }
 .bc-detail-body .trend-card { margin-bottom: 12px; }
