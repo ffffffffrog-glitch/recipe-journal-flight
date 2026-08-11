@@ -2136,11 +2136,13 @@ function _renderDiaryCalendar(ds) {
   const diary = getData('diary', {});
   const goals = getData('profile', {}).goals || defaultGoals();
   const today = todayStr();
-  const startDow = new Date(y, m - 1, 1).getDay();
+  const ws = weekStartDow();
+  const lead = (new Date(y, m - 1, 1).getDay() - ws + 7) % 7;
   const daysInMonth = new Date(y, m, 0).getDate();
-  const dows = ['日', '一', '二', '三', '四', '五', '六'];
+  const _dowCh = ['日', '一', '二', '三', '四', '五', '六'];
+  const dows = Array.from({ length: 7 }, (_, i) => _dowCh[(ws + i) % 7]);
   let cells = '';
-  for (let i = 0; i < startDow; i++) cells += `<div class="dcal-cell blank"></div>`;
+  for (let i = 0; i < lead; i++) cells += `<div class="dcal-cell blank"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dstr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const dayEntries = diary[dstr] || [];
@@ -2244,8 +2246,11 @@ function _renderCalendar() {
   const goal = ((getData('profile', {}).goals || defaultGoals()).calories) || 0;
   const today = todayStr();
   const pad2 = n => String(n).padStart(2, '0');
-  const startDow = new Date(y, m, 1).getDay();
+  const ws = weekStartDow();
+  const lead = (new Date(y, m, 1).getDay() - ws + 7) % 7;   // 依「一週開始」設定推算前置空格
   const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const _dowCh = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekdayHdr = Array.from({ length: 7 }, (_, i) => _dowCh[(ws + i) % 7]);
 
   const dotFor = ds => {
     if (!(diary[ds] || []).length || goal <= 0) return 'none';
@@ -2255,7 +2260,7 @@ function _renderCalendar() {
   };
 
   let cells = '';
-  for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell empty"></div>`;
+  for (let i = 0; i < lead; i++) cells += `<div class="cal-cell empty"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${y}-${pad2(m + 1)}-${pad2(d)}`;
     const future = ds > today, isToday = ds === today, sel = ds === state.currentDate;
@@ -2274,7 +2279,7 @@ function _renderCalendar() {
         <div class="cal-title">${y}年${m + 1}月</div>
         <button class="cal-nav" onclick="_calNav(1)">›</button>
       </div>
-      <div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+      <div class="cal-weekdays">${weekdayHdr.map(d => `<span>${d}</span>`).join('')}</div>
       <div class="cal-grid">${cells}</div>
       <div class="cal-legend"><span class="cal-dot green"></span>目標內　<span class="cal-dot red"></span>超標</div>
       <button class="cal-today-btn" onclick="_calGoToday()">回到今天</button>
@@ -4601,14 +4606,16 @@ function renderCalendar() {
   const y = state.habitCalYear;
   const m = state.habitCalMonth;
   const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
-  const wd = ['日','一','二','三','四','五','六'];
-  const firstDay = new Date(y, m, 1).getDay();
+  const ws = weekStartDow();
+  const _dowCh = ['日','一','二','三','四','五','六'];
+  const wd = Array.from({ length: 7 }, (_, i) => _dowCh[(ws + i) % 7]);
+  const lead = (new Date(y, m, 1).getDay() - ws + 7) % 7;
   const daysInMonth = new Date(y, m+1, 0).getDate();
   const today = todayStr();
   const diary = getData('diary', {});
 
   let cells = '';
-  for (let i = 0; i < firstDay; i++) cells += `<div class="cal-day empty"></div>`;
+  for (let i = 0; i < lead; i++) cells += `<div class="cal-day empty"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds === today;
@@ -5419,19 +5426,18 @@ function _streakEveryX(habitId, log, today, x) {
 }
 
 function _streakPerWeek(habitId, log, today, x) {
-  // Count consecutive calendar weeks (Sun–Sat) each with ≥ x ✓
+  // Count consecutive calendar weeks each with ≥ x ✓（週界依「一週開始」設定）
   let streak = 0;
-  const dow = today.getDay();
-  let wEnd = new Date(today); wEnd.setDate(today.getDate() + (6 - dow)); // this Saturday
+  let wStart = startOfWeek(today);   // 本週週首
   for (let w = 0; w < 52; w++) {
-    const wStart = new Date(wEnd); wStart.setDate(wEnd.getDate() - 6);
+    const wEnd = new Date(wStart); wEnd.setDate(wStart.getDate() + 6);
     let count = 0;
     for (let d = new Date(wStart); d <= wEnd; d.setDate(d.getDate() + 1)) {
       if (d > today) continue;
       if ((log[dateStr(d)] || {})[habitId] === 'done') count++;
     }
-    if (count === 0 && w === 0) { wEnd = new Date(wStart); wEnd.setDate(wStart.getDate() - 1); continue; }
-    if (count >= x) { streak++; wEnd = new Date(wStart); wEnd.setDate(wStart.getDate() - 1); }
+    if (count === 0 && w === 0) { wStart.setDate(wStart.getDate() - 7); continue; }
+    if (count >= x) { streak++; wStart.setDate(wStart.getDate() - 7); }
     else break;
   }
   return streak;
