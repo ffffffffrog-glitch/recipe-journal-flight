@@ -5992,7 +5992,8 @@ function deleteHabitConfirm(habitId) {
 
 // ===== INBODY =====
 let _inbodyTrendRange = '6m';
-let _sleepChartMode = 'daily';   // 'daily' | 'weekly'
+let _sleepChartMode = 'daily';   // 'daily' | 'weekly'（已停用）
+let _sleepRange = '2w';          // 睡眠圖區間：'2w' 近兩週 / '1m' 近一月 / 'all' 全部
 
 function renderInbody() {
   const allRecords = getData('inbody', []);
@@ -6047,7 +6048,7 @@ function renderInbody() {
   if (showSleep) {
     html += `
     <div class="weight-7d-card" style="margin-top:12px">
-      <div class="trend-card-header"><span class="weight-7d-title" style="margin:0">睡眠時長</span>${rangeToggle}</div>
+      <div class="trend-card-header"><span class="weight-7d-title" style="margin:0">睡眠時長</span>${_sleepToggleHtml()}</div>
       <canvas id="sleep-chart" class="weight-7d-canvas" onclick="openSleepDetail()"></canvas>
     </div>`;
   }
@@ -6403,16 +6404,10 @@ function openSleepDetail() {
 }
 function closeSleepDetail() { document.getElementById('sleep-detail-overlay')?.remove(); document.body.style.overflow = ''; }
 function _sleepDetailHtml() {
-  const rangeToggle = `
-      <div class="trend-toggle">
-        <button class="trend-toggle-btn${_inbodyTrendRange === '3m' ? ' active' : ''}" onclick="setInbodyTrendRange('3m')">近3月</button>
-        <button class="trend-toggle-btn${_inbodyTrendRange === '6m' ? ' active' : ''}" onclick="setInbodyTrendRange('6m')">近6月</button>
-        <button class="trend-toggle-btn${_inbodyTrendRange === 'all' ? ' active' : ''}" onclick="setInbodyTrendRange('all')">全部</button>
-      </div>`;
   return `<div class="amg-header"><button class="amg-back" onclick="closeSleepDetail()">‹</button><div class="amg-title">睡眠時長</div><button class="td-close" onclick="closeSleepDetail()">✕</button></div>
     <div class="bc-detail-body">
       <div class="trend-card">
-        <div class="trend-card-header"><span class="trend-card-title">每日睡眠</span>${rangeToggle}</div>
+        <div class="trend-card-header"><span class="trend-card-title">每日睡眠</span>${_sleepToggleHtml()}</div>
         <canvas id="sleep-chart-big" class="weight-7d-canvas" style="height:260px"></canvas>
         <div id="sleep-tip" class="sleep-tip">點擊長條看當天睡眠</div>
       </div>
@@ -6434,15 +6429,23 @@ function _renderSleepDetailChart() {
 }
 
 function _sleepRangeDays() {
-  if (_inbodyTrendRange === '3m') return 90;
-  if (_inbodyTrendRange === 'all') {
-    const log = getData('sleepLog', {});
-    const ks = Object.keys(log).filter(k => (log[k] || []).length).sort();
-    if (!ks.length) return 14;
-    const first = new Date(ks[0] + 'T00:00:00'); const now = new Date(); now.setHours(0, 0, 0, 0);
-    return Math.max(14, Math.round((now - first) / 86400000) + 1);
-  }
-  return 180;  // 6m 預設
+  if (_sleepRange === '2w') return 14;
+  if (_sleepRange === '1m') return 30;
+  // all：自最早一筆睡眠記錄至今
+  const log = getData('sleepLog', {});
+  const ks = Object.keys(log).filter(k => (log[k] || []).length).sort();
+  if (!ks.length) return 14;
+  const first = new Date(ks[0] + 'T00:00:00'); const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.max(14, Math.round((now - first) / 86400000) + 1);
+}
+function _sleepToggleHtml() {
+  const opt = (k, label) => `<button class="trend-toggle-btn${_sleepRange === k ? ' active' : ''}" onclick="setSleepRange('${k}')">${label}</button>`;
+  return `<div class="trend-toggle">${opt('2w', '近兩週')}${opt('1m', '近一月')}${opt('all', '全部')}</div>`;
+}
+function setSleepRange(r) {
+  _sleepRange = r;
+  if (document.getElementById('inbody-content')) renderInbody();
+  if (document.getElementById('sleep-detail-overlay')) { document.getElementById('sleep-detail-overlay').innerHTML = _sleepDetailHtml(); _renderSleepDetailChart(); }
 }
 function _drawSleepChart(canvasId, cssH = 95) {
   const canvas = document.getElementById(canvasId);
