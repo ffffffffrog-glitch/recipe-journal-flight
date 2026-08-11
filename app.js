@@ -3495,7 +3495,6 @@ function renderProfile() {
   // --- Build page ---
   document.getElementById('profile-content').innerHTML = `
     ${headerCard}
-    ${_profileEditMode ? '' : _renderMilestoneCard()}
     ${statsCard}
     ${goalsSection}
     <div class="progress-section">
@@ -3503,6 +3502,7 @@ function renderProfile() {
       ${renderProgressBar('熱量', tot.calories, goals.calories, 'kcal', 'calorie')}
       ${renderProgressBar('蛋白質', tot.protein, goals.protein, 'g', 'protein')}
     </div>
+    ${_profileEditMode ? '' : _renderMilestoneCard()}
     <div class="ach-link-card" onclick="navigateTo('achievements')">
       ${icon('trophy', 14)} 成就館
       <span class="alc-count">${achDone} / ${achTotal}</span>
@@ -3571,33 +3571,48 @@ function _milestoneActiveList() {
 }
 
 // 個人資料頁的階段目標卡
+// 目標是否已完成：自訂目標看手動 done；數據目標達標或手動勾都算完成
+function _msCompleted(m) {
+  if (!m) return false;
+  if (m.type === 'note') return !!m.done;
+  return !!m.done || _milestoneProgress(m).achieved;
+}
+// 個人主頁卡片要顯示的目標：僅進行中；同一數值指標只留「目標日期較近」的一個
+function _milestoneCardList() {
+  const active = _milestoneActiveList().filter(m => !_msCompleted(m));
+  const metricBest = {}; const notes = [];
+  active.forEach(m => {
+    if (m.type === 'metric') {
+      const cur = metricBest[m.metric];
+      const md = m.targetDate || '9999-12-31';
+      if (!cur || md < (cur.targetDate || '9999-12-31')) metricBest[m.metric] = m;
+    } else notes.push(m);
+  });
+  return [...Object.values(metricBest), ...notes];
+}
+
 function _renderMilestoneCard() {
   if (getData('showMilestones', true) === false) return '';   // 設定可整個隱藏
-  const all = _milestoneActiveList();
-  if (!all.length) {
+  const list = _milestoneCardList();
+  if (!list.length) {
     return `<div class="ms-card" onclick="openMilestones()">
       <div class="ms-card-head"><span class="ms-title">階段目標</span><span class="ms-add">設定</span></div>
       <div class="ms-empty">設定階段目標，追蹤體重、體脂、腰圍… 的達成進度</div>
     </div>`;
   }
-  const rows = all.slice(0, 3).map(m => {
+  // 個人主頁純供檢視：不顯示 checkbox、不顯示進度條、不顯示已完成
+  const rows = list.slice(0, 4).map(m => {
     if (m.type === 'note') {
-      return `<div class="ms-row">
-        <span class="ms-check ${m.done ? 'done' : ''}" onclick="event.stopPropagation();toggleMilestoneDone('${m.id}')">${m.done ? '✓' : ''}</span>
-        <span class="ms-note ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</span>
-      </div>`;
+      return `<div class="ms-row ms-view"><span class="ms-note">${_esc(m.title || '目標')}</span>${m.targetDate ? `<span class="ms-nums">${m.targetDate}</span>` : ''}</div>`;
     }
     const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
     const pr = _milestoneProgress(m);
-    return `<div class="ms-row ms-metric">
-      <div class="ms-metric-top">
-        <span class="ms-note">${_esc(m.title || meta.label)}${pr.achieved ? ' <span class="ms-done-tag">✓ 達成</span>' : ''}</span>
-        <span class="ms-nums">${pr.cur ?? '—'} → <b>${m.target}</b> ${meta.unit}</span>
-      </div>
-      <div class="ms-bar"><div class="ms-bar-fill ${pr.achieved ? 'done' : ''}" style="width:${pr.pct}%"></div></div>
+    return `<div class="ms-row ms-view">
+      <span class="ms-note">${_esc(m.title || meta.label)}</span>
+      <span class="ms-nums">${pr.cur ?? '—'} → <b>${m.target}</b> ${meta.unit}${m.targetDate ? `・${m.targetDate}` : ''}</span>
     </div>`;
   }).join('');
-  const more = all.length > 3 ? `<div class="ms-more">還有 ${all.length - 3} 個目標 ›</div>` : '';
+  const more = list.length > 4 ? `<div class="ms-more">還有 ${list.length - 4} 個目標 ›</div>` : '';
   return `<div class="ms-card" onclick="openMilestones()">
     <div class="ms-card-head"><span class="ms-title">階段目標</span><span class="ms-add">管理</span></div>
     ${rows}${more}
@@ -3618,30 +3633,37 @@ function openMilestones() {
 function closeMilestones() { document.getElementById('ms-overlay')?.remove(); document.body.style.overflow = ''; if (document.getElementById('profile-content')) renderProfile(); }
 function _msRefreshOverlay() { const ov = document.getElementById('ms-overlay'); if (ov) ov.innerHTML = _msOverlayHtml(); }
 function _msOverlayHtml() {
-  const list = _milestoneActiveList();
-  const items = list.length ? list.map(_msItemHtml).join('')
-    : `<div class="ms-empty" style="padding:36px 16px;text-align:center">還沒有階段目標，按下方按鈕新增一個。</div>`;
-  return `<div class="amg-header"><div class="amg-title">階段目標</div><button class="td-close" onclick="closeMilestones()">✕</button></div>
-    <div class="ms-list">${items}</div>
+  const all = _milestoneActiveList();
+  const active = all.filter(m => !_msCompleted(m));
+  const done = all.filter(m => _msCompleted(m));
+  const activeHtml = active.length ? active.map(_msItemHtml).join('')
+    : `<div class="ms-empty" style="padding:24px 16px;text-align:center">還沒有進行中的階段目標，按下方按鈕新增。</div>`;
+  const doneHtml = done.length ? `<div class="ms-section-label">過往目標記錄</div>${done.map(_msItemHtml).join('')}` : '';
+  return `<div class="amg-header"><button class="amg-back" onclick="closeMilestones()">‹</button><div class="amg-title">階段目標</div><button class="td-close" onclick="closeMilestones()">✕</button></div>
+    <div class="ms-list">${activeHtml}${doneHtml}</div>
     <div style="padding:14px 16px"><button class="btn-primary" style="width:100%" onclick="openMilestoneEdit()">＋ 新增目標</button></div>`;
 }
 function _msItemHtml(m) {
+  const completed = _msCompleted(m);
+  const auto = m.type === 'metric' && _milestoneProgress(m).achieved;
+  const check = `<span class="ms-check ${completed ? 'done' : ''}" onclick="event.stopPropagation();toggleMilestoneDone('${m.id}')">${completed ? '✓' : ''}</span>`;
+  const del = `<button class="icon-btn delete" onclick="event.stopPropagation();deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>`;
   if (m.type === 'note') {
     return `<div class="ms-item">
-      <span class="ms-check ${m.done ? 'done' : ''}" onclick="toggleMilestoneDone('${m.id}')">${m.done ? '✓' : ''}</span>
-      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.targetDate ? `・目標 ${m.targetDate}` : ''}${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
-      <button class="icon-btn delete" onclick="deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>
+      ${check}
+      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${completed ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.targetDate ? `・目標 ${m.targetDate}` : ''}${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
+      ${del}
     </div>`;
   }
   const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
   const pr = _milestoneProgress(m);
   return `<div class="ms-item">
+    ${check}
     <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')">
-      <div class="ms-item-title ${pr.achieved ? 'done' : ''}">${_esc(m.title || meta.label)}${pr.achieved ? ' ✓' : ''}</div>
+      <div class="ms-item-title ${completed ? 'done' : ''}">${_esc(m.title || meta.label)}${auto ? ' <span class="ms-done-tag">達成</span>' : ''}</div>
       <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）${m.targetDate ? `・目標 ${m.targetDate}` : ''}</div>
-      <div class="ms-bar"><div class="ms-bar-fill ${pr.achieved ? 'done' : ''}" style="width:${pr.pct}%"></div></div>
     </div>
-    <button class="icon-btn delete" onclick="deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>
+    ${del}
   </div>`;
 }
 function openMilestoneEdit(id) {
@@ -6029,7 +6051,7 @@ function renderInbody() {
           <button class="trend-toggle-btn${_sleepChartMode==='weekly'?' active':''}" onclick="setSleepChartMode('weekly')">每週平均</button>
         </div>
       </div>
-      <canvas id="sleep-chart" class="weight-7d-canvas"></canvas>
+      <canvas id="sleep-chart" class="weight-7d-canvas" onclick="openSleepDetail()"></canvas>
     </div>`;
   }
 
@@ -6093,7 +6115,7 @@ function _bcOverlayHtml() {
       <div style="font-size:.8rem">點擊上方按鈕新增</div>
     </div>`;
   }
-  return `<div class="amg-header"><div class="amg-title">體組成</div><button class="td-close" onclick="closeBodyCompDetail()">✕</button></div><div class="bc-detail-body">${body}</div>`;
+  return `<div class="amg-header"><button class="amg-back" onclick="closeBodyCompDetail()">‹</button><div class="amg-title">體組成</div><button class="td-close" onclick="closeBodyCompDetail()">✕</button></div><div class="bc-detail-body">${body}</div>`;
 }
 function _drawBodyCompDetail() {
   const allRecords = getData('inbody', []);
@@ -6366,12 +6388,44 @@ function _drawWeeklyWeightChart(canvasId) {
 }
 
 // ===== 睡眠時長長條圖（每日／每週平均）=====
-function setSleepChartMode(m) { _sleepChartMode = m; if (document.getElementById('inbody-content')) renderInbody(); }
+function setSleepChartMode(m) {
+  _sleepChartMode = m;
+  if (document.getElementById('inbody-content')) renderInbody();
+  if (document.getElementById('sleep-detail-overlay')) { document.getElementById('sleep-detail-overlay').innerHTML = _sleepDetailHtml(); _drawSleepChart('sleep-chart-big', 260); }
+}
+// 睡眠時長大圖（點小圖展開）
+function openSleepDetail() {
+  if (document.getElementById('sleep-detail-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'sleep-detail-overlay'; ov.className = 'ach-manage-overlay';
+  ov.innerHTML = _sleepDetailHtml();
+  document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  _drawSleepChart('sleep-chart-big', 260);
+}
+function closeSleepDetail() { document.getElementById('sleep-detail-overlay')?.remove(); document.body.style.overflow = ''; }
+function _sleepDetailHtml() {
+  const avg = _sleepWeekAvg();
+  return `<div class="amg-header"><button class="amg-back" onclick="closeSleepDetail()">‹</button><div class="amg-title">睡眠時長</div><button class="td-close" onclick="closeSleepDetail()">✕</button></div>
+    <div class="bc-detail-body">
+      <div class="trend-card">
+        <div class="trend-card-header">
+          <span class="trend-card-title">睡眠時長</span>
+          <div class="trend-toggle">
+            <button class="trend-toggle-btn${_sleepChartMode === 'daily' ? ' active' : ''}" onclick="setSleepChartMode('daily')">每日</button>
+            <button class="trend-toggle-btn${_sleepChartMode === 'weekly' ? ' active' : ''}" onclick="setSleepChartMode('weekly')">每週平均</button>
+          </div>
+        </div>
+        <canvas id="sleep-chart-big" class="weight-7d-canvas" style="height:260px"></canvas>
+      </div>
+      <div style="text-align:center;color:var(--text-2);font-size:.85rem;margin-top:10px">本週平均睡眠 <b>${avg ? _fmtMin(avg) : '—'}</b></div>
+    </div>`;
+}
 
-function _drawSleepChart(canvasId) {
+function _drawSleepChart(canvasId, cssH = 95) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
-  const { ctx, W, H } = _crispCanvas(canvas, 95);
+  const { ctx, W, H } = _crispCanvas(canvas, cssH);
   const DAY = 86400000;
   const now = new Date(); now.setHours(0, 0, 0, 0);
 
@@ -6626,11 +6680,36 @@ function _hhmmSelect(id, dh, dm) {
   return `<select id="${id}-h" class="hrec-tsel">${hopt}</select><span class="hrec-colon">:</span><select id="${id}-m" class="hrec-tsel">${mopt}</select>`;
 }
 
+// 時間選擇器（點 input box 後彈出，一次選時+分；仿 iPhone 鬧鐘）
+let _timePickerTarget = null;
+function openTimePicker(targetId, label, defH, defM) {
+  _timePickerTarget = targetId;
+  const cur = (document.getElementById(targetId)?.value || '').match(/(\d{1,2}):(\d{2})/);
+  const dh = cur ? +cur[1] : defH, dm = cur ? +cur[2] : defM;
+  document.getElementById('time-picker-overlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'time-picker-overlay'; ov.className = 'bottom-sheet-overlay'; ov.style.display = 'flex'; ov.style.zIndex = '600';
+  ov.innerHTML = `<div class="bottom-sheet" style="max-width:320px;padding:24px">
+    <div style="font-size:1.05rem;font-weight:700;text-align:center;margin-bottom:16px">${label}時間</div>
+    <div class="tp-wheels">${_hhmmSelect('tp', dh, dm)}</div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn-ghost" style="flex:1" onclick="document.getElementById('time-picker-overlay').remove()">取消</button>
+      <button class="btn-primary" style="flex:2" onclick="confirmTimePicker()">確定</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+function confirmTimePicker() {
+  const h = document.getElementById('tp-h')?.value, m = document.getElementById('tp-m')?.value;
+  const box = document.getElementById(_timePickerTarget);
+  if (box && h != null && m != null) box.value = `${h}:${m}`;
+  document.getElementById('time-picker-overlay')?.remove();
+}
+
 function saveSleepInterval() {
-  const sh = document.getElementById('sleep-start-h')?.value, sm = document.getElementById('sleep-start-m')?.value;
-  const eh = document.getElementById('sleep-end-h')?.value, em = document.getElementById('sleep-end-m')?.value;
-  if (sh == null || sm == null || eh == null || em == null) { showToast('請填就寢與起床時間'); return; }
-  const s = `${sh}:${sm}`, e = `${eh}:${em}`;
+  const s = document.getElementById('sleep-start-box')?.value;
+  const e = document.getElementById('sleep-end-box')?.value;
+  if (!s || !e) { showToast('請點選就寢與起床時間'); return; }
   if (s === e) { showToast('就寢與起床時間相同'); return; }
   const log = getData('sleepLog', {});
   const t = todayStr();
@@ -6647,12 +6726,9 @@ function removeSleepInterval(date, idx) {
 }
 function _sleepTodayList() {
   const arr = getData('sleepLog', {})[todayStr()] || [];
-  const avg = _sleepWeekAvg();
-  const avgLine = `<div class="hrec-sleep-total">本週平均睡眠 <b>${avg ? _fmtMin(avg) : '—'}</b></div>`;
-  if (!arr.length) return `<div class="hrec-sleep-list"><span class="hrec-sleep-empty">今天還沒記錄</span>${avgLine}</div>`;
-  const total = arr.reduce((a, iv) => a + _sleepMin(iv), 0);
+  if (!arr.length) return '';   // 純記錄，統計改到圖表看
   const items = arr.map((iv, i) => `<span class="hrec-sleep-chip">${iv.s}–${iv.e}（${_fmtMin(_sleepMin(iv))}）<button class="hrec-sleep-x" onclick="removeSleepInterval('${todayStr()}',${i})">✕</button></span>`).join('');
-  return `<div class="hrec-sleep-list">${items}<div class="hrec-sleep-total">今日共 <b>${_fmtMin(total)}</b>・本週平均 <b>${avg ? _fmtMin(avg) : '—'}</b></div></div>`;
+  return `<div class="hrec-sleep-list">${items}</div>`;
 }
 
 // 健康記錄區（體重／睡眠／腰圍 合併一個 block，只記今天；睡眠/腰圍依設定顯示）
@@ -6672,9 +6748,9 @@ function _healthRecordBlock() {
     rows += `
     <div class="hrec-row hrec-sleep-row">
       <span class="hrec-label">睡眠</span>
-      <span class="hrec-tgrp" title="就寢">${_hhmmSelect('sleep-start', 23, 0)}</span>
-      <span class="hrec-arrow">→</span>
-      <span class="hrec-tgrp" title="起床">${_hhmmSelect('sleep-end', 7, 0)}</span>
+      <input type="text" id="sleep-start-box" class="qw-input hrec-timebox" readonly placeholder="就寢" onclick="openTimePicker('sleep-start-box','就寢', 23, 0)">
+      <span class="hrec-dash">-</span>
+      <input type="text" id="sleep-end-box" class="qw-input hrec-timebox" readonly placeholder="起床" onclick="openTimePicker('sleep-end-box','起床', 7, 0)">
       <button class="qw-btn" onclick="saveSleepInterval()" title="新增一段睡眠">記錄</button>
     </div>
     ${_sleepTodayList()}`;

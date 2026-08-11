@@ -866,8 +866,16 @@ img { max-width: 100%; display: block; }
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   animation: fadeIn .18s ease;
 }
-.amg-header { display: flex; align-items: center; justify-content: space-between; }
-.amg-title { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.amg-header {
+  display: flex; align-items: center; gap: 8px;
+  margin: -16px -16px 0; padding: 14px 16px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  background: var(--white); border-bottom: 1px solid var(--border);
+}
+.amg-title { flex: 1; text-align: center; font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.amg-back { width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: none; border: none; font-size: 1.5rem; color: var(--text-2); cursor: pointer; }
+.amg-header .td-close { flex-shrink: 0; }
+.amg-header + .amg-sub { margin-top: 14px; }
 .amg-sub { font-size: .78rem; color: var(--text-3); line-height: 1.5; margin-top: 10px; }
 .amg-list { flex: 1; min-height: 0; overflow-y: auto; margin-top: 14px; -webkit-overflow-scrolling: touch; }
 .amg-empty { text-align: center; color: var(--text-3); font-size: .85rem; padding: 50px 0; }
@@ -1927,6 +1935,12 @@ body.storage-error .page { padding-top: 44px; }
 .hrec-row .qw-btn { flex-shrink: 0; }
 /* 睡眠：記錄鈕先佔位，剩下橫向空間平均分給兩個時間選擇器 */
 .hrec-sleep-row { gap: 6px; }
+.hrec-timebox { flex: 1; min-width: 0; text-align: center; cursor: pointer; }
+.hrec-dash { color: var(--text-3); flex-shrink: 0; }
+.health-record-block .qw-input::placeholder { color: var(--text-3); opacity: 1; }
+.tp-wheels { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.tp-wheels .hrec-tsel { flex: none; font-size: 1.5rem; padding: 10px 14px; }
+.tp-wheels .hrec-colon { font-size: 1.5rem; }
 .hrec-tgrp { display: flex; flex: 1 1 0; min-width: 0; align-items: center; gap: 2px; }
 .hrec-tsel { flex: 1; min-width: 0; text-align: center; padding: 6px 2px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; font-variant-numeric: tabular-nums; }
 .hrec-colon { color: var(--text-2); font-weight: 700; flex-shrink: 0; }
@@ -1940,16 +1954,20 @@ body.storage-error .page { padding-top: 44px; }
 .bc-card-head .bc-title { font-size: .75rem; font-weight: 700; color: var(--text-2); letter-spacing: .07em; text-transform: uppercase; }
 .bc-card-head .bc-more { font-size: .8rem; color: var(--sage); font-weight: 600; padding: 4px 8px; border-radius: var(--r-sm); background: var(--sage-faint); border: 1px solid var(--sage-pale); }
 .bc-nums { display: flex; gap: 8px; }
-.bc-num { flex: 1; background: var(--sage-pale, #eef2ee); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.bc-num { flex: 1; background: var(--white); border: 1px solid var(--sage-muted, var(--sage)); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .bc-num .bc-v { display: block; font-size: 1.2rem; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
 .bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
 .bc-empty { font-size: .82rem; color: var(--text-3); }
-.dm-tolib-btn { flex-shrink: 0; padding: 10.5px 16px; border: 1.5px solid var(--sage); background: var(--sage-pale); color: var(--sage); border-radius: var(--r); font-weight: 700; font-size: .88rem; letter-spacing: .02em; white-space: nowrap; cursor: pointer; align-items: center; justify-content: center; }
+.dm-tolib-btn { box-sizing: border-box; flex-shrink: 0; padding: 0 16px; border: none; box-shadow: inset 0 0 0 1.5px var(--sage); background: var(--sage-pale); color: var(--sage); border-radius: var(--r); font-weight: 700; font-size: .88rem; letter-spacing: .02em; white-space: nowrap; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+/* +食物庫 與「更新記錄」等高、去除 full-width 的 margin-top，看起來一致 */
+#add-panel-manual .btn-primary { margin-top: 0; height: 46px; box-sizing: border-box; }
+#add-panel-manual .dm-tolib-btn { height: 46px; }
 .dm-tolib-btn:active { background: var(--sage); color: #fff; }
 .bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .bc-detail-body .record-carousel-wrap { overflow: hidden; }
 .bc-detail-body .trend-card { margin-bottom: 12px; }
+.bc-detail-body .inbody-add-btn { width: 100%; }
 
 /* ===== 階段目標 ===== */
 .ms-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin: 12px 0; cursor: pointer; }
@@ -1971,6 +1989,8 @@ body.storage-error .page { padding-top: 44px; }
 .ms-bar-fill.done { background: #4d9a5f; }
 .ms-more { font-size: .78rem; color: var(--text-3); text-align: center; padding-top: 8px; }
 .ms-row { display: flex; align-items: center; gap: 10px; }
+.ms-row.ms-view { align-items: baseline; justify-content: space-between; }
+.ms-section-label { font-size: .72rem; font-weight: 700; color: var(--text-3); letter-spacing: .06em; margin: 18px 0 4px; }
 .ms-check { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; color: #fff; flex-shrink: 0; cursor: pointer; }
 .ms-check.done { background: #4d9a5f; border-color: #4d9a5f; }
 
@@ -1991,7 +2011,7 @@ body.storage-error .page { padding-top: 44px; }
 .ms-field select, .ms-field input { padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; }
 .ms-cur-hint { font-size: .76rem; color: var(--sage); margin: -4px 0 12px; }
 .hrec-sleep-row .qw-btn { margin-left: auto; }
-.hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px 4.5em; }
+.hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px calc(2.8em + 8px); }
 .hrec-sleep-chip { font-size: .78rem; background: var(--sage-pale); color: var(--sage); border-radius: 12px; padding: 3px 4px 3px 10px; }
 .hrec-sleep-x { border: none; background: none; color: var(--sage); cursor: pointer; font-size: .72rem; padding: 0 4px; }
 .hrec-sleep-empty { font-size: .78rem; color: var(--text-3); }
