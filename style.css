@@ -1348,8 +1348,8 @@ img { max-width: 100%; display: block; }
   margin-bottom: 10px;
 }
 .weight-7d-title {
-  font-size: .72rem; font-weight: 700; color: var(--text-3);
-  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
+  font-size: .95rem; font-weight: 800; color: var(--text-1);
+  letter-spacing: 0; margin-bottom: 6px;
 }
 .weight-7d-canvas { display: block; width: 100%; height: 65px; cursor: pointer; }
 
@@ -1918,8 +1918,15 @@ body.storage-error .page { padding-top: 44px; }
   color: var(--text-1); font-size: .82rem; font-weight: 600; font-family: var(--font); cursor: pointer;
 }
 /* 健康記錄合併 block（體重／睡眠／腰圍） */
-.health-record-block { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 6px 16px; }
+.health-record-block { background: transparent; border: 1px solid var(--border); border-radius: 14px; padding: 6px 16px; }
 .hrec-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; flex-wrap: wrap; }
+.hrec-sleep-row { flex-wrap: nowrap; gap: 4px; }
+.hrec-sleep-row .hrec-label { width: auto; margin-right: 0; }
+.hrec-sleep-row .hrec-tsel { padding: 6px 1px; font-size: .8rem; }
+.hrec-sleep-row .hrec-colon { margin: 0 -1px; }
+.hrec-sleep-row .hrec-arrow { margin: 0 1px; }
+.hrec-sleep-row .hrec-tgrp { gap: 0; }
+.hrec-sleep-row .qw-btn { padding: 6px 8px; flex-shrink: 0; }
 .hrec-row + .hrec-row, .hrec-sleep-list + .hrec-row { border-top: 1px solid var(--border); }
 .hrec-label { font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; width: 4.5em; flex-shrink: 0; }
 .hrec-time { padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; }
@@ -1942,7 +1949,9 @@ body.storage-error .page { padding-top: 44px; }
 .bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
 .bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
 .bc-empty { font-size: .82rem; color: var(--text-3); }
-.bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; flex: 1; }
+.bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
+.bc-detail-body .record-carousel-wrap { overflow: hidden; }
+.bc-detail-body .trend-card { margin-bottom: 12px; }
 
 /* ===== 階段目標 ===== */
 .ms-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin: 12px 0; cursor: pointer; }

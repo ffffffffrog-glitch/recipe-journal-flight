@@ -59,11 +59,18 @@ function renderSettings() {
   if (spRow) spRow.style.opacity = sleepOn ? '' : '.45';
   const wsSeg = document.getElementById('weekstart-seg');
   if (wsSeg) { const cur = weekStartDow(); wsSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', +b.dataset.ws === cur)); }
+  const msT = document.getElementById('show-milestones-toggle');
+  if (msT) msT.checked = getData('showMilestones', true) !== false;
 }
 
 function toggleAskWeight(on) {
   setData('askWeightDaily', !!on);
   showToast(on ? '已開啟每日體重提醒' : '已關閉每日體重提醒');
+}
+function toggleShowMilestones(on) {
+  setData('showMilestones', !!on);
+  showToast(on ? '已顯示階段目標' : '已隱藏階段目標');
+  if (document.getElementById('profile-content')) renderProfile();
 }
 function toggleShowWaist(on) {
   setData('showWaist', !!on);
@@ -3466,6 +3473,7 @@ function _milestoneActiveList() {
 
 // 個人資料頁的階段目標卡
 function _renderMilestoneCard() {
+  if (getData('showMilestones', true) === false) return '';   // 設定可整個隱藏
   const all = _milestoneActiveList();
   if (!all.length) {
     return `<div class="ms-card" onclick="openMilestones()">
@@ -6567,7 +6575,7 @@ function _healthRecordBlock() {
       <span class="hrec-tgrp" title="就寢">${_hhmmSelect('sleep-start', 23, 0)}</span>
       <span class="hrec-arrow">→</span>
       <span class="hrec-tgrp" title="起床">${_hhmmSelect('sleep-end', 7, 0)}</span>
-      <button class="qw-btn" onclick="saveSleepInterval()">＋段</button>
+      <button class="qw-btn" onclick="saveSleepInterval()" title="新增一段睡眠">＋</button>
     </div>
     ${_sleepTodayList()}`;
   }
@@ -6601,6 +6609,7 @@ function checkDailyWeightPrompt() {
 
 function _showWeightPrompt() {
   if (document.getElementById('weight-prompt-overlay')) return;
+  if (getData('weightLog', {})[todayStr()] != null) return;   // 延遲期間資料可能已由雲端同步進來（多裝置）
   const overlay = document.createElement('div');
   overlay.id = 'weight-prompt-overlay';
   overlay.className = 'bottom-sheet-overlay';
@@ -6637,6 +6646,21 @@ function saveWeightFromPrompt() {
 }
 
 // 睡眠早上彈窗（僅在「顯示睡眠」且「彈窗提醒」開啟時；同樣 4 點 gate、每日去重）
+// 雲端同步拉回資料後呼叫：若今天的體重／睡眠已被別台裝置記過，關掉還開著的提醒（避免多裝置反覆詢問）
+function _recheckDailyPrompts() {
+  let closed = false;
+  if (getData('weightLog', {})[todayStr()] != null && document.getElementById('weight-prompt-overlay')) {
+    document.getElementById('weight-prompt-overlay').remove(); closed = true;
+  }
+  if ((getData('sleepLog', {})[todayStr()] || []).length && document.getElementById('sleep-prompt-overlay')) {
+    document.getElementById('sleep-prompt-overlay').remove(); closed = true;
+  }
+  if (closed && !document.getElementById('weight-prompt-overlay') && !document.getElementById('sleep-prompt-overlay')) {
+    document.body.style.overflow = '';
+  }
+}
+window._recheckDailyPrompts = _recheckDailyPrompts;
+
 function checkDailySleepPrompt() {
   if (getData('showSleep', true) === false) return;
   if (getData('sleepMorningPrompt', false) !== true) return;   // 預設關
@@ -6649,6 +6673,7 @@ function checkDailySleepPrompt() {
 }
 function _showSleepPrompt() {
   if (document.getElementById('sleep-prompt-overlay')) return;
+  if ((getData('sleepLog', {})[todayStr()] || []).length) return;   // 延遲期間資料可能已由雲端同步進來（多裝置）
   const overlay = document.createElement('div');
   overlay.id = 'sleep-prompt-overlay';
   overlay.className = 'bottom-sheet-overlay';

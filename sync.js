@@ -12,7 +12,7 @@ const SYNC_KEYS = [
   'dailyQuestsDone', 'appTheme', 'askWeightDaily', 'avatarData',
   'deletions', 'waistLog', 'sleepLog',
   'showWaist', 'showSleep', 'sleepMorningPrompt',
-  'milestones', 'weekStart',
+  'milestones', 'weekStart', 'showMilestones',
 ];
 // 墓碑保留天數：超過此天數的刪除記錄會被回收（假設所有裝置都在此期間內同步過一次）
 const TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
@@ -270,6 +270,7 @@ function _refreshUI() {
   };
   try { window[map[p]]?.(); } catch (_) {}
   try { if (p !== 'profile') window.renderProfile?.(); } catch (_) {}
+  try { window._recheckDailyPrompts?.(); } catch (_) {}   // 多裝置：別台已記錄就關掉還開著的每日提醒
 }
 
 // ---- 帳號 UI（設定頁）----
