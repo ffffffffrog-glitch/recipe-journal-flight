@@ -6003,10 +6003,8 @@ function renderInbody() {
 
   if (window.innerWidth >= 1024) { _renderInbodyDesktop(allRecords, records, container); return; }
 
-  // ===== 主頁「健康」：今日記錄 → 體重 → 體重七日 → 體組成入口 → 睡眠 =====
+  // ===== 主頁「健康」：今日記錄 → 體重(七日) → 睡眠 → 體組成記錄（攤平：趨勢們 + 新增 + 完整記錄）=====
   const showSleep = getData('showSleep', true) !== false;
-  const last = records[0] || null;
-  const fmt = v => (v != null && v !== '') ? v : '—';
   const rangeToggle = `
       <div class="trend-toggle">
         <button class="trend-toggle-btn${_inbodyTrendRange==='3m'?' active':''}" onclick="setInbodyTrendRange('3m')">近3月</button>
@@ -6016,35 +6014,14 @@ function renderInbody() {
 
   let html = `${_healthRecordBlock()}`;
 
-  // 體重卡（原始趨勢）
-  html += `
-    <div class="weight-7d-card" style="margin-top:12px">
-      <div class="trend-card-header"><span class="weight-7d-title" style="margin:0">體重趨勢 (kg)</span>${rangeToggle}</div>
-      <canvas id="trend-weight" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas>
-    </div>`;
-
-  // 體重七日卡
+  // 體重趨勢（每7天平均）
   html += `
     <div class="weight-7d-card" style="margin-top:12px">
       <div class="weight-7d-title">體重趨勢（每7天平均）</div>
       <canvas id="weight-7d-chart" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢（每7天平均）','weekly')"></canvas>
     </div>`;
 
-  // 體組成入口卡（點進去看完整記錄、體脂/肌肉/腰圍趨勢）
-  html += `
-    <div class="bc-card" onclick="openBodyCompDetail()">
-      <div class="bc-card-head"><span class="bc-title">體組成</span><span class="bc-more">詳情 ›</span></div>
-      ${last ? `
-      <div class="bc-nums">
-        <div class="bc-num"><span class="bc-v">${fmt(last.fatPct)}</span><span class="bc-l">體脂 %</span></div>
-        <div class="bc-num"><span class="bc-v">${fmt(last.muscle)}</span><span class="bc-l">肌肉 kg</span></div>
-        <div class="bc-num"><span class="bc-v">${fmt(last.bmi)}</span><span class="bc-l">BMI</span></div>
-      </div>
-      <div class="bc-sub">最近 ${last.date}・共 ${records.length} 筆・含腰圍與各項趨勢</div>` : `
-      <div class="bc-empty">尚無完整體組成記錄，點擊進入新增</div>`}
-    </div>`;
-
-  // 睡眠卡（每日；區間切換比照體重趨勢）
+  // 睡眠時長
   if (showSleep) {
     html += `
     <div class="weight-7d-card" style="margin-top:12px">
@@ -6053,12 +6030,61 @@ function renderInbody() {
     </div>`;
   }
 
+  // ===== 體組成記錄（標題置中）=====
+  html += `<div class="inbody-section-title">體組成記錄</div>`;
+  html += `
+    <div class="weight-7d-card">
+      <div class="trend-card-header"><span class="weight-7d-title" style="margin:0">體重趨勢 (kg)</span>${rangeToggle}</div>
+      <canvas id="trend-weight" class="weight-7d-canvas" onclick="openTrendDetail('weight','kg','#4D6A55',true,'體重趨勢')"></canvas>
+    </div>
+    <div class="weight-7d-card" style="margin-top:12px">
+      <div class="weight-7d-title">體脂率趨勢 (%)</div>
+      <canvas id="trend-fat" class="weight-7d-canvas" onclick="openTrendDetail('fatPct','%','#D98866',false,'體脂率趨勢')"></canvas>
+    </div>
+    <div class="weight-7d-card" style="margin-top:12px">
+      <div class="weight-7d-title">肌肉量趨勢 (kg)</div>
+      <canvas id="trend-muscle" class="weight-7d-canvas" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas>
+    </div>
+    <div class="weight-7d-card" style="margin-top:12px;margin-bottom:14px">
+      <div class="weight-7d-title">腰圍趨勢 (cm)</div>
+      <canvas id="trend-waist" class="weight-7d-canvas"></canvas>
+    </div>`;
+
+  // 新增體組成記錄按鈕
+  html += `<button class="inbody-add-btn" onclick="openAddInbodySheet()">＋ 新增完整體組成記錄</button>`;
+
+  // 完整記錄輪播（五角星卡片）
+  if (records.length) {
+    const dots = records.length > 1
+      ? `<div class="carousel-indicators" id="carousel-dots">${records.map((_, i) => `<span class="carousel-dot${i===0?' active':''}" onclick="scrollCarouselTo(${i})"></span>`).join('')}</div>`
+      : '';
+    html += `
+      <div class="record-carousel-wrap">
+        <div class="record-carousel" id="record-carousel">
+          ${records.map(rec => `<div class="record-slide">${buildInbodyCard(rec)}</div>`).join('')}
+        </div>
+        ${dots}
+      </div>`;
+  } else {
+    html += `<div style="display:flex;flex-direction:column;align-items:center;padding:30px 0;gap:10px;color:var(--text-3)">
+      <div style="opacity:.3">${icon('list', 48)}</div>
+      <div style="font-size:.9rem;font-weight:600">尚無完整記錄</div>
+      <div style="font-size:.8rem">點擊上方按鈕新增</div>
+    </div>`;
+  }
+
   container.innerHTML = html;
 
   // 繪圖
-  drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true, 95);
   _drawWeeklyWeightChart('weight-7d-chart');
   if (showSleep) _drawSleepChart('sleep-chart');
+  drawSingleTrendChart('trend-weight', allRecords, 'weight', 'kg', '#4D6A55', true, 90);
+  drawSingleTrendChart('trend-fat', allRecords, 'fatPct', '%', '#D98866', false, 90);
+  drawSingleTrendChart('trend-muscle', allRecords, 'muscle', 'kg', '#4A7FA5', false, 90);
+  const waistArr = Object.entries(getData('waistLog', {})).map(([date, v]) => ({ date, v })).filter(x => x.v != null);
+  drawSingleTrendChart('trend-waist', waistArr, 'v', 'cm', '#C08552', false, 90);
+  records.forEach(rec => { if (rec.leftArm || rec.rightArm || rec.trunk || rec.leftLeg || rec.rightLeg) drawBodyMap(rec, `rec-bodymap-${rec.id}`); });
+  initCarouselDots();
 }
 
 function setInbodyTrendRange(range) {

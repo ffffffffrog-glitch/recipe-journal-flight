@@ -2040,6 +2040,10 @@ body.storage-error .page { padding-top: 44px; }
   text-align: center; padding: 10px 0 6px;
   font-size: .8rem; color: var(--text-3); letter-spacing: .02em;
 }
+.inbody-section-title {
+  text-align: center; padding: 20px 0 8px;
+  font-size: .8rem; color: var(--text-3); letter-spacing: .02em;
+}
 
 /* Carousel: JS-transform based (avoids overflow-x:hidden on .page) */
 /* clip-path:inset(0) clips the visual horizontal overflow WITHOUT collapsing */
