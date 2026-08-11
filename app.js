@@ -3647,23 +3647,26 @@ function _msItemHtml(m) {
   const completed = _msCompleted(m);
   const auto = m.type === 'metric' && _milestoneProgress(m).achieved;
   const check = `<span class="ms-check ${completed ? 'done' : ''}" onclick="event.stopPropagation();toggleMilestoneDone('${m.id}')">${completed ? '✓' : ''}</span>`;
+  const edit = `<button class="icon-btn ms-edit" onclick="event.stopPropagation();openMilestoneEdit('${m.id}')" title="編輯">${icon('pen-left', 14)}</button>`;
   const del = `<button class="icon-btn delete" onclick="event.stopPropagation();deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>`;
+  const dateLine = m.targetDate ? `<div class="ms-item-date">目標日期 ${m.targetDate}</div>` : '';
   if (m.type === 'note') {
     return `<div class="ms-item">
       ${check}
-      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${completed ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.targetDate ? `・目標 ${m.targetDate}` : ''}${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
-      ${del}
+      <div class="ms-item-body"><div class="ms-item-title ${completed ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div>${dateLine}</div>
+      ${edit}${del}
     </div>`;
   }
   const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
   const pr = _milestoneProgress(m);
   return `<div class="ms-item">
     ${check}
-    <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')">
+    <div class="ms-item-body">
       <div class="ms-item-title ${completed ? 'done' : ''}">${_esc(m.title || meta.label)}${auto ? ' <span class="ms-done-tag">達成</span>' : ''}</div>
-      <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）${m.targetDate ? `・目標 ${m.targetDate}` : ''}</div>
+      <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）</div>
+      ${dateLine}
     </div>
-    ${del}
+    ${edit}${del}
   </div>`;
 }
 function openMilestoneEdit(id) {
@@ -6040,17 +6043,11 @@ function renderInbody() {
       <div class="bc-empty">尚無完整體組成記錄，點擊進入新增</div>`}
     </div>`;
 
-  // 睡眠卡
+  // 睡眠卡（每日；區間切換比照體重趨勢）
   if (showSleep) {
     html += `
     <div class="weight-7d-card" style="margin-top:12px">
-      <div class="trend-card-header">
-        <span class="weight-7d-title" style="margin:0">睡眠時長</span>
-        <div class="trend-toggle">
-          <button class="trend-toggle-btn${_sleepChartMode==='daily'?' active':''}" onclick="setSleepChartMode('daily')">每日</button>
-          <button class="trend-toggle-btn${_sleepChartMode==='weekly'?' active':''}" onclick="setSleepChartMode('weekly')">每週平均</button>
-        </div>
-      </div>
+      <div class="trend-card-header"><span class="weight-7d-title" style="margin:0">睡眠時長</span>${rangeToggle}</div>
       <canvas id="sleep-chart" class="weight-7d-canvas" onclick="openSleepDetail()"></canvas>
     </div>`;
   }
@@ -6067,6 +6064,7 @@ function setInbodyTrendRange(range) {
   _inbodyTrendRange = range;
   renderInbody();
   if (document.getElementById('bc-overlay')) { document.getElementById('bc-overlay').innerHTML = _bcOverlayHtml(); _drawBodyCompDetail(); }
+  if (document.getElementById('sleep-detail-overlay')) { document.getElementById('sleep-detail-overlay').innerHTML = _sleepDetailHtml(); _renderSleepDetailChart(); }
 }
 
 // ===== 體組成詳情浮層（腰圍 + 各項趨勢 + 完整 InBody 記錄）=====
@@ -6401,53 +6399,64 @@ function openSleepDetail() {
   ov.innerHTML = _sleepDetailHtml();
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
-  _drawSleepChart('sleep-chart-big', 260);
+  _renderSleepDetailChart();
 }
 function closeSleepDetail() { document.getElementById('sleep-detail-overlay')?.remove(); document.body.style.overflow = ''; }
 function _sleepDetailHtml() {
-  const avg = _sleepWeekAvg();
+  const rangeToggle = `
+      <div class="trend-toggle">
+        <button class="trend-toggle-btn${_inbodyTrendRange === '3m' ? ' active' : ''}" onclick="setInbodyTrendRange('3m')">近3月</button>
+        <button class="trend-toggle-btn${_inbodyTrendRange === '6m' ? ' active' : ''}" onclick="setInbodyTrendRange('6m')">近6月</button>
+        <button class="trend-toggle-btn${_inbodyTrendRange === 'all' ? ' active' : ''}" onclick="setInbodyTrendRange('all')">全部</button>
+      </div>`;
   return `<div class="amg-header"><button class="amg-back" onclick="closeSleepDetail()">‹</button><div class="amg-title">睡眠時長</div><button class="td-close" onclick="closeSleepDetail()">✕</button></div>
     <div class="bc-detail-body">
       <div class="trend-card">
-        <div class="trend-card-header">
-          <span class="trend-card-title">睡眠時長</span>
-          <div class="trend-toggle">
-            <button class="trend-toggle-btn${_sleepChartMode === 'daily' ? ' active' : ''}" onclick="setSleepChartMode('daily')">每日</button>
-            <button class="trend-toggle-btn${_sleepChartMode === 'weekly' ? ' active' : ''}" onclick="setSleepChartMode('weekly')">每週平均</button>
-          </div>
-        </div>
+        <div class="trend-card-header"><span class="trend-card-title">每日睡眠</span>${rangeToggle}</div>
         <canvas id="sleep-chart-big" class="weight-7d-canvas" style="height:260px"></canvas>
+        <div id="sleep-tip" class="sleep-tip">點擊長條看當天睡眠</div>
       </div>
-      <div style="text-align:center;color:var(--text-2);font-size:.85rem;margin-top:10px">本週平均睡眠 <b>${avg ? _fmtMin(avg) : '—'}</b></div>
     </div>`;
 }
+function _renderSleepDetailChart() {
+  _drawSleepChart('sleep-chart-big', 260);
+  const big = document.getElementById('sleep-chart-big');
+  if (!big) return;
+  big.onclick = (e) => {
+    const bars = big.__bars; const tip = document.getElementById('sleep-tip');
+    if (!bars || !bars.length || !tip) return;
+    const rect = big.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    let best = bars[0], bd = Infinity;
+    bars.forEach(b => { const d = Math.abs(b.cx - x); if (d < bd) { bd = d; best = b; } });
+    tip.innerHTML = best.mins > 0 ? `${best.label}（週${best.dow}）　<b>${_fmtMin(best.mins)}</b>` : `${best.label}（週${best.dow}）　無記錄`;
+  };
+}
 
+function _sleepRangeDays() {
+  if (_inbodyTrendRange === '3m') return 90;
+  if (_inbodyTrendRange === 'all') {
+    const log = getData('sleepLog', {});
+    const ks = Object.keys(log).filter(k => (log[k] || []).length).sort();
+    if (!ks.length) return 14;
+    const first = new Date(ks[0] + 'T00:00:00'); const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.max(14, Math.round((now - first) / 86400000) + 1);
+  }
+  return 180;  // 6m 預設
+}
 function _drawSleepChart(canvasId, cssH = 95) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const { ctx, W, H } = _crispCanvas(canvas, cssH);
-  const DAY = 86400000;
+  const DAY = 86400000, DOW = ['日', '一', '二', '三', '四', '五', '六'];
   const now = new Date(); now.setHours(0, 0, 0, 0);
-
-  let bars = [];   // {label, mins}
-  if (_sleepChartMode === 'weekly') {
-    for (let w = 7; w >= 0; w--) {
-      let tot = 0, cnt = 0, end = null;
-      for (let d = 0; d < 7; d++) {
-        const dt = new Date(now.getTime() - (w * 7 + d) * DAY);
-        if (d === 0) end = dt;
-        const t = _sleepDayTotal(dateStr(dt));
-        if (t > 0) { tot += t; cnt++; }
-      }
-      bars.push({ label: (end.getMonth() + 1) + '/' + end.getDate(), mins: cnt ? tot / cnt : 0 });
-    }
-  } else {
-    for (let i = 13; i >= 0; i--) {
-      const dt = new Date(now.getTime() - i * DAY);
-      bars.push({ label: (dt.getMonth() + 1) + '/' + dt.getDate(), mins: _sleepDayTotal(dateStr(dt)) });
-    }
+  const nDays = _sleepRangeDays();
+  const bars = [];
+  for (let i = nDays - 1; i >= 0; i--) {
+    const dt = new Date(now.getTime() - i * DAY);
+    bars.push({ label: (dt.getMonth() + 1) + '/' + dt.getDate(), dow: DOW[dt.getDay()], mins: _sleepDayTotal(dateStr(dt)) });
   }
-
+  canvas.__bars = null;
   if (!bars.some(b => b.mins > 0)) {
     ctx.fillStyle = '#AEADA8'; ctx.font = '11px DM Sans, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6463,7 +6472,6 @@ function _drawSleepChart(canvasId, cssH = 95) {
   const hi = hiH * 60;
   const yOf = v => PAD.t + ch - (v / hi) * ch;
 
-  // 網格 + y 標籤（小時）
   const steps = hiH <= 6 ? hiH : (hiH <= 12 ? Math.ceil(hiH / 2) : 4);
   ctx.strokeStyle = '#E2E0D9'; ctx.lineWidth = 1;
   for (let i = 0; i <= steps; i++) {
@@ -6474,23 +6482,25 @@ function _drawSleepChart(canvasId, cssH = 95) {
     ctx.fillText(Math.round(v / 60) + 'h', PAD.l - 4, y);
   }
 
-  // 長條
-  const n = bars.length, slot = cw / n, bw = Math.min(slot * 0.62, 18);
+  // 每日長條（存幾何供大圖點擊查詢）
+  const n = bars.length, slot = cw / n, bw = Math.max(1.5, Math.min(slot * 0.7, 18));
   const base = PAD.t + ch;
+  const geom = [];
   bars.forEach((b, i) => {
+    const cx = PAD.l + slot * i + slot / 2;
+    geom.push({ cx, label: b.label, dow: b.dow, mins: b.mins });
     if (b.mins <= 0) return;
-    const x = PAD.l + slot * i + slot / 2, y = yOf(b.mins);
+    const y = yOf(b.mins);
     ctx.fillStyle = color;
-    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - bw / 2, y, bw, base - y, 3); ctx.fill(); }
-    else ctx.fillRect(x - bw / 2, y, bw, base - y);
+    if (ctx.roundRect && bw >= 3) { ctx.beginPath(); ctx.roundRect(cx - bw / 2, y, bw, base - y, 2); ctx.fill(); }
+    else ctx.fillRect(cx - bw / 2, y, bw, base - y);
   });
+  canvas.__bars = geom;
 
-  // x 標籤（首／尾）
   ctx.fillStyle = '#AEADA8'; ctx.font = '9px DM Sans, sans-serif'; ctx.textBaseline = 'top';
   ctx.textAlign = 'left'; ctx.fillText(bars[0].label, PAD.l, H - 11);
   ctx.textAlign = 'right'; ctx.fillText(bars[n - 1].label, W - PAD.r, H - 11);
 
-  // 平均虛線 + 標籤
   const avgVals = bars.filter(b => b.mins > 0).map(b => b.mins);
   const avg = avgVals.reduce((a, c) => a + c, 0) / avgVals.length;
   const ay = yOf(avg);

@@ -1474,6 +1474,8 @@ img { max-width: 100%; display: block; }
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .td-close:hover { background: var(--border); color: var(--text); }
+.amg-header .td-close { background: none; border-radius: 0; }
+.amg-header .td-close:hover { background: none; color: var(--text); }
 .td-toggle { display: flex; gap: 6px; margin-top: 14px; }
 .td-range-btn {
   flex: 1; padding: 7px; border: 1px solid var(--border); background: var(--white);
@@ -1955,7 +1957,7 @@ body.storage-error .page { padding-top: 44px; }
 .bc-card-head .bc-more { font-size: .8rem; color: var(--sage); font-weight: 600; padding: 4px 8px; border-radius: var(--r-sm); background: var(--sage-faint); border: 1px solid var(--sage-pale); }
 .bc-nums { display: flex; gap: 8px; }
 .bc-num { flex: 1; background: var(--white); border: 1px solid var(--sage-muted, var(--sage)); border-radius: 10px; padding: 8px 4px; text-align: center; }
-.bc-num .bc-v { display: block; font-size: 1.2rem; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.bc-num .bc-v { display: block; font-size: 1.2rem; font-weight: 500; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
 .bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
 .bc-empty { font-size: .82rem; color: var(--text-3); }
@@ -1964,10 +1966,12 @@ body.storage-error .page { padding-top: 44px; }
 #add-panel-manual .btn-primary { margin-top: 0; height: 46px; box-sizing: border-box; }
 #add-panel-manual .dm-tolib-btn { height: 46px; }
 .dm-tolib-btn:active { background: var(--sage); color: #fff; }
-.bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
+.bc-detail-body { padding: 6px 0 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .bc-detail-body .record-carousel-wrap { overflow: hidden; }
 .bc-detail-body .trend-card { margin-bottom: 12px; }
 .bc-detail-body .inbody-add-btn { width: 100%; }
+.sleep-tip { text-align: center; font-size: .85rem; color: var(--text-2); margin-top: 10px; }
+.sleep-tip b { color: var(--sage); }
 
 /* ===== 階段目標 ===== */
 .ms-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin: 12px 0; cursor: pointer; }
@@ -1979,7 +1983,7 @@ body.storage-error .page { padding-top: 44px; }
 .ms-row + .ms-row { border-top: 1px solid var(--border); }
 .ms-row.ms-metric { display: block; }
 .ms-metric-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.ms-note { font-size: .85rem; font-weight: 600; color: var(--text-1); }
+.ms-note { font-size: .75rem; font-weight: 600; color: var(--text-2); }
 .ms-note.done { text-decoration: line-through; color: var(--text-3); }
 .ms-nums { font-size: .78rem; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ms-nums b { color: var(--sage); }
@@ -1996,11 +2000,15 @@ body.storage-error .page { padding-top: 44px; }
 
 /* 管理浮層項目 */
 .ms-list { padding: 6px 16px; overflow-y: auto; flex: 1; }
-.ms-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.ms-item-body { flex: 1; cursor: pointer; }
+.ms-item { display: flex; align-items: flex-start; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.ms-item .ms-check { align-self: center; }
+.ms-item .icon-btn { align-self: center; }
+.ms-item-body { flex: 1; min-width: 0; }
 .ms-item-title { font-size: .9rem; font-weight: 700; color: var(--text-1); }
 .ms-item-title.done { text-decoration: line-through; color: var(--text-3); }
-.ms-item-sub { font-size: .76rem; color: var(--text-3); margin: 3px 0 7px; }
+.ms-item-sub { font-size: .76rem; color: var(--text-3); margin-top: 3px; }
+.ms-item-date { font-size: .76rem; color: var(--text-3); margin-top: 3px; }
+.ms-edit { color: var(--text-2); }
 .ms-del { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: .55; padding: 2px 4px; }
 .ms-seg { display: flex; width: 100%; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .ms-seg button { flex: 1; padding: 11px 8px; font-size: .9rem; font-weight: 600; background: var(--bg); color: var(--text-2); border: none; cursor: pointer; transition: background .15s; }
