@@ -1348,8 +1348,8 @@ img { max-width: 100%; display: block; }
   margin-bottom: 10px;
 }
 .weight-7d-title {
-  font-size: .95rem; font-weight: 800; color: var(--text-1);
-  letter-spacing: 0; margin-bottom: 6px;
+  font-size: .75rem; font-weight: 700; color: var(--text-2);
+  letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px;
 }
 .weight-7d-canvas { display: block; width: 100%; height: 65px; cursor: pointer; }
 
@@ -1919,37 +1919,33 @@ body.storage-error .page { padding-top: 44px; }
 }
 /* 健康記錄合併 block（體重／睡眠／腰圍） */
 .health-record-block { background: transparent; border: 1px solid var(--border); border-radius: 14px; padding: 6px 16px; }
-.hrec-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; flex-wrap: wrap; }
-.hrec-sleep-row { flex-wrap: nowrap; gap: 4px; }
-.hrec-sleep-row .hrec-label { width: auto; margin-right: 0; }
-.hrec-sleep-row .hrec-tsel { padding: 6px 1px; font-size: .8rem; }
-.hrec-sleep-row .hrec-colon { margin: 0 -1px; }
-.hrec-sleep-row .hrec-arrow { margin: 0 1px; }
-.hrec-sleep-row .hrec-tgrp { gap: 0; }
-.hrec-sleep-row .qw-btn { padding: 6px 8px; flex-shrink: 0; }
+.hrec-head { font-size: .75rem; font-weight: 700; color: var(--text-2); letter-spacing: .07em; text-transform: uppercase; margin: 4px 0 2px; }
+.hrec-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; flex-wrap: nowrap; }
 .hrec-row + .hrec-row, .hrec-sleep-list + .hrec-row { border-top: 1px solid var(--border); }
-.hrec-label { font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; width: 4.5em; flex-shrink: 0; }
-.hrec-time { padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; }
-.hrec-tgrp { display: inline-flex; align-items: center; gap: 2px; }
-.hrec-tsel { padding: 6px 6px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; font-variant-numeric: tabular-nums; }
-.hrec-colon { color: var(--text-2); font-weight: 700; }
-.hrec-arrow { color: var(--text-3); }
-.hrec-head { font-size: .8rem; font-weight: 800; color: var(--text-2); margin-bottom: 2px; }
+.hrec-label { font-size: .75rem; font-weight: 600; color: var(--text-2); white-space: nowrap; width: 2.8em; flex-shrink: 0; }
+.health-record-block .qw-input { flex: 1; min-width: 0; width: auto; text-align: left; }
+.hrec-row .qw-btn { flex-shrink: 0; }
+/* 睡眠：記錄鈕先佔位，剩下橫向空間平均分給兩個時間選擇器 */
+.hrec-sleep-row { gap: 6px; }
+.hrec-tgrp { display: flex; flex: 1 1 0; min-width: 0; align-items: center; gap: 2px; }
+.hrec-tsel { flex: 1; min-width: 0; text-align: center; padding: 6px 2px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.hrec-colon { color: var(--text-2); font-weight: 700; flex-shrink: 0; }
+.hrec-arrow { color: var(--text-3); flex-shrink: 0; }
 .hrec-waist-tab { display: flex; justify-content: center; align-items: center; padding: 5px 0 1px; margin-top: 4px; border-top: 1px solid var(--border); cursor: pointer; user-select: none; }
 .hrec-waist-arrow { color: var(--text-3); font-size: .8rem; line-height: 1; }
 
 /* ===== 體組成入口卡 + 詳情浮層 ===== */
 .bc-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-top: 12px; cursor: pointer; }
 .bc-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.bc-card-head .bc-title { font-size: .92rem; font-weight: 800; color: var(--text-1); }
-.bc-card-head .bc-more { font-size: .8rem; color: var(--sage); font-weight: 600; }
+.bc-card-head .bc-title { font-size: .75rem; font-weight: 700; color: var(--text-2); letter-spacing: .07em; text-transform: uppercase; }
+.bc-card-head .bc-more { font-size: .8rem; color: var(--sage); font-weight: 600; padding: 4px 8px; border-radius: var(--r-sm); background: var(--sage-faint); border: 1px solid var(--sage-pale); }
 .bc-nums { display: flex; gap: 8px; }
 .bc-num { flex: 1; background: var(--sage-pale, #eef2ee); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .bc-num .bc-v { display: block; font-size: 1.2rem; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
 .bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
 .bc-empty { font-size: .82rem; color: var(--text-3); }
-.dm-tolib-btn { flex-shrink: 0; padding: 0 14px; border: 1.5px solid var(--sage); background: var(--sage-pale); color: var(--sage); border-radius: 10px; font-weight: 600; font-size: .85rem; white-space: nowrap; cursor: pointer; align-items: center; justify-content: center; }
+.dm-tolib-btn { flex-shrink: 0; padding: 10.5px 16px; border: 1.5px solid var(--sage); background: var(--sage-pale); color: var(--sage); border-radius: var(--r); font-weight: 700; font-size: .88rem; letter-spacing: .02em; white-space: nowrap; cursor: pointer; align-items: center; justify-content: center; }
 .dm-tolib-btn:active { background: var(--sage); color: #fff; }
 .bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .bc-detail-body .record-carousel-wrap { overflow: hidden; }
@@ -1958,8 +1954,8 @@ body.storage-error .page { padding-top: 44px; }
 /* ===== 階段目標 ===== */
 .ms-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin: 12px 0; cursor: pointer; }
 .ms-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.ms-card-head .ms-title { font-size: .92rem; font-weight: 800; color: var(--text-1); }
-.ms-card-head .ms-add { font-size: .8rem; color: var(--sage); font-weight: 600; }
+.ms-card-head .ms-title { font-size: .75rem; font-weight: 700; color: var(--text-2); letter-spacing: .07em; text-transform: uppercase; }
+.ms-card-head .ms-add { font-size: .8rem; color: var(--sage); font-weight: 600; padding: 4px 8px; border-radius: var(--r-sm); background: var(--sage-faint); border: 1px solid var(--sage-pale); }
 .ms-empty { font-size: .82rem; color: var(--text-3); line-height: 1.5; }
 .ms-row { padding: 7px 0; }
 .ms-row + .ms-row { border-top: 1px solid var(--border); }
@@ -1986,6 +1982,10 @@ body.storage-error .page { padding-top: 44px; }
 .ms-item-title.done { text-decoration: line-through; color: var(--text-3); }
 .ms-item-sub { font-size: .76rem; color: var(--text-3); margin: 3px 0 7px; }
 .ms-del { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: .55; padding: 2px 4px; }
+.ms-seg { display: flex; width: 100%; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.ms-seg button { flex: 1; padding: 11px 8px; font-size: .9rem; font-weight: 600; background: var(--bg); color: var(--text-2); border: none; cursor: pointer; transition: background .15s; }
+.ms-seg button + button { border-left: 1px solid var(--border); }
+.ms-seg button.active { background: var(--sage); color: #fff; }
 .ms-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
 .ms-field > span { font-size: .8rem; font-weight: 600; color: var(--text-2); }
 .ms-field select, .ms-field input { padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; }

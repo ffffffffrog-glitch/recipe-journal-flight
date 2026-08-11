@@ -2585,6 +2585,8 @@ function addManualToFoodLib() {
   };
   const r1 = v => Math.round(v * 10) / 10;
   openAddFoodForm();                        // 開啟食物庫新增表單（會先清空）
+  const fsheet = document.getElementById('sheet-food');
+  if (fsheet) fsheet.style.zIndex = '500';  // 蓋在「編輯飲食記錄」彈窗(300)上方，讓使用者直接看到
   document.getElementById('food-name').value = name;
   const gramMatch = amount.match(/([\d.]+)\s*(g|克|公克|ｇ|G)/i);
   if (gramMatch && parseFloat(gramMatch[1]) > 0) {
@@ -2595,7 +2597,6 @@ function addManualToFoodLib() {
     document.getElementById('food-fat').value      = r1(nut.fat      * f);
     document.getElementById('food-carbs').value    = r1(nut.carbs    * f);
     document.getElementById('food-fiber').value    = r1(nut.fiber    * f);
-    showToast('已換算為每 100g，補齊分類後即可儲存');
   } else {
     // 以「包／份／盒…」撰寫 → 帶入自訂每份
     const numMatch = amount.match(/([\d.]+)/);
@@ -2608,7 +2609,6 @@ function addManualToFoodLib() {
     document.getElementById('food-sv-fat').value      = r1(nut.fat      * per);
     document.getElementById('food-sv-carbs').value    = r1(nut.carbs    * per);
     document.getElementById('food-sv-fiber').value    = r1(nut.fiber    * per);
-    showToast(`已帶入每 1 ${unit} 的營養，補齊每 100g 與分類後即可儲存`);
   }
   setTimeout(() => document.getElementById('food-name')?.focus(), 150);
 }
@@ -3576,7 +3576,7 @@ function _renderMilestoneCard() {
   const all = _milestoneActiveList();
   if (!all.length) {
     return `<div class="ms-card" onclick="openMilestones()">
-      <div class="ms-card-head"><span class="ms-title">🎯 階段目標</span><span class="ms-add">設定 ›</span></div>
+      <div class="ms-card-head"><span class="ms-title">階段目標</span><span class="ms-add">設定</span></div>
       <div class="ms-empty">設定階段目標，追蹤體重、體脂、腰圍… 的達成進度</div>
     </div>`;
   }
@@ -3599,7 +3599,7 @@ function _renderMilestoneCard() {
   }).join('');
   const more = all.length > 3 ? `<div class="ms-more">還有 ${all.length - 3} 個目標 ›</div>` : '';
   return `<div class="ms-card" onclick="openMilestones()">
-    <div class="ms-card-head"><span class="ms-title">🎯 階段目標</span><span class="ms-add">管理 ›</span></div>
+    <div class="ms-card-head"><span class="ms-title">階段目標</span><span class="ms-add">管理</span></div>
     ${rows}${more}
   </div>`;
 }
@@ -3621,7 +3621,7 @@ function _msOverlayHtml() {
   const list = _milestoneActiveList();
   const items = list.length ? list.map(_msItemHtml).join('')
     : `<div class="ms-empty" style="padding:36px 16px;text-align:center">還沒有階段目標，按下方按鈕新增一個。</div>`;
-  return `<div class="amg-header"><div class="amg-title">🎯 階段目標</div><button class="td-close" onclick="closeMilestones()">✕</button></div>
+  return `<div class="amg-header"><div class="amg-title">階段目標</div><button class="td-close" onclick="closeMilestones()">✕</button></div>
     <div class="ms-list">${items}</div>
     <div style="padding:14px 16px"><button class="btn-primary" style="width:100%" onclick="openMilestoneEdit()">＋ 新增目標</button></div>`;
 }
@@ -3629,8 +3629,8 @@ function _msItemHtml(m) {
   if (m.type === 'note') {
     return `<div class="ms-item">
       <span class="ms-check ${m.done ? 'done' : ''}" onclick="toggleMilestoneDone('${m.id}')">${m.done ? '✓' : ''}</span>
-      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
-      <button class="ms-del" onclick="deleteMilestone('${m.id}')">🗑</button>
+      <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')"><div class="ms-item-title ${m.done ? 'done' : ''}">${_esc(m.title || '目標')}</div><div class="ms-item-sub">自訂目標${m.targetDate ? `・目標 ${m.targetDate}` : ''}${m.done && m.doneDate ? `・${m.doneDate} 完成` : ''}</div></div>
+      <button class="icon-btn delete" onclick="deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>
     </div>`;
   }
   const meta = MILESTONE_METRICS[m.metric] || { label: m.metric, unit: '' };
@@ -3638,10 +3638,10 @@ function _msItemHtml(m) {
   return `<div class="ms-item">
     <div class="ms-item-body" onclick="openMilestoneEdit('${m.id}')">
       <div class="ms-item-title ${pr.achieved ? 'done' : ''}">${_esc(m.title || meta.label)}${pr.achieved ? ' ✓' : ''}</div>
-      <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）</div>
+      <div class="ms-item-sub">${meta.label}：${pr.cur ?? '—'} → ${m.target} ${meta.unit}（起始 ${m.startValue ?? '—'}）${m.targetDate ? `・目標 ${m.targetDate}` : ''}</div>
       <div class="ms-bar"><div class="ms-bar-fill ${pr.achieved ? 'done' : ''}" style="width:${pr.pct}%"></div></div>
     </div>
-    <button class="ms-del" onclick="deleteMilestone('${m.id}')">🗑</button>
+    <button class="icon-btn delete" onclick="deleteMilestone('${m.id}')" title="刪除">${icon('trash-2', 15)}</button>
   </div>`;
 }
 function openMilestoneEdit(id) {
@@ -3653,11 +3653,12 @@ function openMilestoneEdit(id) {
   const metricOpts = Object.entries(MILESTONE_METRICS).map(([k, v]) => `<option value="${k}" ${metric === k ? 'selected' : ''}>${v.label}</option>`).join('');
   const sheet = document.createElement('div');
   sheet.id = 'ms-edit-overlay'; sheet.className = 'bottom-sheet-overlay'; sheet.style.display = 'flex';
+  sheet.style.zIndex = '500';   // 蓋在階段目標管理浮層(400)上方
   sheet.innerHTML = `<div class="bottom-sheet" style="max-width:420px;padding:24px">
     <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center">${id ? '編輯' : '新增'}階段目標</div>
-    <div class="trend-toggle" style="margin-bottom:16px">
-      <button class="trend-toggle-btn ${_msType === 'metric' ? 'active' : ''}" onclick="_msSetType('metric')">數值追蹤</button>
-      <button class="trend-toggle-btn ${_msType === 'note' ? 'active' : ''}" onclick="_msSetType('note')">自訂目標</button>
+    <div class="ms-seg" style="margin-bottom:16px">
+      <button class="${_msType === 'metric' ? 'active' : ''}" onclick="_msSetType('metric')">數值追蹤</button>
+      <button class="${_msType === 'note' ? 'active' : ''}" onclick="_msSetType('note')">自訂目標</button>
     </div>
     <div id="ms-metric-fields" style="${_msType === 'note' ? 'display:none' : ''}">
       <label class="ms-field"><span>追蹤項目</span><select id="ms-metric" onchange="_msMetricChanged()">${metricOpts}</select></label>
@@ -3665,6 +3666,7 @@ function openMilestoneEdit(id) {
       <div class="ms-cur-hint" id="ms-cur-hint"></div>
     </div>
     <label class="ms-field"><span id="ms-label-cap">${_msType === 'note' ? '目標描述' : '標題（選填）'}</span><input type="text" id="ms-label" value="${m ? _esc(m.title || '') : ''}" placeholder="${_msType === 'note' ? '例如：連續 30 天喝水 2000cc' : '給這個目標取個名字'}"></label>
+    <label class="ms-field"><span>目標日期（選填）</span><input type="date" id="ms-date" value="${m && m.targetDate ? m.targetDate : ''}"></label>
     <div style="display:flex;gap:10px;margin-top:18px">
       <button class="btn-ghost" style="flex:1" onclick="closeMilestoneEdit()">取消</button>
       <button class="btn-primary" style="flex:2" onclick="saveMilestone()">儲存</button>
@@ -3677,7 +3679,7 @@ function closeMilestoneEdit() { document.getElementById('ms-edit-overlay')?.remo
 function _msSetType(t) {
   _msType = t;
   document.getElementById('ms-metric-fields').style.display = t === 'note' ? 'none' : '';
-  document.querySelectorAll('#ms-edit-overlay .trend-toggle-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (t === 'metric')));
+  document.querySelectorAll('#ms-edit-overlay .ms-seg button').forEach((b, i) => b.classList.toggle('active', (i === 0) === (t === 'metric')));
   const cap = document.getElementById('ms-label-cap'); if (cap) cap.textContent = t === 'note' ? '目標描述' : '標題（選填）';
   const lab = document.getElementById('ms-label'); if (lab) lab.placeholder = t === 'note' ? '例如：連續 30 天喝水 2000cc' : '給這個目標取個名字';
 }
@@ -3705,6 +3707,7 @@ function saveMilestone() {
     if (!m) { m = { id: 'ms' + now + Math.floor(Math.random() * 1000), type: 'note', done: false, createdAt: now }; list.push(m); }
     m.type = 'note'; m.title = label; m.updatedAt = now;
   }
+  m.targetDate = (document.getElementById('ms-date')?.value || '') || null;
   setData('milestones', list);
   closeMilestoneEdit();
   _msRefreshOverlay();
@@ -5636,18 +5639,15 @@ function buildHistoryGrid(habit, log) {
   const today = new Date();
   const todayDs = dateStr(today);
 
-  // Monday of current week
-  const dow = today.getDay();
-  const daysToMon = (dow + 6) % 7; // Sun→6, Mon→0, Tue→1…
-  const currentMon = new Date(today);
-  currentMon.setDate(today.getDate() - daysToMon);
-  currentMon.setHours(0, 0, 0, 0);
+  // 本週週首（依「一週開始」設定）
+  const ws = weekStartDow();
+  const currentStart = startOfWeek(today, ws);
 
   // Build weeks oldest→newest (left→right)
   const weeks = [];
   for (let w = WEEKS - 1; w >= 0; w--) {
-    const mon = new Date(currentMon);
-    mon.setDate(currentMon.getDate() - w * 7);
+    const mon = new Date(currentStart);
+    mon.setDate(currentStart.getDate() - w * 7);
     weeks.push(mon);
   }
 
@@ -5706,7 +5706,7 @@ function buildHistoryGrid(habit, log) {
         </div>
       </div>
       <div class="hhg-day-labels" style="--hhg-cell:${CELL}px;--hhg-gap:${GAP}px">
-        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+        ${Array.from({ length: 7 }, (_, i) => `<div>${['日','一','二','三','四','五','六'][(ws + i) % 7]}</div>`).join('')}
       </div>
     </div>`;
 }
@@ -6663,7 +6663,7 @@ function _healthRecordBlock() {
   const showSleep = getData('showSleep', true) !== false;
   let rows = `
     <div class="hrec-row">
-      <span class="hrec-label">今日體重</span>
+      <span class="hrec-label">體重</span>
       <input type="number" id="wlog-input" class="qw-input" placeholder="kg" step="0.1" min="20" max="300" value="${wToday != null ? wToday : ''}">
       <span class="qw-unit">kg</span>
       <button class="qw-btn" onclick="saveWeightLog()">記錄</button>
@@ -6671,11 +6671,11 @@ function _healthRecordBlock() {
   if (showSleep) {
     rows += `
     <div class="hrec-row hrec-sleep-row">
-      <span class="hrec-label">今日睡眠</span>
+      <span class="hrec-label">睡眠</span>
       <span class="hrec-tgrp" title="就寢">${_hhmmSelect('sleep-start', 23, 0)}</span>
       <span class="hrec-arrow">→</span>
       <span class="hrec-tgrp" title="起床">${_hhmmSelect('sleep-end', 7, 0)}</span>
-      <button class="qw-btn" onclick="saveSleepInterval()" title="新增一段睡眠">＋</button>
+      <button class="qw-btn" onclick="saveSleepInterval()" title="新增一段睡眠">記錄</button>
     </div>
     ${_sleepTodayList()}`;
   }
@@ -6684,7 +6684,7 @@ function _healthRecordBlock() {
     if (wExp) {
       rows += `
     <div class="hrec-row">
-      <span class="hrec-label">今日腰圍</span>
+      <span class="hrec-label">腰圍</span>
       <input type="number" id="waistlog-input" class="qw-input" placeholder="cm" step="0.1" min="30" max="200" value="${waistToday != null ? waistToday : ''}">
       <span class="qw-unit">cm</span>
       <button class="qw-btn" onclick="saveWaistLog()">記錄</button>
