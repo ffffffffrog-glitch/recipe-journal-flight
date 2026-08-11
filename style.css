@@ -1927,10 +1927,22 @@ body.storage-error .page { padding-top: 44px; }
 .hrec-tsel { padding: 6px 6px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .hrec-colon { color: var(--text-2); font-weight: 700; }
 .hrec-arrow { color: var(--text-3); }
-.hrec-waist-head { cursor: pointer; user-select: none; }
-.hrec-caret { margin-left: auto; color: var(--text-3); font-size: .85rem; }
-.hrec-waist-toggle { display: inline-flex; align-items: center; gap: 3px; font-size: .85rem; font-weight: 700; color: var(--text-1); white-space: nowrap; cursor: pointer; user-select: none; width: 4.5em; flex-shrink: 0; }
-.hrec-waist-toggle .cx { color: var(--text-3); font-size: .8rem; }
+.hrec-head { font-size: .8rem; font-weight: 800; color: var(--text-2); margin-bottom: 2px; }
+.hrec-waist-tab { display: flex; justify-content: center; align-items: center; padding: 5px 0 1px; margin-top: 4px; border-top: 1px solid var(--border); cursor: pointer; user-select: none; }
+.hrec-waist-arrow { color: var(--text-3); font-size: .8rem; line-height: 1; }
+
+/* ===== 體組成入口卡 + 詳情浮層 ===== */
+.bc-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-top: 12px; cursor: pointer; }
+.bc-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.bc-card-head .bc-title { font-size: .92rem; font-weight: 800; color: var(--text-1); }
+.bc-card-head .bc-more { font-size: .8rem; color: var(--sage); font-weight: 600; }
+.bc-nums { display: flex; gap: 8px; }
+.bc-num { flex: 1; background: var(--sage-pale, #eef2ee); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.bc-num .bc-v { display: block; font-size: 1.2rem; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.bc-num .bc-l { display: block; font-size: .7rem; color: var(--text-2); margin-top: 2px; }
+.bc-sub { font-size: .74rem; color: var(--text-3); margin-top: 8px; }
+.bc-empty { font-size: .82rem; color: var(--text-3); }
+.bc-detail-body { padding: 6px 16px 24px; overflow-y: auto; flex: 1; }
 
 /* ===== 階段目標 ===== */
 .ms-card { background: var(--card, #fff); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin: 12px 0; cursor: pointer; }
