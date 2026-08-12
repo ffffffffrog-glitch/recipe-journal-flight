@@ -119,19 +119,31 @@ const DEFAULT_FOOD_DB = [
   { id:'f104', name:'白醋',   state:'加工品', category:'調味料', per100g:{ calories:20,  protein:0,   fat:0,   carbs:0.9, fiber:0  }, servings:[{unit:'茶匙',grams:5},{unit:'大匙',grams:15}], note:'1 茶匙≈5g、1 大匙≈15g' },
   { id:'f105', name:'太白粉', state:'加工品', category:'調味料', per100g:{ calories:330, protein:0.1, fat:0.1, carbs:82,  fiber:0  }, servings:[{unit:'茶匙',grams:3},{unit:'大匙',grams:9}],  note:'勾芡用；1 茶匙≈3g、1 大匙≈9g' },
   { id:'f106', name:'白胡椒', state:'加工品', category:'調味料', per100g:{ calories:296, protein:10,  fat:2,   carbs:69,  fiber:26 }, servings:[{unit:'茶匙',grams:2.3},{unit:'大匙',grams:7}], note:'總碳水含膳食纖維；1 茶匙≈2.3g、1 大匙≈7g' },
+  { id:'f107', name:'松坂豬',   state:'生食', category:'肉類',   per100g:{ calories:330, protein:17,   fat:29,  carbs:0,  fiber:0 } },
+  { id:'f108', name:'松坂豬',   state:'熟食', category:'肉類',   per100g:{ calories:450, protein:23,   fat:40,  carbs:0,  fiber:0 } },
+  { id:'f109', name:'梅花豬',   state:'生食', category:'肉類',   per100g:{ calories:220, protein:19,   fat:15,  carbs:0,  fiber:0 } },
+  { id:'f110', name:'梅花豬',   state:'熟食', category:'肉類',   per100g:{ calories:280, protein:24,   fat:20,  carbs:0,  fiber:0 } },
+  { id:'f111', name:'牛梅花',   state:'生食', category:'肉類',   per100g:{ calories:120, protein:20.3, fat:3.7, carbs:1,  fiber:0 } },
+  { id:'f112', name:'牛梅花',   state:'熟食', category:'肉類',   per100g:{ calories:160, protein:27,   fat:5,   carbs:0,  fiber:0 } },
+  { id:'f113', name:'虱目魚肚', state:'生食', category:'魚海鮮', per100g:{ calories:200, protein:17,   fat:15,  carbs:0,  fiber:0 } },
+  { id:'f114', name:'虱目魚肚', state:'熟食', category:'魚海鮮', per100g:{ calories:230, protein:19,   fat:16,  carbs:0,  fiber:0 } },
+  { id:'f115', name:'芋頭',     state:'生食', category:'蔬菜',   per100g:{ calories:120, protein:2.4,  fat:0.2, carbs:26, fiber:3.5 } },
+  { id:'f116', name:'芋頭',     state:'熟食', category:'蔬菜',   per100g:{ calories:120, protein:2,    fat:0.2, carbs:26, fiber:3.5 } },
+  { id:'f117', name:'干貝',     state:'生食', category:'魚海鮮', per100g:{ calories:80,  protein:16,   fat:0.8, carbs:2,  fiber:0 } },
+  { id:'f118', name:'鮭魚',     state:'熟食', category:'魚海鮮', per100g:{ calories:240, protein:25,   fat:14,  carbs:0,  fiber:0 } },
 ];
 
 // 每次擴充 DEFAULT_FOOD_DB 就 +1；initStorage 會把新的預設併入既有使用者的食物庫
 // （同名者略過，以使用者手動新增的為準）。
-const FOOD_DEFAULTS_VERSION = 8;
+const FOOD_DEFAULTS_VERSION = 9;
 
 // 升級時「只」對這幾筆預設強制同步分類（修正曾經分錯類的品項）；
 // 其餘一律保留使用者自己的分類編輯，不覆蓋。
 const CATEGORY_FIX_IDS = ['f055', 'f056', 'f096', 'f098'];
 
 // 顯示在「設定」最上方的版本 / 最後更新日期（每次部署時一起更新）
-const APP_VERSION = 'v45';
-const APP_UPDATED = '2026/08/10';
+const APP_VERSION = 'v46';
+const APP_UPDATED = '2026/08/12';
 
 // 系統更新公告（顯示在通知中心「系統更新」）。最新的放最前面。
 // 每次要 push 前，把該次更新內容加成一筆新的（version 用日期），使用者打開通知中心就會看到。
