@@ -2004,7 +2004,7 @@ body.storage-error .page { padding-top: 44px; }
 .ms-item .ms-check { align-self: center; }
 .ms-item .icon-btn { align-self: center; }
 .ms-item-body { flex: 1; min-width: 0; }
-.ms-item-title { font-size: .9rem; font-weight: 700; color: var(--text-1); }
+.ms-item-title { font-size: .9rem; font-weight: 600; color: var(--text-2); }
 .ms-item-title.done { text-decoration: line-through; color: var(--text-3); }
 .ms-item-sub { font-size: .76rem; color: var(--text-3); margin-top: 3px; }
 .ms-item-date { font-size: .76rem; color: var(--text-3); margin-top: 3px; }
@@ -2019,7 +2019,7 @@ body.storage-error .page { padding-top: 44px; }
 .ms-field select, .ms-field input { padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text-1); font-family: var(--font); font-size: .9rem; }
 .ms-cur-hint { font-size: .76rem; color: var(--sage); margin: -4px 0 12px; }
 .hrec-sleep-row .qw-btn { margin-left: auto; }
-.hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px calc(2.8em + 8px); }
+.hrec-sleep-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 0 8px calc(2.1rem + 8px); }
 .hrec-sleep-chip { font-size: .78rem; background: var(--sage-pale); color: var(--sage); border-radius: 12px; padding: 3px 4px 3px 10px; }
 .hrec-sleep-x { border: none; background: none; color: var(--sage); cursor: pointer; font-size: .72rem; padding: 0 4px; }
 .hrec-sleep-empty { font-size: .78rem; color: var(--text-3); }
@@ -2771,6 +2771,13 @@ body.storage-error .page { padding-top: 44px; }
 .settings-row-desc  { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
 .settings-row-arrow { color: var(--text-3); flex-shrink: 0; }
 .settings-row-divider { height: 1px; background: var(--border); margin: 0 16px; }
+/* 子項：睡眠早上提醒隸屬於「顯示睡眠記錄」，用縮排 + 轉角線表達層級 */
+.settings-subrow { padding-left: 44px; position: relative; }
+.settings-subrow::before {
+  content: ''; position: absolute; left: 22px; top: 0; width: 12px; height: 50%;
+  border-left: 2px solid var(--border); border-bottom: 2px solid var(--border);
+  border-bottom-left-radius: 7px;
+}
 
 /* ===== THEME PICKER ===== */
 .theme-swatch-row {

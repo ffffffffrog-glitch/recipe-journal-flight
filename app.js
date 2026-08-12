@@ -6044,14 +6044,18 @@ function renderInbody() {
     <div class="weight-7d-card" style="margin-top:12px">
       <div class="weight-7d-title">肌肉量趨勢 (kg)</div>
       <canvas id="trend-muscle" class="weight-7d-canvas" onclick="openTrendDetail('muscle','kg','#4A7FA5',false,'肌肉量趨勢')"></canvas>
-    </div>
-    <div class="weight-7d-card" style="margin-top:12px;margin-bottom:14px">
+    </div>`;
+  const showWaist = getData('showWaist', true) !== false;
+  if (showWaist) {
+    html += `
+    <div class="weight-7d-card" style="margin-top:12px">
       <div class="weight-7d-title">腰圍趨勢 (cm)</div>
       <canvas id="trend-waist" class="weight-7d-canvas"></canvas>
     </div>`;
+  }
 
   // 新增體組成記錄按鈕
-  html += `<button class="inbody-add-btn" onclick="openAddInbodySheet()">＋ 新增完整體組成記錄</button>`;
+  html += `<button class="inbody-add-btn" style="margin-top:14px" onclick="openAddInbodySheet()">＋ 新增完整體組成記錄</button>`;
 
   // 完整記錄輪播（五角星卡片）
   if (records.length) {
@@ -6897,10 +6901,10 @@ function _showSleepPrompt() {
     <div class="bottom-sheet" style="max-width:380px;padding:28px 24px">
       <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;text-align:center">🌙 昨晚睡眠</div>
       <div style="font-size:.85rem;color:var(--text-2);margin-bottom:20px;text-align:center">記錄昨晚的就寢與起床時間</div>
-      <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:20px" class="hrec-sleep-row">
-        <span class="hrec-tgrp">${_hhmmSelect('sp-start', 23, 0)}</span>
-        <span style="color:var(--text-3)">→</span>
-        <span class="hrec-tgrp">${_hhmmSelect('sp-end', 7, 0)}</span>
+      <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:20px">
+        <input type="text" id="sp-start-box" class="qw-input hrec-timebox" readonly placeholder="就寢" onclick="openTimePicker('sp-start-box','就寢',23,0)" style="flex:0 0 110px">
+        <span style="color:var(--text-3)">-</span>
+        <input type="text" id="sp-end-box" class="qw-input hrec-timebox" readonly placeholder="起床" onclick="openTimePicker('sp-end-box','起床',7,0)" style="flex:0 0 110px">
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn-ghost" style="flex:1" onclick="document.getElementById('sleep-prompt-overlay').remove();document.body.style.overflow=''">跳過</button>
@@ -6911,10 +6915,9 @@ function _showSleepPrompt() {
   document.body.style.overflow = 'hidden';
 }
 function saveSleepFromPrompt() {
-  const sh = document.getElementById('sp-start-h')?.value, sm = document.getElementById('sp-start-m')?.value;
-  const eh = document.getElementById('sp-end-h')?.value, em = document.getElementById('sp-end-m')?.value;
-  if (sh == null || sm == null || eh == null || em == null) { showToast('請填就寢與起床時間'); return; }
-  const s = `${sh}:${sm}`, e = `${eh}:${em}`;
+  const s = document.getElementById('sp-start-box')?.value;
+  const e = document.getElementById('sp-end-box')?.value;
+  if (!s || !e) { showToast('請點選就寢與起床時間'); return; }
   if (s === e) { showToast('就寢與起床時間相同'); return; }
   const log = getData('sleepLog', {}); const t = todayStr();
   if (!log[t]) log[t] = [];
