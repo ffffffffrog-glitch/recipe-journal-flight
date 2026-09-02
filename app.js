@@ -4304,7 +4304,7 @@ function computeNotifications() {
       body:`本週 ${strength.length} 次重訓，平均蛋白質 ${Math.round(avgProtein)} g（${(avgProtein/weight).toFixed(1)} g/kg），增肌條件到位` });
   }
 
-  return notifs.map(n => ({ ...n, section: '週況' }));
+  return notifs.map(n => ({ ...n, section: '週況', id: 'wk_' + _currentWeekStr() + '_' + (n.cat || n.title) }));
 }
 
 function _daysSince(dateStr) {
@@ -4415,10 +4415,17 @@ function markNotifRead() {
   if (dot) dot.style.display = _hasBadge() ? '' : 'none';
 }
 
+// 這幾種是「會再次出現」的通知，靠各自的節流／ack 控制（不做永久刪除），其餘一律以 id 記入 dismissedIds
+const _NOTIF_RECURRING = new Set(['backupReminder', 'archiveFallback', 'storageFull']);
 function clearNotifCenter() {
   _ackCurrentNotifications();
   const acked = getData('notifAcked', {});
-  acked.contentCleared = true;
+  const dis = acked.dismissedIds || {};
+  [..._getSystemNotifications(), ...computeNotifications()].forEach(n => {
+    if (n.id && !_NOTIF_RECURRING.has(n.id)) dis[n.id] = 1;
+  });
+  acked.dismissedIds = dis;
+  delete acked.contentCleared;   // 淘汰舊的單一旗標（一有新通知就會把刪掉的全部復活）
   setData('notifAcked', acked);
   closeBottomSheet('sheet-notif-center');
   const dot = document.getElementById('profile-notif-dot');
@@ -4427,23 +4434,11 @@ function clearNotifCenter() {
 
 function openNotifCenter() {
   const acked = getData('notifAcked', {});
+  const dis = acked.dismissedIds || {};
   const sysNotifs = _getSystemNotifications();
   const weeklyNotifs = computeNotifications();
-  const storageFullNotifs = sysNotifs.filter(n => n.id === 'storageFull');
-  let displayNotifs;
-  if (acked.contentCleared) {
-    const hasNewContent = _hasBadge() && !_storageFullError;
-    if (hasNewContent) {
-      delete acked.contentCleared;
-      setData('notifAcked', acked);
-      displayNotifs = [...sysNotifs, ...weeklyNotifs];
-    } else {
-      displayNotifs = [...storageFullNotifs];
-    }
-  } else {
-    displayNotifs = [...sysNotifs, ...weeklyNotifs];
-  }
-  const allNotifs = displayNotifs;
+  // 只隱藏「使用者刪過、且不是會重複出現的」那幾則；新通知(新 id)照常顯示，刪掉的不會因為有新通知就全部復活
+  const allNotifs = [...sysNotifs, ...weeklyNotifs].filter(n => n.id === 'storageFull' || !dis[n.id]);
   if (allNotifs.some(n => n.id === 'backupReminder')) setData('lastBackupReminderAt', todayStr());
   const el = document.getElementById('notif-center-body');
   if (!el) return;
@@ -7843,7 +7838,8 @@ async function renderQuests() {
         <p style="font-size:.8rem;color:var(--text-3);margin-top:4px">每天早上 9 點後更新，且任務庫尚無資料</p>
       </div>`;
   } else {
-    const isStale = tasks.date !== today && tasks.date !== yesterdayStr();
+    const isStale   = tasks.date !== today && tasks.date !== yesterdayStr();
+    const showStale = tasks.date !== today && !usingArchiveFallback;   // 昨天也標示「更新中」
     if (!done[today]) {
       done[today] = {
         main: tasks.main.map(() => false), side: tasks.side.map(() => false),
@@ -7852,16 +7848,19 @@ async function renderQuests() {
       setData('dailyQuestsDone', done);
     }
     const td = done[today];
-    if (!td.mainTasks) { td.mainTasks = [...tasks.main]; td.sideTasks = [...tasks.side]; setData('dailyQuestsDone', done); }
-    // If we now have real today's tasks but content differs from what was cached (stale init), refresh text
-    if (!isStale && td.mainTasks.join('|') !== tasks.main.join('|')) {
-      td.mainTasks = [...tasks.main]; td.sideTasks = [...tasks.side];
-      while (td.main.length < tasks.main.length) td.main.push(false);
-      while (td.side.length < tasks.side.length) td.side.push(false);
-      setData('dailyQuestsDone', done);
+    if (!td.mainTasks) { td.mainTasks = [...tasks.main]; td.sideTasks = [...tasks.side]; }
+    // 有今天/昨天的實際任務時，若和 td 記的不同（數量或內容）→ 以實際任務為準重置。
+    // 這一步會把「殘留昨天／堆疊到多天」的舊 mainTasks 換成今天的正確清單。
+    if (!isStale) {
+      if (td.mainTasks.length !== tasks.main.length || td.mainTasks.join('|') !== tasks.main.join('|')) td.mainTasks = [...tasks.main];
+      if (td.sideTasks.length !== tasks.side.length || td.sideTasks.join('|') !== tasks.side.join('|')) td.sideTasks = [...tasks.side];
     }
-    while (td.main.length < tasks.main.length) td.main.push(false);
-    while (td.side.length < tasks.side.length) td.side.push(false);
+    // 保底：checkbox 陣列嚴格對齊 mainTasks（截斷多出來的、補足不夠的）→ 畫面永遠不會多出別天的任務列
+    td.main = (td.main || []).slice(0, td.mainTasks.length);
+    while (td.main.length < td.mainTasks.length) td.main.push(false);
+    td.side = (td.side || []).slice(0, td.sideTasks.length);
+    while (td.side.length < td.sideTasks.length) td.side.push(false);
+    setData('dailyQuestsDone', done);
 
     const mainDone = td.main.filter(Boolean).length;
     const sideDone = td.side.filter(Boolean).length;
@@ -7874,7 +7873,7 @@ async function renderQuests() {
     const remainN = totalN - doneN;
 
     dailyHtml = `
-      ${isStale && !usingArchiveFallback ? `<div class="quest-stale-banner">${icon('info', 13)} 顯示 ${tasks.date} 的任務，今日任務更新中</div>` : ''}
+      ${showStale ? `<div class="quest-stale-banner">${icon('info', 13)} 顯示 ${tasks.date} 的任務，今日任務更新中</div>` : ''}
       ${usingArchiveFallback ? `<div class="quest-stale-banner" style="background:#e8f2ff;border-left-color:#4a7fc0;color:#1a5ea0">${icon('info', 13)} 無法取得最新任務，以下為任務庫隨機任務</div>` : ''}
       <div class="quest-header-card ${allDone ? 'all-done' : ''}">
         <div class="qhc-ring" style="--p:${pctN}"><b class="tnum">${doneN}/${totalN}</b></div>

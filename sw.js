@@ -1,4 +1,4 @@
-const CACHE = 'recipe-app-v93';
+const CACHE = 'recipe-app-v94';
 
 const SHELL = [
   './',
